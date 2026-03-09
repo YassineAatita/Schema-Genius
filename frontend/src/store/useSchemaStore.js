@@ -77,6 +77,44 @@ const useSchemaStore = create((set, get) => ({
     }))
   },
 
+updateNodeData: (nodeId, newData) => {
+  set((state) => ({
+    nodes: state.nodes.map(n =>
+      n.id === nodeId
+        ? { ...n, data: { ...n.data, ...newData } }
+        : n
+    ),
+    isDirty: true,
+  }))
+},
+
+deleteNode: (nodeId) => {
+  set((state) => ({
+    nodes: state.nodes.filter(n => n.id !== nodeId),
+    edges: state.edges.filter(e => e.source !== nodeId && e.target !== nodeId),
+    isDirty: true,
+  }))
+},
+
+    updateNodeData: (nodeId, newData) => {
+      set((state) => ({
+        nodes: state.nodes.map(n =>
+          n.id === nodeId
+            ? { ...n, data: { ...n.data, ...newData } }
+            : n
+        ),
+        isDirty: true,
+      }))
+    },
+
+    deleteNode: (nodeId) => {
+      set((state) => ({
+        nodes: state.nodes.filter(n => n.id !== nodeId),
+        edges: state.edges.filter(e => e.source !== nodeId && e.target !== nodeId),
+        isDirty: true,
+      }))
+    },
+
   markSaved: () => set({ isDirty: false }),
 }))
 

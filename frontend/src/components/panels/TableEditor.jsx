@@ -11,25 +11,29 @@ const COLUMN_TYPES = [
 
 export default function TableEditor({ nodeId, onClose }) {
   const { nodes, updateNodeData, deleteNode } = useSchemaStore()
-  const node = nodes.find(n => n.id === nodeId)
 
   const [tableName, setTableName] = useState('')
   const [columns,   setColumns]   = useState([])
   const [isDirty,   setIsDirty]   = useState(false)
   const [saved,     setSaved]     = useState(false)
 
-  // Load fresh data only when switching to a different table
-  const loadedNodeId = useRef(null)
-  useEffect(() => {
+  const currentNodeId = useRef(null)
+
+  // Load data when nodeId changes — and ONLY then
+    useEffect(() => {
+    if (currentNodeId.current === nodeId) return
+    currentNodeId.current = nodeId
+
+    const node = nodes.find(n => n.id === nodeId)
     if (!node) return
-    if (loadedNodeId.current === nodeId) return
-    loadedNodeId.current = nodeId
+
     setTableName(node.data.name)
-    setColumns(node.data.columns || [])
+    setColumns(JSON.parse(JSON.stringify(node.data.columns || [])))
     setIsDirty(false)
     setSaved(false)
-  }, [nodeId, node])
+    }, [nodeId, nodes])  // ← add nodes here
 
+  const node = nodes.find(n => n.id === nodeId)
   if (!node) return null
 
   const handleNameChange = (val) => {
@@ -39,7 +43,7 @@ export default function TableEditor({ nodeId, onClose }) {
   }
 
   const addColumn = () => {
-    setColumns(prev => [...prev, {
+    const newCol = {
       id:            `col_${Date.now()}`,
       name:          'new_column',
       type:          'VARCHAR',
@@ -49,7 +53,8 @@ export default function TableEditor({ nodeId, onClose }) {
       autoIncrement: false,
       default:       null,
       fk:            false,
-    }])
+    }
+    setColumns(prev => [...prev, newCol])
     setIsDirty(true)
     setSaved(false)
   }
@@ -69,7 +74,9 @@ export default function TableEditor({ nodeId, onClose }) {
   }
 
   const handleSaveTable = () => {
-    updateNodeData(nodeId, { name: tableName, columns })
+    // Deep clone columns before saving to avoid reference issues
+    const colsToSave = JSON.parse(JSON.stringify(columns))
+    updateNodeData(nodeId, { name: tableName, columns: colsToSave })
     setIsDirty(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -156,35 +163,36 @@ export default function TableEditor({ nodeId, onClose }) {
       {/* Footer */}
       <div className="p-4 border-t border-gray-100 bg-gray-50 space-y-2">
 
-        {isDirty && !saved && (
+        {isDirty && (
           <p className="text-xs text-amber-600 text-center flex items-center justify-center gap-1">
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75
-                   1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92z
-                   M11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213
+                   2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11
+                   13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1
+                   1 0 00-1-1z"
                 clipRule="evenodd"/>
             </svg>
-            Unsaved changes in this table
+            Unsaved changes
           </p>
         )}
 
         <button
           onClick={handleSaveTable}
-          disabled={!isDirty && !saved}
+          disabled={false}
           className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all
             ${saved
               ? 'bg-green-500 text-white'
               : isDirty
-                ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'
             }`}
         >
           {saved
             ? <span className="flex items-center justify-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M5 13l4 4L19 7"/>
+                  <path strokeLinecap="round" strokeLinejoin="round"
+                    strokeWidth={2} d="M5 13l4 4L19 7"/>
                 </svg>
                 Table Saved!
               </span>
@@ -210,9 +218,11 @@ function ColumnRow({ col, onChange, onDelete }) {
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+
+      {/* Main row */}
       <div className="flex items-center gap-1.5 px-2 py-2 bg-gray-50">
 
-        {/* PK */}
+        {/* PK toggle */}
         <button
           onClick={() => onChange('pk', !col.pk)}
           title="Toggle Primary Key"
@@ -220,8 +230,8 @@ function ColumnRow({ col, onChange, onDelete }) {
             ${col.pk ? 'text-yellow-500' : 'text-gray-300 hover:text-gray-400'}`}>
           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd"
-              d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0
-                 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z"
+              d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6
+                 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z"
               clipRule="evenodd"/>
           </svg>
         </button>
@@ -253,7 +263,8 @@ function ColumnRow({ col, onChange, onDelete }) {
           className="text-gray-300 hover:text-gray-500 flex-shrink-0 transition-colors">
           <svg className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`}
             fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+            <path strokeLinecap="round" strokeLinejoin="round"
+              strokeWidth={2} d="M19 9l-7 7-7-7"/>
           </svg>
         </button>
 
@@ -262,12 +273,13 @@ function ColumnRow({ col, onChange, onDelete }) {
           onClick={onDelete}
           className="text-gray-300 hover:text-red-400 flex-shrink-0 transition-colors">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"/>
+            <path strokeLinecap="round" strokeLinejoin="round"
+              strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
       </div>
 
+      {/* Expanded */}
       {expanded && (
         <div className="px-3 py-3 space-y-2.5 bg-white border-t border-gray-100">
           <div className="grid grid-cols-2 gap-2">
