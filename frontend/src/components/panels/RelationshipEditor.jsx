@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import useSchemaStore from '../../store/useSchemaStore'
+import ConfirmModal from '../ui/ConfirmModal'
 
 const RELATIONSHIP_TYPES = [
   {
@@ -31,10 +32,11 @@ const RELATIONSHIP_TYPES = [
 export default function RelationshipEditor({ edge, onClose }) {
   const { nodes, updateEdge, deleteEdge, setEdges, edges } = useSchemaStore()
 
-  const [selectedType, setSelectedType] = useState('1:N')
-  const [sourceLabel,  setSourceLabel]  = useState('')
-  const [targetLabel,  setTargetLabel]  = useState('')
-  const [saved, setSaved]               = useState(false)
+  const [selectedType,   setSelectedType]   = useState('1:N')
+  const [sourceLabel,    setSourceLabel]    = useState('')
+  const [targetLabel,    setTargetLabel]    = useState('')
+  const [saved,          setSaved]          = useState(false)
+  const [showDelModal,   setShowDelModal]   = useState(false)
 
   const sourceNode = nodes.find(n => n.id === edge.source)
   const targetNode = nodes.find(n => n.id === edge.target)
@@ -67,8 +69,8 @@ export default function RelationshipEditor({ edge, onClose }) {
     setTimeout(() => setSaved(false), 2000)
   }
 
-  const handleDelete = () => {
-    if (!window.confirm('Delete this relationship?')) return
+  const handleDelete = () => setShowDelModal(true)
+  const confirmDelete = () => {
     deleteEdge(edge.id)
     onClose()
   }
@@ -248,6 +250,17 @@ export default function RelationshipEditor({ edge, onClose }) {
           Delete this relationship
         </button>
       </div>
+
+      <ConfirmModal
+        open={showDelModal}
+        variant="danger"
+        title="Delete relationship?"
+        message={`This will permanently remove the connection between ${sourceNode?.data?.name || 'source'} and ${targetNode?.data?.name || 'target'}.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDelModal(false)}
+      />
     </div>
   )
 }

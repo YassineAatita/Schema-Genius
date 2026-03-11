@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import useSchemaStore from '../../store/useSchemaStore'
+import ConfirmModal from '../ui/ConfirmModal'
 
 const COLUMN_TYPES = [
   'BIGINT','INT','SMALLINT',
@@ -12,10 +13,11 @@ const COLUMN_TYPES = [
 export default function TableEditor({ nodeId, onClose }) {
   const { nodes, updateNodeData, deleteNode } = useSchemaStore()
 
-  const [tableName, setTableName] = useState('')
-  const [columns,   setColumns]   = useState([])
-  const [isDirty,   setIsDirty]   = useState(false)
-  const [saved,     setSaved]     = useState(false)
+  const [tableName,     setTableName]     = useState('')
+  const [columns,       setColumns]       = useState([])
+  const [isDirty,       setIsDirty]       = useState(false)
+  const [saved,         setSaved]         = useState(false)
+  const [showDelModal,  setShowDelModal]  = useState(false)
 
   const currentNodeId = useRef(null)
 
@@ -82,8 +84,8 @@ export default function TableEditor({ nodeId, onClose }) {
     setTimeout(() => setSaved(false), 2000)
   }
 
-  const handleDeleteTable = () => {
-    if (!window.confirm(`Delete table "${tableName}"?`)) return
+  const handleDeleteTable = () => setShowDelModal(true)
+  const confirmDeleteTable = () => {
     deleteNode(nodeId)
     onClose()
   }
@@ -208,6 +210,17 @@ export default function TableEditor({ nodeId, onClose }) {
           Delete this table
         </button>
       </div>
+
+      <ConfirmModal
+        open={showDelModal}
+        variant="danger"
+        title="Delete table?"
+        message={`"${tableName}" and all its columns will be permanently removed from the schema.`}
+        confirmText="Delete table"
+        cancelText="Cancel"
+        onConfirm={confirmDeleteTable}
+        onCancel={() => setShowDelModal(false)}
+      />
     </div>
   )
 }

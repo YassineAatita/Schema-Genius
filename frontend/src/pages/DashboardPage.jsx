@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import useAuthStore from '../store/useAuthStore'
 import useProjectStore from '../store/useProjectStore'
 import api from '../services/api'
+import ConfirmModal from '../components/ui/ConfirmModal'
 
 export default function DashboardPage() {
   const navigate = useNavigate()
   const { user, setUser, logout } = useAuthStore()
   const { projects, loading, fetchProjects, deleteProject } = useProjectStore()
-  const [showModal, setShowModal] = useState(false)
-  const [search, setSearch] = useState('')
+  const [showModal,     setShowModal]     = useState(false)
+  const [search,        setSearch]        = useState('')
+  const [pendingDelete, setPendingDelete] = useState(null) // { id, name }
 
   // Load user + projects when page opens
   useEffect(() => {
@@ -27,9 +29,10 @@ export default function DashboardPage() {
     }
   }
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return
-    await deleteProject(id)
+  const handleDelete = (id, name) => setPendingDelete({ id, name })
+  const confirmDelete = async () => {
+    await deleteProject(pendingDelete.id)
+    setPendingDelete(null)
   }
 
   // Filter projects by search
@@ -162,6 +165,17 @@ export default function DashboardPage() {
           onClose={() => setShowModal(false)}
         />
       )}
+
+      <ConfirmModal
+        open={!!pendingDelete}
+        variant="danger"
+        title="Delete project?"
+        message={`"${pendingDelete?.name}" and all its schema data will be permanently deleted. This cannot be undone.`}
+        confirmText="Delete project"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

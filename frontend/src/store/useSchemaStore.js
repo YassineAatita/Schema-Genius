@@ -20,7 +20,6 @@ const useSchemaStore = create((set, get) => ({
   setNodes: (incomingNodes) => {
     set((state) => {
       // Merge incoming positions into existing nodes
-      // This prevents nodes from disappearing if React Flow passes partial list
       const positionMap = new Map(incomingNodes.map(n => [n.id, n.position]))
       const merged = state.nodes.map(n => ({
         ...n,
@@ -29,6 +28,7 @@ const useSchemaStore = create((set, get) => ({
       return { nodes: merged, isDirty: true }
     })
   },
+
   setEdges: (edges) => set({ edges, isDirty: true }),
 
   addTable: () => {
@@ -77,43 +77,29 @@ const useSchemaStore = create((set, get) => ({
     }))
   },
 
-updateNodeData: (nodeId, newData) => {
-  set((state) => ({
-    nodes: state.nodes.map(n =>
-      n.id === nodeId
-        ? { ...n, data: { ...n.data, ...newData } }
-        : n
-    ),
-    isDirty: true,
-  }))
-},
+  updateNodeData: (nodeId, newData) => {
+    set((state) => ({
+      nodes: state.nodes.map(n =>
+        n.id === nodeId
+          ? { ...n, data: { ...n.data, ...newData } }
+          : n
+      ),
+      isDirty: true,
+    }))
+  },
 
-deleteNode: (nodeId) => {
-  set((state) => ({
-    nodes: state.nodes.filter(n => n.id !== nodeId),
-    edges: state.edges.filter(e => e.source !== nodeId && e.target !== nodeId),
-    isDirty: true,
-  }))
-},
+  deleteNode: (nodeId) => {
+    set((state) => ({
+      nodes: state.nodes.filter(n => n.id !== nodeId),
+      edges: state.edges.filter(e => e.source !== nodeId && e.target !== nodeId),
+      isDirty: true,
+    }))
+  },
 
-    updateNodeData: (nodeId, newData) => {
-      set((state) => ({
-        nodes: state.nodes.map(n =>
-          n.id === nodeId
-            ? { ...n, data: { ...n.data, ...newData } }
-            : n
-        ),
-        isDirty: true,
-      }))
-    },
-
-    deleteNode: (nodeId) => {
-      set((state) => ({
-        nodes: state.nodes.filter(n => n.id !== nodeId),
-        edges: state.edges.filter(e => e.source !== nodeId && e.target !== nodeId),
-        isDirty: true,
-      }))
-    },
+  // Replace entire canvas with AI-generated schema
+  aiGenerate: (nodes, edges) => {
+    set({ nodes, edges, isDirty: true })
+  },
 
   markSaved: () => set({ isDirty: false }),
 }))

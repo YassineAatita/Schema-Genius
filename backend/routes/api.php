@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProjectController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\SchemaController;
+use App\Http\Controllers\Api\AiController;
 
 
 // ── Public routes ────────────────────────────────────────────────
@@ -28,6 +29,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Export SQL
     Route::get('/schemas/{id}/export/sql', [SchemaController::class, 'exportSql']);
+
+    // AI Schema Generation
+    Route::post('/ai/generate', [AiController::class, 'generate']);
 });
 
 // Test route — to be removed later
