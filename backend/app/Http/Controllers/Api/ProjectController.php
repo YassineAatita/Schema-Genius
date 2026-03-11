@@ -70,7 +70,7 @@ class ProjectController extends Controller
         ]);
 
         return response()->json(
-            $project->load('schema'),
+            array_merge($project->load('schema')->toArray(), ['is_owner' => true]),
             201
         );
     }
