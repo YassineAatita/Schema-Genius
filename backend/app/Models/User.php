@@ -43,7 +43,7 @@ class User extends Authenticatable
     public function collaboratingProjects()
     {
         return $this->belongsToMany(Project::class, 'project_collaborators')
-                    ->withPivot('role', 'invited_at')
+                    ->withPivot('role', 'status', 'invited_at')
                     ->withTimestamps();
     }
 }

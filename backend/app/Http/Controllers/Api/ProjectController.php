@@ -23,8 +23,9 @@ class ProjectController extends Controller
             ->get()
             ->map(fn($p) => array_merge($p->toArray(), ['is_owner' => true]));
 
-        // Projects I was invited to
+        // Projects I was invited to (accepted only)
         $sharedProjects = $user->collaboratingProjects()
+            ->wherePivot('status', 'accepted')
             ->withCount('collaborators')
             ->with('schema')
             ->latest()
@@ -130,6 +131,7 @@ class ProjectController extends Controller
     {
         $isOwner = $project->owner_id === $user->id;
         $isCollaborator = $project->collaborators
+            ->filter(fn($c) => $c->pivot->status === 'accepted')
             ->contains('id', $user->id);
 
         if (!$isOwner && !$isCollaborator) {

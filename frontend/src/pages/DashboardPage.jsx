@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from '../store/useAuthStore'
 import useProjectStore from '../store/useProjectStore'
@@ -11,16 +11,51 @@ export default function DashboardPage() {
   const { projects, loading, fetchProjects, deleteProject } = useProjectStore()
   const [showModal,     setShowModal]     = useState(false)
   const [search,        setSearch]        = useState('')
-  const [pendingDelete, setPendingDelete] = useState(null) // { id, name }
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [invitations,   setInvitations]   = useState([])
+  const [showInvites,   setShowInvites]   = useState(false)
+  const bellRef = useRef(null)
 
-  // Load user + projects when page opens
+  // Load user + projects + invitations on mount
   useEffect(() => {
     api.get('/auth/me')
       .then(res => setUser(res.data))
       .catch(() => { logout(); navigate('/login') })
 
     fetchProjects()
+    fetchInvitations()
   }, [])
+
+  // Close invite dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (bellRef.current && !bellRef.current.contains(e.target)) {
+        setShowInvites(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const fetchInvitations = async () => {
+    try {
+      const res = await api.get('/invitations')
+      setInvitations(res.data)
+    } catch {
+      // silently ignore
+    }
+  }
+
+  const handleAccept = async (projectId) => {
+    await api.post(`/invitations/${projectId}/accept`)
+    setInvitations(prev => prev.filter(i => i.project_id !== projectId))
+    fetchProjects() // reload so the accepted project appears
+  }
+
+  const handleDecline = async (projectId) => {
+    await api.post(`/invitations/${projectId}/decline`)
+    setInvitations(prev => prev.filter(i => i.project_id !== projectId))
+  }
 
   const handleLogout = async () => {
     try { await api.post('/auth/logout') } finally {
@@ -35,7 +70,6 @@ export default function DashboardPage() {
     setPendingDelete(null)
   }
 
-  // Filter projects by search
   const filtered = projects.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase())
   )
@@ -55,8 +89,69 @@ export default function DashboardPage() {
             </div>
             <span className="font-bold text-gray-900 text-lg">Schema-Genius</span>
           </div>
+
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">{user?.name}</span>
+
+            {/* Notification Bell */}
+            <div className="relative" ref={bellRef}>
+              <button
+                onClick={() => setShowInvites(v => !v)}
+                className="relative p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+                {invitations.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px]
+                                   font-bold rounded-full flex items-center justify-center leading-none">
+                    {invitations.length > 9 ? '9+' : invitations.length}
+                  </span>
+                )}
+              </button>
+
+              {/* Invite dropdown */}
+              {showInvites && (
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-800">Collaboration Invitations</p>
+                  </div>
+
+                  {invitations.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-sm text-gray-400">
+                      No pending invitations
+                    </div>
+                  ) : (
+                    <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+                      {invitations.map(inv => (
+                        <div key={inv.project_id} className="px-4 py-3">
+                          <p className="text-sm font-medium text-gray-900 truncate">{inv.project_name}</p>
+                          <p className="text-xs text-gray-400 mb-2">
+                            Invited by {inv.owner?.name} · as <span className="font-medium text-gray-600">{inv.role}</span>
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleAccept(inv.project_id)}
+                              className="flex-1 text-xs bg-blue-600 hover:bg-blue-700 text-white
+                                         py-1.5 rounded-lg font-medium transition-colors">
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => handleDecline(inv.project_id)}
+                              className="flex-1 text-xs border border-gray-200 hover:bg-red-50
+                                         hover:border-red-200 hover:text-red-500 text-gray-500
+                                         py-1.5 rounded-lg font-medium transition-colors">
+                              Decline
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <button onClick={handleLogout}
               className="text-sm text-gray-400 hover:text-red-500 transition-colors">
               Sign out

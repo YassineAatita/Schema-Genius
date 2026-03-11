@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\ProjectController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\SchemaController;
 use App\Http\Controllers\Api\AiController;
+use App\Http\Controllers\Api\CollaboratorController;
+use App\Http\Controllers\Api\InvitationController;
 
 
 // ── Public routes ────────────────────────────────────────────────
@@ -32,6 +34,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // AI Schema Generation
     Route::post('/ai/generate', [AiController::class, 'generate']);
+
+    // Collaborators
+    Route::get('/projects/{id}/collaborators',            [CollaboratorController::class, 'index']);
+    Route::post('/projects/{id}/collaborators',           [CollaboratorController::class, 'store']);
+    Route::put('/projects/{id}/collaborators/{userId}',   [CollaboratorController::class, 'update']);
+    Route::delete('/projects/{id}/collaborators/{userId}',[CollaboratorController::class, 'destroy']);
+
+    // Invitations
+    Route::get('/invitations',                            [InvitationController::class, 'index']);
+    Route::post('/invitations/{projectId}/accept',        [InvitationController::class, 'accept']);
+    Route::post('/invitations/{projectId}/decline',       [InvitationController::class, 'decline']);
 });
 
 // Test route — to be removed later

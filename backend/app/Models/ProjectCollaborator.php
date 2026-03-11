@@ -12,6 +12,7 @@ class ProjectCollaborator extends Model
         'project_id',
         'user_id',
         'role',
+        'status',
         'invited_at',
     ];
 

@@ -5,6 +5,7 @@ import SchemaCanvas from '../components/canvas/SchemaCanvas'
 import TableEditor from '../components/panels/TableEditor'
 import RelationshipEditor from '../components/panels/RelationshipEditor'
 import useSchemaStore from '../store/useSchemaStore'
+import useAuthStore from '../store/useAuthStore'
 import api from '../services/api'
 import ConfirmModal from '../components/ui/ConfirmModal'
 import { validateSchema } from '../utils/validateSchema'
@@ -13,8 +14,9 @@ export default function DesignerPage() {
   const { projectId } = useParams()
   const navigate      = useNavigate()
   const { loadSchema, addTable, nodes, edges, isDirty, markSaved, aiGenerate } = useSchemaStore()
+  const { user } = useAuthStore()
 
-  const [project,        setProject]        = useState(null)
+  const [project,          setProject]          = useState(null)
   const [selectedNode,   setSelectedNode]   = useState(null)
   const [selectedEdge,   setSelectedEdge]   = useState(null)
   const [saving,         setSaving]         = useState(false)
@@ -25,8 +27,12 @@ export default function DesignerPage() {
   const [aiPrompt,       setAiPrompt]       = useState('')
   const [aiLoading,      setAiLoading]      = useState(false)
   const [aiError,        setAiError]        = useState('')
-  const [showAiConfirm,  setShowAiConfirm]  = useState(false)
+  const [showAiConfirm,     setShowAiConfirm]     = useState(false)
+  const [showShareModal,    setShowShareModal]    = useState(false)
+  const [showTemplatesModal,setShowTemplatesModal]= useState(false)
   const pendingAiSchema = useRef(null)
+
+  const isOwner = project?.owner_id === user?.id
 
   // Run validation whenever nodes change
   const validationIssues = useMemo(() => validateSchema(nodes), [nodes])
@@ -130,6 +136,16 @@ export default function DesignerPage() {
       setAiPrompt('')
     }
     setShowAiConfirm(false)
+  }
+
+  const handleUseTemplate = (template) => {
+    setShowTemplatesModal(false)
+    if (nodes.length > 0) {
+      pendingAiSchema.current = template
+      setShowAiConfirm(true)
+    } else {
+      aiGenerate(template.nodes, template.edges)
+    }
   }
 
   const handleSave = async () => {
@@ -242,6 +258,19 @@ export default function DesignerPage() {
             AI Generate
           </button>
 
+          {/* Templates */}
+          <button
+            onClick={() => setShowTemplatesModal(true)}
+            className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg
+                       border border-gray-200 text-gray-600 bg-white
+                       hover:bg-gray-50 hover:border-gray-300 transition-all">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
+            </svg>
+            Templates
+          </button>
+
           <button
             onClick={addTable}
             className="flex items-center gap-1.5 text-sm text-gray-700 border border-gray-200
@@ -295,6 +324,21 @@ export default function DesignerPage() {
             </svg>
             Export SQL
           </button>
+
+          {/* Share — owner only */}
+          {isOwner && (
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg
+                         border border-emerald-200 text-emerald-600 bg-emerald-50
+                         hover:bg-emerald-100 hover:border-emerald-300 transition-all">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+              Share
+            </button>
+          )}
 
           <button
             onClick={handleSave}
@@ -418,6 +462,23 @@ export default function DesignerPage() {
         onGenerate={handleAiGenerate}
         onClose={() => setShowAiModal(false)}
       />}
+
+      {/* ── Share Modal ── */}
+      {showShareModal && (
+        <ShareModal
+          projectId={projectId}
+          project={project}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
+
+      {/* ── Templates Modal ── */}
+      {showTemplatesModal && (
+        <TemplatesModal
+          onUseTemplate={handleUseTemplate}
+          onClose={() => setShowTemplatesModal(false)}
+        />
+      )}
     </div>
   )
 }
@@ -698,6 +759,344 @@ function AiModal({ prompt, onPromptChange, loading, error, onGenerate, onClose }
               </>
             )}
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Share Modal ───────────────────────────────────────────────────
+function ShareModal({ projectId, project, onClose }) {
+  const [collaborators, setCollaborators] = useState([])
+  const [loading,       setLoading]       = useState(true)
+  const [inviteEmail,   setInviteEmail]   = useState('')
+  const [inviteRole,    setInviteRole]    = useState('editor')
+  const [inviting,      setInviting]      = useState(false)
+  const [inviteError,   setInviteError]   = useState('')
+  const [inviteSuccess, setInviteSuccess] = useState('')
+
+  useEffect(() => {
+    api.get(`/projects/${projectId}/collaborators`)
+      .then(res => setCollaborators(res.data))
+      .finally(() => setLoading(false))
+    const fn = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', fn)
+    return () => window.removeEventListener('keydown', fn)
+  }, [])
+
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) return
+    setInviting(true); setInviteError(''); setInviteSuccess('')
+    try {
+      const res = await api.post(`/projects/${projectId}/collaborators`, { email: inviteEmail.trim(), role: inviteRole })
+      setCollaborators(prev => [...prev, res.data])
+      setInviteEmail('')
+      setInviteSuccess(`Invitation sent to ${res.data.name}! They need to accept it.`)
+      setTimeout(() => setInviteSuccess(''), 3000)
+    } catch (err) {
+      setInviteError(err.response?.data?.message || 'No account found with that email.')
+    } finally { setInviting(false) }
+  }
+
+  const handleRemove = async (userId) => {
+    await api.delete(`/projects/${projectId}/collaborators/${userId}`).catch(() => {})
+    setCollaborators(prev => prev.filter(c => c.id !== userId))
+  }
+
+  const handleRoleChange = async (userId, role) => {
+    await api.put(`/projects/${projectId}/collaborators/${userId}`, { role }).catch(() => {})
+    setCollaborators(prev => prev.map(c => c.id === userId ? { ...c, role } : c))
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-modal overflow-hidden">
+
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-emerald-600 rounded-xl flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+            </div>
+            <div>
+              <h2 className="font-bold text-gray-900 text-sm">Share Project</h2>
+              <p className="text-xs text-gray-500">Invite teammates to collaborate</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+
+          {/* Owner */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Owner</p>
+            <div className="flex items-center gap-3 px-3 py-2.5 bg-blue-50 rounded-xl border border-blue-100">
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-xs font-bold">{project?.owner?.name?.[0]?.toUpperCase()}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{project?.owner?.name}</p>
+                <p className="text-xs text-gray-500 truncate">{project?.owner?.email}</p>
+              </div>
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Owner</span>
+            </div>
+          </div>
+
+          {/* Collaborators */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+              Collaborators
+              {collaborators.length > 0 && (
+                <span className="ml-1 font-normal text-gray-400">
+                  ({collaborators.filter(c => c.status === 'accepted').length} accepted
+                  {collaborators.filter(c => c.status === 'pending').length > 0 &&
+                    `, ${collaborators.filter(c => c.status === 'pending').length} pending`})
+                </span>
+              )}
+            </p>
+            {loading ? (
+              <p className="text-center py-4 text-gray-400 text-sm">Loading...</p>
+            ) : collaborators.length === 0 ? (
+              <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-xs">
+                No collaborators yet. Invite someone below!
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {collaborators.map(c => {
+                  const isPending = c.status === 'pending'
+                  return (
+                    <div key={c.id}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border
+                        ${isPending
+                          ? 'bg-amber-50 border-amber-100'
+                          : 'bg-gray-50 border-gray-100'}`}>
+
+                      {/* Avatar */}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
+                        ${isPending ? 'bg-amber-400' : 'bg-gray-400'}`}>
+                        <span className="text-white text-xs font-bold">{c.name?.[0]?.toUpperCase()}</span>
+                      </div>
+
+                      {/* Name + email */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
+                          {isPending && (
+                            <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200
+                                             px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">
+                              Pending
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 truncate">{c.email}</p>
+                      </div>
+
+                      {/* Role selector — disabled while pending */}
+                      <select
+                        value={c.role}
+                        onChange={e => handleRoleChange(c.id, e.target.value)}
+                        disabled={isPending}
+                        title={isPending ? 'Cannot change role until invitation is accepted' : ''}
+                        className={`text-xs border rounded-lg px-2 py-1 outline-none flex-shrink-0
+                          ${isPending
+                            ? 'bg-amber-50 border-amber-200 text-amber-500 cursor-not-allowed opacity-70'
+                            : 'bg-white border-gray-200 text-gray-600 cursor-pointer'}`}>
+                        <option value="editor">Editor</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+
+                      {/* Remove button */}
+                      <button
+                        onClick={() => handleRemove(c.id)}
+                        title={isPending ? 'Cancel invitation' : 'Remove collaborator'}
+                        className="text-gray-300 hover:text-red-400 transition-colors p-1 flex-shrink-0 rounded-lg hover:bg-red-50">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Invite form */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Invite by email</p>
+            {inviteSuccess && <div className="mb-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">{inviteSuccess}</div>}
+            {inviteError   && <div className="mb-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{inviteError}</div>}
+            <div className="flex gap-2 mb-2">
+              <input type="email" value={inviteEmail}
+                onChange={e => { setInviteEmail(e.target.value); setInviteError('') }}
+                onKeyDown={e => e.key === 'Enter' && handleInvite()}
+                placeholder="colleague@example.com"
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm
+                           focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+              <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
+                className="text-sm border border-gray-200 rounded-xl px-3 bg-white outline-none text-gray-600 cursor-pointer">
+                <option value="editor">Editor</option>
+                <option value="viewer">Viewer</option>
+              </select>
+            </div>
+            <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}
+              className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2
+                ${inviting || !inviteEmail.trim()
+                  ? 'bg-emerald-100 text-emerald-400 cursor-not-allowed'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}>
+              {inviting ? 'Sending...' : 'Send Invite'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Schema Templates ──────────────────────────────────────────────
+const col = (id, name, type, opts = {}) => ({
+  id, name, type,
+  nullable:      opts.nullable      ?? false,
+  pk:            opts.pk            ?? false,
+  unique:        opts.unique        ?? false,
+  autoIncrement: opts.autoIncrement ?? false,
+  default:       opts.default       ?? null,
+  fk:            opts.fk            ?? false,
+})
+const pkCol  = (id, name='id') => col(id, name, 'BIGINT', { pk: true, unique: true, autoIncrement: true })
+const fkCol  = (id, name)       => col(id, name, 'BIGINT', { fk: true })
+const fkNullCol = (id, name)    => col(id, name, 'BIGINT', { fk: true, nullable: true })
+
+const SCHEMA_TEMPLATES = [
+  {
+    id: 'blog', name: 'Blog Platform',
+    description: 'Users, posts, categories, comments, and tags with a post-tag pivot table.',
+    tableCount: 6, edgeCount: 6,
+    color: 'bg-purple-600',
+    icon: <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>,
+    nodes: [
+      { id:'bt_users',     type:'tableNode', position:{x:80,  y:80},  data:{name:'users',     columns:[pkCol('bu1'),col('bu2','name','VARCHAR'),col('bu3','email','VARCHAR',{unique:true}),col('bu4','password','VARCHAR')]}},
+      { id:'bt_categories',type:'tableNode', position:{x:80,  y:360}, data:{name:'categories',columns:[pkCol('bc1'),col('bc2','name','VARCHAR',{unique:true}),col('bc3','slug','VARCHAR',{unique:true})]}},
+      { id:'bt_posts',     type:'tableNode', position:{x:460, y:80},  data:{name:'posts',     columns:[pkCol('bp1'),fkCol('bp2','user_id'),fkNullCol('bp3','category_id'),col('bp4','title','VARCHAR'),col('bp5','body','TEXT'),col('bp6','published_at','DATETIME',{nullable:true})]}},
+      { id:'bt_comments',  type:'tableNode', position:{x:460, y:380}, data:{name:'comments',  columns:[pkCol('bm1'),fkCol('bm2','post_id'),fkCol('bm3','user_id'),col('bm4','body','TEXT')]}},
+      { id:'bt_tags',      type:'tableNode', position:{x:840, y:80},  data:{name:'tags',      columns:[pkCol('bt1'),col('bt2','name','VARCHAR',{unique:true})]}},
+      { id:'bt_post_tags', type:'tableNode', position:{x:840, y:360}, data:{name:'post_tags', columns:[pkCol('bpt1'),fkCol('bpt2','post_id'),fkCol('bpt3','tag_id')]}},
+    ],
+    edges: [
+      {id:'be1',source:'bt_users',    target:'bt_posts',    type:'smoothstep',data:{type:'1:N',sourceLabel:'writes',targetLabel:''}},
+      {id:'be2',source:'bt_categories',target:'bt_posts',   type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+      {id:'be3',source:'bt_posts',    target:'bt_comments', type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+      {id:'be4',source:'bt_users',    target:'bt_comments', type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+      {id:'be5',source:'bt_posts',    target:'bt_post_tags',type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+      {id:'be6',source:'bt_tags',     target:'bt_post_tags',type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+    ],
+  },
+  {
+    id: 'ecommerce', name: 'E-Commerce Store',
+    description: 'Products, categories, orders, order items, customers, and product reviews.',
+    tableCount: 6, edgeCount: 6,
+    color: 'bg-blue-600',
+    icon: <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>,
+    nodes: [
+      { id:'ec_users',      type:'tableNode', position:{x:80,  y:80},  data:{name:'users',      columns:[pkCol('eu1'),col('eu2','name','VARCHAR'),col('eu3','email','VARCHAR',{unique:true}),col('eu4','password','VARCHAR')]}},
+      { id:'ec_categories', type:'tableNode', position:{x:80,  y:360}, data:{name:'categories', columns:[pkCol('ec1'),col('ec2','name','VARCHAR',{unique:true}),col('ec3','description','TEXT',{nullable:true})]}},
+      { id:'ec_products',   type:'tableNode', position:{x:460, y:80},  data:{name:'products',   columns:[pkCol('ep1'),fkCol('ep2','category_id'),col('ep3','name','VARCHAR'),col('ep4','price','DECIMAL'),col('ep5','stock','INT',{default:'0'})]}},
+      { id:'ec_orders',     type:'tableNode', position:{x:460, y:380}, data:{name:'orders',     columns:[pkCol('eo1'),fkCol('eo2','user_id'),col('eo3','status','ENUM',{default:'pending'}),col('eo4','total_amount','DECIMAL')]}},
+      { id:'ec_order_items',type:'tableNode', position:{x:840, y:80},  data:{name:'order_items',columns:[pkCol('ei1'),fkCol('ei2','order_id'),fkCol('ei3','product_id'),col('ei4','quantity','INT'),col('ei5','unit_price','DECIMAL')]}},
+      { id:'ec_reviews',    type:'tableNode', position:{x:840, y:380}, data:{name:'reviews',    columns:[pkCol('er1'),fkCol('er2','product_id'),fkCol('er3','user_id'),col('er4','rating','INT'),col('er5','body','TEXT',{nullable:true})]}},
+    ],
+    edges: [
+      {id:'ee1',source:'ec_users',     target:'ec_orders',     type:'smoothstep',data:{type:'1:N',sourceLabel:'places',targetLabel:''}},
+      {id:'ee2',source:'ec_categories',target:'ec_products',   type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+      {id:'ee3',source:'ec_orders',    target:'ec_order_items',type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+      {id:'ee4',source:'ec_products',  target:'ec_order_items',type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+      {id:'ee5',source:'ec_products',  target:'ec_reviews',    type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+      {id:'ee6',source:'ec_users',     target:'ec_reviews',    type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+    ],
+  },
+  {
+    id: 'saas', name: 'SaaS Platform',
+    description: 'Organizations, members, subscriptions, and invoices for a multi-tenant app.',
+    tableCount: 5, edgeCount: 5,
+    color: 'bg-indigo-600',
+    icon: <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>,
+    nodes: [
+      { id:'ss_users', type:'tableNode', position:{x:80,  y:80},  data:{name:'users',         columns:[pkCol('su1'),col('su2','name','VARCHAR'),col('su3','email','VARCHAR',{unique:true}),col('su4','password','VARCHAR')]}},
+      { id:'ss_orgs',  type:'tableNode', position:{x:460, y:80},  data:{name:'organizations', columns:[pkCol('so1'),fkCol('so2','owner_id'),col('so3','name','VARCHAR'),col('so4','plan','ENUM',{default:'free'})]}},
+      { id:'ss_mbrs',  type:'tableNode', position:{x:80,  y:380}, data:{name:'org_members',   columns:[pkCol('sm1'),fkCol('sm2','org_id'),fkCol('sm3','user_id'),col('sm4','role','ENUM',{default:'member'})]}},
+      { id:'ss_subs',  type:'tableNode', position:{x:460, y:380}, data:{name:'subscriptions', columns:[pkCol('ss1'),fkCol('ss2','org_id'),col('ss3','plan','ENUM'),col('ss4','status','ENUM',{default:'active'}),col('ss5','expires_at','DATETIME',{nullable:true})]}},
+      { id:'ss_invs',  type:'tableNode', position:{x:840, y:230}, data:{name:'invoices',      columns:[pkCol('si1'),fkCol('si2','subscription_id'),col('si3','amount','DECIMAL'),col('si4','status','ENUM',{default:'unpaid'}),col('si5','issued_at','DATE')]}},
+    ],
+    edges: [
+      {id:'se1',source:'ss_users',target:'ss_orgs', type:'smoothstep',data:{type:'1:N',sourceLabel:'owns',targetLabel:''}},
+      {id:'se2',source:'ss_orgs', target:'ss_mbrs', type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+      {id:'se3',source:'ss_users',target:'ss_mbrs', type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+      {id:'se4',source:'ss_orgs', target:'ss_subs', type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+      {id:'se5',source:'ss_subs', target:'ss_invs', type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
+    ],
+  },
+]
+
+// ── Templates Modal ───────────────────────────────────────────────
+function TemplatesModal({ onUseTemplate, onClose }) {
+  useEffect(() => {
+    const fn = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', fn)
+    return () => window.removeEventListener('keydown', fn)
+  }, [])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl animate-modal overflow-hidden">
+
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+          <div>
+            <h2 className="font-bold text-gray-900">Schema Templates</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Start from a pre-built schema and customize it</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {SCHEMA_TEMPLATES.map(t => (
+            <div key={t.id}
+              className="border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-md
+                         transition-all flex flex-col">
+              <div className={`w-10 h-10 ${t.color} rounded-xl flex items-center justify-center mb-3`}>
+                {t.icon}
+              </div>
+              <h3 className="font-semibold text-gray-900 text-sm mb-1">{t.name}</h3>
+              <p className="text-xs text-gray-500 leading-relaxed mb-4 flex-1">{t.description}</p>
+              <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
+                <span>{t.tableCount} tables</span>
+                <span>{t.edgeCount} relations</span>
+              </div>
+              <button
+                onClick={() => onUseTemplate(t)}
+                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs
+                           font-semibold rounded-lg transition-colors">
+                Use Template
+              </button>
+            </div>
+          ))}
         </div>
       </div>
     </div>

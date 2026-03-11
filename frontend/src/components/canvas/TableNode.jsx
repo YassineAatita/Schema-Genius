@@ -87,11 +87,11 @@ export default function TableNode({ data, selected }) {
         )}
       </div>
 
-      {/* Connection handles — invisible dots on edges for drawing relationships */}
-      <Handle type="target" position={Position.Left}
-        className="!w-3 !h-3 !bg-blue-400 !border-2 !border-white"/>
-      <Handle type="source" position={Position.Right}
-        className="!w-3 !h-3 !bg-blue-400 !border-2 !border-white"/>
+      {/* 4-way handles — connect from/to any side */}
+      <Handle type="source" position={Position.Top}    id="top"    className="!w-2.5 !h-2.5 !bg-blue-400 !border-2 !border-white"/>
+      <Handle type="source" position={Position.Right}  id="right"  className="!w-2.5 !h-2.5 !bg-blue-400 !border-2 !border-white"/>
+      <Handle type="source" position={Position.Bottom} id="bottom" className="!w-2.5 !h-2.5 !bg-blue-400 !border-2 !border-white"/>
+      <Handle type="source" position={Position.Left}   id="left"   className="!w-2.5 !h-2.5 !bg-blue-400 !border-2 !border-white"/>
     </div>
   )
 }

@@ -33,7 +33,7 @@ class Project extends Model
     public function collaborators()
     {
         return $this->belongsToMany(User::class, 'project_collaborators')
-                    ->withPivot('role', 'invited_at')
+                    ->withPivot('role', 'status', 'invited_at')
                     ->withTimestamps();
     }
 
