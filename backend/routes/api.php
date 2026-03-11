@@ -25,6 +25,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Schemas
     Route::get('/schemas/{id}',  [SchemaController::class, 'show']);
     Route::put('/schemas/{id}',  [SchemaController::class, 'update']);
+
+    // Export SQL
+    Route::get('/schemas/{id}/export/sql', [SchemaController::class, 'exportSql']);
 });
 
 // Test route — to be removed later

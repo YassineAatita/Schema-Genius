@@ -7,6 +7,7 @@ use App\Models\Schema;
 use App\Models\SchemaVersion;
 use Illuminate\Http\Request;
 
+
 class SchemaController extends Controller
 {
     // GET /api/schemas/{id}
@@ -49,4 +50,30 @@ class SchemaController extends Controller
             'version' => $version,
         ]);
     }
+
+    public function exportSql($id, Request $request)
+    {
+        $schema = Schema::with('currentVersion')->findOrFail($id);
+
+        if (!$schema->currentVersion) {
+            return response()->json([
+                'message' => 'No saved version found. Please save your schema first.'
+            ], 404);
+        }
+
+        $schemaJson = $schema->currentVersion->schema_json;
+
+        // Generate SQL
+        $generator = new \App\Services\SqlGeneratorService();
+        $sql       = $generator->generate($schemaJson);
+
+        // Clean filename
+        $filename = 'schema_' . $id . '_' . now()->format('Ymd_His') . '.sql';
+
+        // Return as downloadable file
+        return response($sql, 200)
+            ->header('Content-Type', 'text/plain')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
 }

@@ -32,6 +32,18 @@ export default function DesignerPage() {
       .catch(() => navigate('/dashboard'))
   }, [projectId])
 
+  // Warn on browser refresh / tab close when there are unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isDirty])
+
   // Keep selected edge in sync when edges update in store
   useEffect(() => {
     if (selectedEdge) {
@@ -72,6 +84,31 @@ export default function DesignerPage() {
     }
   }
 
+  const handleExportSQL = async () => {
+    const { schemaId } = useSchemaStore.getState()
+    if (!schemaId) return
+
+    try {
+      const response = await api.get(`/schemas/${schemaId}/export/sql`, {
+        responseType: 'blob', // tells Axios to treat response as a file
+      })
+
+      // Create a download link and click it
+      const url      = window.URL.createObjectURL(new Blob([response.data]))
+      const link     = document.createElement('a')
+      link.href      = url
+      link.download  = `schema_${project?.name || schemaId}.sql`
+        .replace(/\s+/g, '_')
+        .toLowerCase()
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      alert('Export failed. Make sure you have saved the schema first.')
+    }
+  }
+
   // Right panel — shows table editor OR relationship editor
   const showRightPanel = selectedNode || selectedEdge
 
@@ -84,7 +121,10 @@ export default function DesignerPage() {
 
         {/* Left */}
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/dashboard')}
+          <button onClick={() => {
+              if (isDirty && !window.confirm('You have unsaved changes. Leave anyway?')) return
+              navigate('/dashboard')
+            }}
             className="text-gray-400 hover:text-gray-700 p-1 rounded-lg
                        hover:bg-gray-100 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,6 +168,17 @@ export default function DesignerPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
             </svg>
             Add Table
+          </button>
+          {/* Export SQL */}
+          <button
+            onClick={handleExportSQL}
+            className="flex items-center gap-1.5 text-sm text-gray-700 border border-gray-200
+                       hover:border-blue-300 hover:text-blue-600 px-3 py-1.5 rounded-lg
+                       transition-all bg-white hover:bg-blue-50 font-medium">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Export SQL
           </button>
 
           <button

@@ -21,7 +21,7 @@ const RELATIONSHIP_TYPES = [
     example: 'Orders → User',
   },
   {
-    value: 'N:N',
+    value: 'M:M',
     label: 'Many to Many',
     description: 'Many rows in A link to many rows in B',
     example: 'Students ↔ Courses',
@@ -32,23 +32,31 @@ export default function RelationshipEditor({ edge, onClose }) {
   const { nodes, updateEdge, deleteEdge, setEdges, edges } = useSchemaStore()
 
   const [selectedType, setSelectedType] = useState('1:N')
+  const [sourceLabel,  setSourceLabel]  = useState('')
+  const [targetLabel,  setTargetLabel]  = useState('')
   const [saved, setSaved]               = useState(false)
 
   const sourceNode = nodes.find(n => n.id === edge.source)
   const targetNode = nodes.find(n => n.id === edge.target)
 
-  // Load current type when edge changes
+  // Load current type + labels when edge changes
   useEffect(() => {
-    const current = edge.data?.relationshipType || edge.label || '1:N'
+    const current = edge.data?.relationshipType || '1:N'
     setSelectedType(current)
+    setSourceLabel(edge.data?.sourceLabel || '')
+    setTargetLabel(edge.data?.targetLabel || '')
     setSaved(false)
   }, [edge.id])
 
   const handleSave = () => {
-    // Update store
+    const src = sourceLabel.trim()
+    const tgt = targetLabel.trim()
+    const canvasLabel = (src || tgt)
+      ? `${src || '—'} [${selectedType}] ${tgt || '—'}`
+      : selectedType
     updateEdge(edge.id, {
-      label: selectedType,
-      data:  { ...edge.data, relationshipType: selectedType },
+      label: canvasLabel,
+      data:  { ...edge.data, relationshipType: selectedType, sourceLabel: src, targetLabel: tgt },
       style: { stroke: '#6B7280', strokeWidth: 2 },
       labelStyle:   { fontSize: 11, fill: '#374151', fontWeight: 600 },
       labelBgStyle: { fill: '#F3F4F6', fillOpacity: 1 },
@@ -65,7 +73,10 @@ export default function RelationshipEditor({ edge, onClose }) {
     onClose()
   }
 
-  const hasChanges = selectedType !== (edge.data?.relationshipType || edge.label || '1:N')
+  const hasChanges =
+    selectedType !== (edge.data?.relationshipType || '1:N') ||
+    sourceLabel  !== (edge.data?.sourceLabel || '') ||
+    targetLabel  !== (edge.data?.targetLabel || '')
 
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full shadow-lg">
@@ -111,6 +122,46 @@ export default function RelationshipEditor({ edge, onClose }) {
               {targetNode?.data?.name || edge.target}
             </div>
           </div>
+        </div>
+
+        {/* Named association — UML-style labels for each side */}
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            Role Names <span className="text-gray-300 font-normal normal-case">(optional)</span>
+          </p>
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-gray-400 mb-1">
+                {sourceNode?.data?.name || 'Source'} side
+              </p>
+              <input
+                type="text"
+                value={sourceLabel}
+                onChange={e => { setSourceLabel(e.target.value); setSaved(false) }}
+                placeholder='e.g. "places many"'
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                           placeholder:text-gray-300"
+              />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1">
+                {targetNode?.data?.name || 'Target'} side
+              </p>
+              <input
+                type="text"
+                value={targetLabel}
+                onChange={e => { setTargetLabel(e.target.value); setSaved(false) }}
+                placeholder='e.g. "belongs to one"'
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                           placeholder:text-gray-300"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-1.5">
+            Canvas shows: <span className="font-mono text-gray-500">source [1:N] target</span>
+          </p>
         </div>
 
         {/* Type selector */}
