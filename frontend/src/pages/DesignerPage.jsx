@@ -33,6 +33,7 @@ export default function DesignerPage() {
   const [showShareModal,    setShowShareModal]    = useState(false)
   const [showTemplatesModal,setShowTemplatesModal]= useState(false)
   const [showMoreMenu,      setShowMoreMenu]      = useState(false)
+  const [showExportModal,   setShowExportModal]   = useState(false)
   const [showHistory,       setShowHistory]       = useState(false)
   const [undoToast,         setUndoToast]         = useState(null)  // { message }
   const pendingAiSchema = useRef(null)
@@ -214,15 +215,15 @@ export default function DesignerPage() {
     setSaveMsg('')
   }
 
-  const handleExportSQL = async () => {
+  const handleExportSQL = async (dialect = 'mysql') => {
     const { schemaId } = useSchemaStore.getState()
     if (!schemaId) return
     try {
-      const response = await api.get(`/schemas/${schemaId}/export/sql`, { responseType: 'blob' })
+      const response = await api.get(`/schemas/${schemaId}/export/sql?dialect=${dialect}`, { responseType: 'blob' })
       const url      = window.URL.createObjectURL(new Blob([response.data]))
       const link     = document.createElement('a')
       link.href      = url
-      link.download  = `schema_${project?.name || schemaId}.sql`.replace(/\s+/g, '_').toLowerCase()
+      link.download  = `schema_${project?.name || schemaId}_${dialect}.sql`.replace(/\s+/g, '_').toLowerCase()
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -455,7 +456,7 @@ export default function DesignerPage() {
 
                 {/* Export SQL */}
                 <button
-                  onClick={() => { handleExportSQL(); setShowMoreMenu(false) }}
+                  onClick={() => { setShowExportModal(true); setShowMoreMenu(false) }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700
                              hover:bg-gray-50 transition-colors text-left">
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -644,6 +645,156 @@ export default function DesignerPage() {
           onClose={() => setShowTemplatesModal(false)}
         />
       )}
+
+      {/* ── Export SQL Modal ── */}
+      {showExportModal && (
+        <ExportModal
+          onExport={async (dialect) => { await handleExportSQL(dialect); setShowExportModal(false) }}
+          onClose={() => setShowExportModal(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Export SQL Modal ──────────────────────────────────────────────
+function ExportModal({ onExport, onClose }) {
+  const [selected, setSelected] = useState('mysql')
+  const [exporting, setExporting] = useState(false)
+
+  const dialects = [
+    {
+      value: 'mysql',
+      label: 'MySQL',
+      desc: 'InnoDB · backtick identifiers · AUTO_INCREMENT',
+      color: 'blue',
+      icon: (
+        <svg viewBox="0 0 24 24" className="w-7 h-7" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
+        </svg>
+      ),
+    },
+    {
+      value: 'postgresql',
+      label: 'PostgreSQL',
+      desc: 'SERIAL / BIGSERIAL · double-quote identifiers · inline FK constraints',
+      color: 'indigo',
+      icon: (
+        <svg viewBox="0 0 24 24" className="w-7 h-7" fill="currentColor">
+          <path d="M12 2a10 10 0 100 20A10 10 0 0012 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+        </svg>
+      ),
+    },
+    {
+      value: 'sqlite',
+      label: 'SQLite',
+      desc: 'INTEGER PRIMARY KEY · AUTOINCREMENT · PRAGMA foreign_keys',
+      color: 'teal',
+      icon: (
+        <svg viewBox="0 0 24 24" className="w-7 h-7" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+        </svg>
+      ),
+    },
+  ]
+
+  const colorMap = {
+    blue:   { ring: 'ring-blue-500',   bg: 'bg-blue-50',   text: 'text-blue-600',   badge: 'bg-blue-100 text-blue-700'   },
+    indigo: { ring: 'ring-indigo-500', bg: 'bg-indigo-50', text: 'text-indigo-600', badge: 'bg-indigo-100 text-indigo-700' },
+    teal:   { ring: 'ring-teal-500',   bg: 'bg-teal-50',   text: 'text-teal-600',   badge: 'bg-teal-100 text-teal-700'   },
+  }
+
+  async function handleDownload() {
+    setExporting(true)
+    await onExport(selected)
+    setExporting(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-gray-100 flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Export SQL</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Choose your target database dialect</p>
+          </div>
+          <button onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors -mt-1">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Dialect cards */}
+        <div className="p-6 space-y-3">
+          {dialects.map(d => {
+            const c      = colorMap[d.color]
+            const active = selected === d.value
+            return (
+              <button key={d.value} type="button" onClick={() => setSelected(d.value)}
+                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border-2 text-left transition-all
+                  ${active
+                    ? `border-${d.color}-400 ${c.bg} ring-2 ${c.ring}/30`
+                    : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
+
+                {/* Icon circle */}
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0
+                  ${active ? c.bg : 'bg-gray-100'} ${active ? c.text : 'text-gray-400'}`}>
+                  {d.icon}
+                </div>
+
+                {/* Text */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-semibold text-sm ${active ? c.text : 'text-gray-800'}`}>
+                      {d.label}
+                    </span>
+                    {active && (
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${c.badge}`}>
+                        Selected
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{d.desc}</p>
+                </div>
+
+                {/* Radio dot */}
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0
+                  ${active ? `border-${d.color}-500` : 'border-gray-300'}`}>
+                  {active && <div className={`w-2 h-2 rounded-full bg-${d.color}-500`}/>}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600
+                       hover:bg-gray-50 hover:border-gray-300 transition-all font-medium">
+            Cancel
+          </button>
+          <button onClick={handleDownload} disabled={exporting}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-700 text-sm text-white font-semibold
+                       transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+            {exporting
+              ? <><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                  </svg> Generating…</>
+              : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                  </svg> Download .sql</>
+            }
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

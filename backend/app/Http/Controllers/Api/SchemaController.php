@@ -146,11 +146,14 @@ class SchemaController extends Controller
         $schemaJson = $schema->currentVersion->schema_json;
 
         // Generate SQL
+        $dialect   = in_array($request->query('dialect'), ['mysql', 'postgresql', 'sqlite'])
+                     ? $request->query('dialect')
+                     : 'mysql';
         $generator = new \App\Services\SqlGeneratorService();
-        $sql       = $generator->generate($schemaJson);
+        $sql       = $generator->generate($schemaJson, $dialect);
 
         // Clean filename
-        $filename = 'schema_' . $id . '_' . now()->format('Ymd_His') . '.sql';
+        $filename = 'schema_' . $id . '_' . $dialect . '_' . now()->format('Ymd_His') . '.sql';
 
         // Return as downloadable file
         return response($sql, 200)

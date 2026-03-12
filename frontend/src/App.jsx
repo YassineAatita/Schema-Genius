@@ -28,6 +28,8 @@ export default function App() {
         <Route path="/projects/:projectId/designer" element={
           <PrivateRoute><DesignerPage /></PrivateRoute>
         } />
+        {/* /profile redirects to dashboard (profile is now a tab inside dashboard) */}
+        <Route path="/profile" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   )

@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Notification;
 use App\Models\Project;
 use Illuminate\Http\Request;
 
 class InvitationController extends Controller
 {
     // GET /api/invitations
-    // Returns all pending invitations for the authenticated user
     public function index(Request $request)
     {
         $user = $request->user();
@@ -46,6 +46,15 @@ class InvitationController extends Controller
 
         $project->collaborators()->updateExistingPivot($user->id, ['status' => 'accepted']);
 
+        // Notify the project owner
+        Notification::create([
+            'user_id' => $project->owner_id,
+            'type'    => 'invitation_accepted',
+            'title'   => 'Invitation accepted',
+            'message' => "{$user->name} accepted your invitation to \"{$project->name}\"",
+            'data'    => ['project_id' => $project->id, 'actor_name' => $user->name, 'actor_avatar' => $user->avatar_url],
+        ]);
+
         return response()->json(['message' => 'Invitation accepted.']);
     }
 
@@ -65,6 +74,15 @@ class InvitationController extends Controller
         }
 
         $project->collaborators()->detach($user->id);
+
+        // Notify the project owner
+        Notification::create([
+            'user_id' => $project->owner_id,
+            'type'    => 'invitation_declined',
+            'title'   => 'Invitation declined',
+            'message' => "{$user->name} declined your invitation to \"{$project->name}\"",
+            'data'    => ['project_id' => $project->id, 'actor_name' => $user->name, 'actor_avatar' => $user->avatar_url],
+        ]);
 
         return response()->json(['message' => 'Invitation declined.']);
     }
