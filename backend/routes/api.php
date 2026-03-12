@@ -29,6 +29,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/schemas/{id}',  [SchemaController::class, 'show']);
     Route::put('/schemas/{id}',  [SchemaController::class, 'update']);
 
+    // Version history
+    Route::get('/schemas/{id}/versions',                                [SchemaController::class, 'versions']);
+    Route::post('/schemas/{id}/versions/{versionId}/restore',           [SchemaController::class, 'restoreVersion']);
+
     // Export SQL
     Route::get('/schemas/{id}/export/sql', [SchemaController::class, 'exportSql']);
 

@@ -20,7 +20,21 @@ class SchemaController extends Controller
     // PUT /api/schemas/{id}
     public function update(Request $request, $id)
     {
-        $schema = Schema::findOrFail($id);
+        $schema  = Schema::findOrFail($id);
+        $user    = $request->user();
+        $project = $schema->project;
+
+        // Only owners and editors can save
+        $isOwner  = $project->owner_id === $user->id;
+        $isEditor = $project->collaborators()
+            ->where('users.id', $user->id)
+            ->wherePivot('role', 'editor')
+            ->wherePivot('status', 'accepted')
+            ->exists();
+
+        if (!$isOwner && !$isEditor) {
+            return response()->json(['error' => 'Viewers cannot save changes.'], 403);
+        }
 
         $validated = $request->validate([
             'schema_json'        => 'required|array',
@@ -48,6 +62,74 @@ class SchemaController extends Controller
         return response()->json([
             'message' => 'Schema saved successfully.',
             'version' => $version,
+        ]);
+    }
+
+    // GET /api/schemas/{id}/versions
+    public function versions($id)
+    {
+        $schema = Schema::with(['versions.creator'])->findOrFail($id);
+
+        // Authorization: owner or collaborator
+        $user    = auth()->user();
+        $project = $schema->project;
+
+        $isOwner        = $project->owner_id === $user->id;
+        $isCollaborator = $project->collaborators()
+            ->where('users.id', $user->id)
+            ->wherePivot('status', 'accepted')
+            ->exists();
+
+        if (!$isOwner && !$isCollaborator) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
+        return response()->json(
+            $schema->versions->map(fn($v) => [
+                'id'             => $v->id,
+                'version_number' => $v->version_number,
+                'label'          => $v->label,
+                'created_at'     => $v->created_at,
+                'created_by'     => $v->creator?->name ?? 'Unknown',
+                'is_current'     => $v->id === $schema->current_version_id,
+            ])
+        );
+    }
+
+    // POST /api/schemas/{id}/versions/{versionId}/restore
+    public function restoreVersion($id, $versionId)
+    {
+        $schema = Schema::findOrFail($id);
+
+        // Authorization: owner or editor
+        $user    = auth()->user();
+        $project = $schema->project;
+
+        $isOwner  = $project->owner_id === $user->id;
+        $isEditor = $project->collaborators()
+            ->where('users.id', $user->id)
+            ->wherePivot('role', 'editor')
+            ->wherePivot('status', 'accepted')
+            ->exists();
+
+        if (!$isOwner && !$isEditor) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
+        $version = SchemaVersion::where('schema_id', $id)->findOrFail($versionId);
+
+        // Point current_version_id at the restored version
+        $schema->update(['current_version_id' => $version->id]);
+
+        return response()->json([
+            'message'     => 'Version restored successfully.',
+            'schema_json' => $version->schema_json,
+            'version'     => [
+                'id'             => $version->id,
+                'version_number' => $version->version_number,
+                'label'          => $version->label,
+                'created_at'     => $version->created_at,
+            ],
         ]);
     }
 

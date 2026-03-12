@@ -34,7 +34,7 @@ function buildEdgeDisplay(edge) {
   }
 }
 
-export default function SchemaCanvas({ onNodeClick, onEdgeClick }) {
+export default function SchemaCanvas({ onNodeClick, onEdgeClick, readOnly = false }) {
   const { nodes: storeNodes, edges: storeEdges, setNodes, setEdges, bulkDelete } = useSchemaStore()
 
   const [nodes, setLocalNodes, onNodesChange] = useNodesState(storeNodes)
@@ -74,8 +74,8 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick }) {
   }, [storeEdges])
 
   const handleNodeDragStop = useCallback((_, __, currentNodes) => {
-    setNodes(currentNodes)
-  }, [setNodes])
+    if (!readOnly) setNodes(currentNodes)
+  }, [setNodes, readOnly])
 
   // Strip display-only props before saving to store; keep handle IDs for routing
   const toStoreEdge = (e) => ({
@@ -130,18 +130,21 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick }) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStop={handleNodeDragStop}
-        onConnect={onConnect}
-        onReconnect={onReconnect}
-        onNodesDelete={onNodesDelete}
-        onEdgesDelete={onEdgesDelete}
+        onConnect={readOnly ? undefined : onConnect}
+        onReconnect={readOnly ? undefined : onReconnect}
+        onNodesDelete={readOnly ? undefined : onNodesDelete}
+        onEdgesDelete={readOnly ? undefined : onEdgesDelete}
         onNodeClick={(_, node) => onNodeClick(node)}
         onEdgeClick={(_, edge) => onEdgeClick(edge)}
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
-        edgesReconnectable
+        edgesReconnectable={!readOnly}
+        nodesDraggable={!readOnly}
+        nodesConnectable={!readOnly}
+        elementsSelectable={!readOnly}
         fitView
         fitViewOptions={{ padding: 0.3 }}
-        deleteKeyCode="Delete"
+        deleteKeyCode={readOnly ? null : 'Delete'}
         minZoom={0.2}
         maxZoom={2}
       >

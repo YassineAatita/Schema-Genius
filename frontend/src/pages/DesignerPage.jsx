@@ -8,6 +8,7 @@ import useSchemaStore from '../store/useSchemaStore'
 import useAuthStore from '../store/useAuthStore'
 import api from '../services/api'
 import ConfirmModal from '../components/ui/ConfirmModal'
+import HistoryPanel from '../components/panels/HistoryPanel'
 import { validateSchema } from '../utils/validateSchema'
 
 export default function DesignerPage() {
@@ -32,11 +33,15 @@ export default function DesignerPage() {
   const [showShareModal,    setShowShareModal]    = useState(false)
   const [showTemplatesModal,setShowTemplatesModal]= useState(false)
   const [showMoreMenu,      setShowMoreMenu]      = useState(false)
+  const [showHistory,       setShowHistory]       = useState(false)
   const [undoToast,         setUndoToast]         = useState(null)  // { message }
   const pendingAiSchema = useRef(null)
   const moreMenuRef     = useRef(null)
 
-  const isOwner = project?.owner_id === user?.id
+  const isOwner  = project?.owner_id === user?.id
+  const myRole   = project?.collaborators?.find(c => c.id === user?.id)?.pivot?.role ?? null
+  const canEdit  = isOwner || myRole === 'editor'   // owner or accepted editor
+  const isViewer = !isOwner && myRole === 'viewer'   // accepted viewer — read-only
 
   // Run validation whenever nodes change
   const validationIssues = useMemo(() => validateSchema(nodes), [nodes])
@@ -117,21 +122,10 @@ export default function DesignerPage() {
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
 
-  const handleNodeClick = (node) => {
-    setSelectedEdge(null)
-    setSelectedNode(node)
-    setShowValidation(false)
-  }
-
-  const handleEdgeClick = (edge) => {
-    setSelectedNode(null)
-    setSelectedEdge(edge)
-    setShowValidation(false)
-  }
-
   const handleValidateClick = () => {
     setSelectedNode(null)
     setSelectedEdge(null)
+    setShowHistory(false)
     setShowValidation(v => !v)
   }
 
@@ -212,6 +206,14 @@ export default function DesignerPage() {
     }
   }
 
+  // Called by HistoryPanel when a version is successfully restored
+  const handleHistoryRestore = (schemaJson) => {
+    const { schemaId, projectId: pid } = useSchemaStore.getState()
+    loadSchema(schemaId, pid, schemaJson || { nodes: [], edges: [] })
+    setShowHistory(false)
+    setSaveMsg('')
+  }
+
   const handleExportSQL = async () => {
     const { schemaId } = useSchemaStore.getState()
     if (!schemaId) return
@@ -230,8 +232,25 @@ export default function DesignerPage() {
     }
   }
 
-  // Right panel — validation takes priority over table/edge editors
-  const showRightPanel = showValidation || selectedNode || selectedEdge
+  // Close history when opening another panel; viewers can't edit so don't open editors
+  const handleNodeClick = (node) => {
+    if (isViewer) return
+    setSelectedEdge(null)
+    setSelectedNode(node)
+    setShowValidation(false)
+    setShowHistory(false)
+  }
+
+  const handleEdgeClick = (edge) => {
+    if (isViewer) return
+    setSelectedNode(null)
+    setSelectedEdge(edge)
+    setShowValidation(false)
+    setShowHistory(false)
+  }
+
+  // Right panel — history > validation > table/edge editors
+  const showRightPanel = showHistory || showValidation || selectedNode || selectedEdge
 
   // Validate button color
   const validateBtnClass = errorCount > 0
@@ -276,11 +295,21 @@ export default function DesignerPage() {
               </p>
             </div>
           </div>
-          {isDirty && (
+          {isDirty && !isViewer && (
             <span className="text-xs text-amber-500 bg-amber-50 border border-amber-200
                              px-2 py-0.5 rounded-full flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"/>
               Unsaved changes
+            </span>
+          )}
+          {isViewer && (
+            <span className="text-xs text-gray-400 bg-gray-100 border border-gray-200
+                             px-2 py-0.5 rounded-full flex items-center gap-1">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              View only
             </span>
           )}
         </div>
@@ -288,8 +317,8 @@ export default function DesignerPage() {
         {/* Right */}
         <div className="flex items-center gap-2">
 
-          {/* Undo / Redo */}
-          <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden">
+          {/* Undo / Redo — editors only */}
+          {canEdit && <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden">
             <button
               onClick={handleUndo}
               disabled={past.length === 0}
@@ -317,34 +346,38 @@ export default function DesignerPage() {
                   d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6"/>
               </svg>
             </button>
-          </div>
+          </div>}
 
-          <div className="w-px h-5 bg-gray-200"/>
+          {canEdit && <div className="w-px h-5 bg-gray-200"/>}
 
-          {/* Add Table */}
-          <button
-            onClick={addTable}
-            className="flex items-center gap-1.5 text-sm text-gray-700 border border-gray-200
-                       hover:border-blue-300 hover:text-blue-600 px-3 py-1.5 rounded-lg
-                       transition-all bg-white hover:bg-blue-50 font-medium">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
-            </svg>
-            Add Table
-          </button>
+          {/* Add Table — editors only */}
+          {canEdit && (
+            <button
+              onClick={addTable}
+              className="flex items-center gap-1.5 text-sm text-gray-700 border border-gray-200
+                         hover:border-blue-300 hover:text-blue-600 px-3 py-1.5 rounded-lg
+                         transition-all bg-white hover:bg-blue-50 font-medium">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+              </svg>
+              Add Table
+            </button>
+          )}
 
-          {/* AI Generate */}
-          <button
-            onClick={() => { setShowAiModal(true); setAiError('') }}
-            className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg
-                       border border-violet-200 text-violet-600 bg-violet-50
-                       hover:bg-violet-100 hover:border-violet-300 transition-all">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z"/>
-            </svg>
-            AI Generate
-          </button>
+          {/* AI Generate — editors only */}
+          {canEdit && (
+            <button
+              onClick={() => { setShowAiModal(true); setAiError('') }}
+              className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg
+                         border border-violet-200 text-violet-600 bg-violet-50
+                         hover:bg-violet-100 hover:border-violet-300 transition-all">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              AI Generate
+            </button>
+          )}
 
           {/* ⋯ More dropdown */}
           <div className="relative" ref={moreMenuRef}>
@@ -365,8 +398,28 @@ export default function DesignerPage() {
               <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-xl border
                               border-gray-200 shadow-lg z-50 overflow-hidden py-1">
 
-                {/* Templates */}
+                {/* Version History */}
                 <button
+                  onClick={() => {
+                    setShowHistory(true)
+                    setSelectedNode(null)
+                    setSelectedEdge(null)
+                    setShowValidation(false)
+                    setShowMoreMenu(false)
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700
+                             hover:bg-gray-50 transition-colors text-left">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  Version History
+                </button>
+
+                {canEdit && <div className="h-px bg-gray-100 my-1"/>}
+
+                {/* Templates — editors only */}
+                {canEdit && <button
                   onClick={() => { setShowTemplatesModal(true); setShowMoreMenu(false) }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700
                              hover:bg-gray-50 transition-colors text-left">
@@ -375,7 +428,7 @@ export default function DesignerPage() {
                       d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
                   </svg>
                   Templates
-                </button>
+                </button>}
 
                 {/* Validate */}
                 <button
@@ -430,7 +483,7 @@ export default function DesignerPage() {
             </button>
           )}
 
-          <button
+          {canEdit && <button
             onClick={handleSave}
             disabled={saving || (!isDirty && saveMsg !== 'error')}
             className={`flex items-center gap-1.5 text-sm font-medium px-4 py-1.5
@@ -470,7 +523,7 @@ export default function DesignerPage() {
                 Save Schema
               </>
             )}
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -483,6 +536,7 @@ export default function DesignerPage() {
             <SchemaCanvas
               onNodeClick={handleNodeClick}
               onEdgeClick={handleEdgeClick}
+              readOnly={isViewer}
             />
           </ReactFlowProvider>
         </div>
@@ -490,20 +544,27 @@ export default function DesignerPage() {
         {/* Right panel */}
         {showRightPanel && (
           <div className="w-80 h-full flex-shrink-0">
-            {showValidation && (
+            {showHistory && (
+              <HistoryPanel
+                schemaId={useSchemaStore.getState().schemaId}
+                onRestore={handleHistoryRestore}
+                onClose={() => setShowHistory(false)}
+              />
+            )}
+            {!showHistory && showValidation && (
               <ValidationPanel
                 issues={validationIssues}
                 onClose={() => setShowValidation(false)}
                 onFocusNode={handleFocusNode}
               />
             )}
-            {!showValidation && selectedNode && (
+            {!showHistory && !showValidation && selectedNode && (
               <TableEditor
                 nodeId={selectedNode.id}
                 onClose={() => setSelectedNode(null)}
               />
             )}
-            {!showValidation && selectedEdge && (
+            {!showHistory && !showValidation && selectedEdge && (
               <RelationshipEditor
                 edge={selectedEdge}
                 onClose={() => setSelectedEdge(null)}
