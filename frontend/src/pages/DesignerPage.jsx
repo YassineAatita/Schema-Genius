@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ReactFlowProvider } from '@xyflow/react'
+import { toPng } from 'html-to-image'
 import SchemaCanvas from '../components/canvas/SchemaCanvas'
 import TableEditor from '../components/panels/TableEditor'
 import RelationshipEditor from '../components/panels/RelationshipEditor'
@@ -38,6 +39,7 @@ export default function DesignerPage() {
   const [undoToast,         setUndoToast]         = useState(null)  // { message }
   const pendingAiSchema = useRef(null)
   const moreMenuRef     = useRef(null)
+  const canvasRef       = useRef(null)
 
   const isOwner  = project?.owner_id === user?.id
   const myRole   = project?.collaborators?.find(c => c.id === user?.id)?.pivot?.role ?? null
@@ -230,6 +232,25 @@ export default function DesignerPage() {
       window.URL.revokeObjectURL(url)
     } catch {
       alert('Export failed. Make sure you have saved the schema first.')
+    }
+  }
+
+  const handleExportImage = async () => {
+    const el = canvasRef.current?.querySelector('.react-flow__renderer')
+    if (!el) return
+    try {
+      const dataUrl = await toPng(el, {
+        backgroundColor: '#F9FAFB',
+        pixelRatio: 2,
+        filter: (node) => !node.classList?.contains('react-flow__controls')
+                       && !node.classList?.contains('react-flow__minimap'),
+      })
+      const link = document.createElement('a')
+      link.href = dataUrl
+      link.download = `${project?.name || 'schema'}_diagram.png`.replace(/\s+/g, '_').toLowerCase()
+      link.click()
+    } catch {
+      alert('Image export failed. Please try again.')
     }
   }
 
@@ -465,6 +486,18 @@ export default function DesignerPage() {
                   </svg>
                   Export SQL
                 </button>
+
+                {/* Export as PNG */}
+                <button
+                  onClick={() => { handleExportImage(); setShowMoreMenu(false) }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700
+                             hover:bg-gray-50 transition-colors text-left">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                  Export as PNG
+                </button>
               </div>
             )}
           </div>
@@ -532,7 +565,7 @@ export default function DesignerPage() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* Canvas */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden" ref={canvasRef}>
           <ReactFlowProvider>
             <SchemaCanvas
               onNodeClick={handleNodeClick}

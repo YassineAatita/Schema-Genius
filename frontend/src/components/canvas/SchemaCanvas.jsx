@@ -13,24 +13,33 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import TableNode from './TableNode'
+import CustomSchemaEdge from './CustomSchemaEdge'
 import useSchemaStore from '../../store/useSchemaStore'
 
 const nodeTypes = { tableNode: TableNode }
+const edgeTypes = { schema: CustomSchemaEdge }
 
-// Compute display props (label + styles) from a raw store edge
+const KNOWN_LINE_STYLES = ['default', 'smoothstep', 'step', 'straight']
+
+// Normalise a raw store edge into display-ready form for the custom edge component
 function buildEdgeDisplay(edge) {
-  const type  = edge.data?.type || '1:N'
-  const src   = edge.data?.sourceLabel?.trim() || ''
-  const tgt   = edge.data?.targetLabel?.trim() || ''
-  const label = src || tgt ? `${src} [${type}] ${tgt}` : type
+  // Migrate old edges: edge.type used to hold the line style
+  const lineStyle = edge.data?.lineStyle
+    || (KNOWN_LINE_STYLES.includes(edge.type) ? edge.type : 'default')
+
+  const diagramType = edge.data?.diagramType || 'association'
+
+  const relType = edge.data?.relationshipType || edge.data?.type || '1:N'
+  const src     = edge.data?.sourceLabel?.trim() || ''
+  const tgt     = edge.data?.targetLabel?.trim() || ''
+  const label   = src || tgt ? `${src} [${relType}] ${tgt}` : relType
+
   return {
     ...edge,
+    type:  'schema',        // always use our custom edge renderer
     label,
-    style:               { stroke: '#6B7280', strokeWidth: 2, ...edge.style },
-    labelStyle:          { fontSize: 11, fill: '#374151', fontWeight: 600 },
-    labelBgStyle:        { fill: '#F3F4F6', fillOpacity: 1 },
-    labelBgPadding:      [6, 3],
-    labelBgBorderRadius: 4,
+    data:  { ...edge.data, lineStyle, diagramType },
+    style: { stroke: '#6B7280', strokeWidth: 2, ...edge.style },
   }
 }
 
@@ -92,9 +101,9 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick, readOnly = fals
     const base = {
       ...params,
       id:       `edge_${Date.now()}`,
-      type:     'smoothstep',
+      type:     'schema',
       animated: false,
-      data:     { type: '1:N', sourceLabel: '', targetLabel: '' },
+      data:     { relationshipType: '1:N', sourceLabel: '', targetLabel: '', lineStyle: 'smoothstep', diagramType: 'association' },
     }
     const newEdge = buildEdgeDisplay(base)
     setLocalEdges(eds => {
@@ -137,6 +146,7 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick, readOnly = fals
         onNodeClick={(_, node) => onNodeClick(node)}
         onEdgeClick={(_, edge) => onEdgeClick(edge)}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Loose}
         edgesReconnectable={!readOnly}
         nodesDraggable={!readOnly}

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import useSchemaStore from '../../store/useSchemaStore'
 import ConfirmModal from '../ui/ConfirmModal'
 
+const KNOWN_LINE_STYLES = ['default', 'smoothstep', 'step', 'straight']
+
 const LINE_STYLES = [
   {
     value: 'default',
@@ -45,6 +47,71 @@ const LINE_STYLES = [
   },
 ]
 
+const DIAGRAM_TYPES = [
+  {
+    value: 'association',
+    label: 'Association',
+    description: 'Standard directed relationship',
+    color: 'blue',
+    icon: (
+      <svg viewBox="0 0 48 16" className="w-12 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <line x1="2" y1="8" x2="36" y2="8"/>
+        <path d="M 26 3 L 38 8 L 26 13" fill="none" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    value: 'aggregation',
+    label: 'Aggregation',
+    description: '"Has a" — shared ownership',
+    color: 'violet',
+    icon: (
+      <svg viewBox="0 0 54 16" className="w-14 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M 2 8 L 8 3 L 14 8 L 8 13 z" fill="white" stroke="currentColor"/>
+        <line x1="14" y1="8" x2="38" y2="8"/>
+        <path d="M 28 3 L 40 8 L 28 13" fill="none" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    value: 'composition',
+    label: 'Composition',
+    description: '"Part of" — strong ownership',
+    color: 'purple',
+    icon: (
+      <svg viewBox="0 0 54 16" className="w-14 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M 2 8 L 8 3 L 14 8 L 8 13 z" fill="currentColor"/>
+        <line x1="14" y1="8" x2="38" y2="8"/>
+        <path d="M 28 3 L 40 8 L 28 13" fill="none" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    value: 'inheritance',
+    label: 'Inheritance',
+    description: '"Is a" — generalization',
+    color: 'emerald',
+    icon: (
+      <svg viewBox="0 0 48 16" className="w-12 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <line x1="2" y1="8" x2="30" y2="8"/>
+        <path d="M 22 3 L 36 8 L 22 13 z" fill="white" stroke="currentColor" strokeWidth="1.8"/>
+      </svg>
+    ),
+  },
+  {
+    value: 'dependency',
+    label: 'Dependency',
+    description: 'Dashed — uses / relies on',
+    color: 'amber',
+    icon: (
+      <svg viewBox="0 0 48 16" className="w-12 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <line x1="2" y1="8" x2="36" y2="8" strokeDasharray="5 3"/>
+        <path d="M 26 3 L 38 8 L 26 13" fill="none" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+]
+
 const RELATIONSHIP_TYPES = [
   {
     value: '1:1',
@@ -53,7 +120,7 @@ const RELATIONSHIP_TYPES = [
     example: 'User → Profile',
   },
   {
-    value: '1M',
+    value: '1:M',
     label: 'One to Many',
     description: 'One row in A links to many rows in B',
     example: 'User → Orders',
@@ -72,24 +139,36 @@ const RELATIONSHIP_TYPES = [
   },
 ]
 
-export default function RelationshipEditor({ edge, onClose }) {
-  const { nodes, updateEdge, deleteEdge, setEdges, edges } = useSchemaStore()
+const DIAGRAM_COLORS = {
+  blue:    { border: 'border-blue-500',    bg: 'bg-blue-50',    text: 'text-blue-600',    dot: 'bg-blue-500'    },
+  violet:  { border: 'border-violet-500',  bg: 'bg-violet-50',  text: 'text-violet-600',  dot: 'bg-violet-500'  },
+  purple:  { border: 'border-purple-500',  bg: 'bg-purple-50',  text: 'text-purple-600',  dot: 'bg-purple-500'  },
+  emerald: { border: 'border-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+  amber:   { border: 'border-amber-500',   bg: 'bg-amber-50',   text: 'text-amber-600',   dot: 'bg-amber-500'   },
+}
 
-  const [selectedType,   setSelectedType]   = useState('1:M')
-  const [lineStyle,      setLineStyle]      = useState('default')
-  const [sourceLabel,    setSourceLabel]    = useState('')
-  const [targetLabel,    setTargetLabel]    = useState('')
-  const [saved,          setSaved]          = useState(false)
-  const [showDelModal,   setShowDelModal]   = useState(false)
+export default function RelationshipEditor({ edge, onClose }) {
+  const { nodes, updateEdge, deleteEdge } = useSchemaStore()
+
+  const [selectedType,  setSelectedType]  = useState('1:M')
+  const [lineStyle,     setLineStyle]     = useState('smoothstep')
+  const [diagramType,   setDiagramType]   = useState('association')
+  const [sourceLabel,   setSourceLabel]   = useState('')
+  const [targetLabel,   setTargetLabel]   = useState('')
+  const [saved,         setSaved]         = useState(false)
+  const [showDelModal,  setShowDelModal]  = useState(false)
 
   const sourceNode = nodes.find(n => n.id === edge.source)
   const targetNode = nodes.find(n => n.id === edge.target)
 
-  // Load current type + labels + line style when edge changes
+  // Load current values when edge changes
   useEffect(() => {
-    const current = edge.data?.relationshipType || '1:M'
-    setSelectedType(current)
-    setLineStyle(edge.type || 'default')
+    setSelectedType(edge.data?.relationshipType || '1:M')
+    setLineStyle(
+      edge.data?.lineStyle ||
+      (KNOWN_LINE_STYLES.includes(edge.type) ? edge.type : 'smoothstep')
+    )
+    setDiagramType(edge.data?.diagramType || 'association')
     setSourceLabel(edge.data?.sourceLabel || '')
     setTargetLabel(edge.data?.targetLabel || '')
     setSaved(false)
@@ -101,15 +180,19 @@ export default function RelationshipEditor({ edge, onClose }) {
     const canvasLabel = (src || tgt)
       ? `${src || '—'} [${selectedType}] ${tgt || '—'}`
       : selectedType
+
     updateEdge(edge.id, {
-      type:  lineStyle,
+      type:  'schema',
       label: canvasLabel,
-      data:  { ...edge.data, relationshipType: selectedType, sourceLabel: src, targetLabel: tgt },
+      data:  {
+        ...edge.data,
+        relationshipType: selectedType,
+        sourceLabel:      src,
+        targetLabel:      tgt,
+        lineStyle,
+        diagramType,
+      },
       style: { stroke: '#6B7280', strokeWidth: 2 },
-      labelStyle:   { fontSize: 11, fill: '#374151', fontWeight: 600 },
-      labelBgStyle: { fill: '#F3F4F6', fillOpacity: 1 },
-      labelBgPadding:      [6, 3],
-      labelBgBorderRadius: 4,
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -121,11 +204,18 @@ export default function RelationshipEditor({ edge, onClose }) {
     onClose()
   }
 
+  const currentLineStyle = edge.data?.lineStyle ||
+    (KNOWN_LINE_STYLES.includes(edge.type) ? edge.type : 'smoothstep')
+
   const hasChanges =
     selectedType !== (edge.data?.relationshipType || '1:M') ||
-    lineStyle    !== (edge.type || 'default') ||
+    lineStyle    !== currentLineStyle ||
+    diagramType  !== (edge.data?.diagramType || 'association') ||
     sourceLabel  !== (edge.data?.sourceLabel || '') ||
     targetLabel  !== (edge.data?.targetLabel || '')
+
+  const activeDiagram = DIAGRAM_TYPES.find(d => d.value === diagramType)
+  const activeDiagramColors = DIAGRAM_COLORS[activeDiagram?.color || 'blue']
 
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full shadow-lg">
@@ -139,8 +229,7 @@ export default function RelationshipEditor({ edge, onClose }) {
         <button onClick={onClose}
           className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition-colors">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"/>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
       </div>
@@ -149,27 +238,57 @@ export default function RelationshipEditor({ edge, onClose }) {
 
         {/* Connection summary */}
         <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
-          <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">
-            Connection
-          </p>
+          <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Connection</p>
           <div className="flex items-center justify-between gap-2">
             <div className="bg-blue-600 text-white text-xs font-semibold
                             px-3 py-1.5 rounded-lg truncate flex-1 text-center">
               {sourceNode?.data?.name || edge.source}
             </div>
             <div className="flex flex-col items-center flex-shrink-0">
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M17 8l4 4m0 0l-4 4m4-4H3"/>
-              </svg>
-              <span className="text-xs font-bold text-purple-600 mt-0.5">
-                {selectedType}
-              </span>
+              <span className="text-xs font-mono font-bold text-purple-600">{selectedType}</span>
+              <div className={`w-1.5 h-1.5 rounded-full mt-0.5 ${activeDiagramColors.dot}`}/>
             </div>
             <div className="bg-blue-600 text-white text-xs font-semibold
                             px-3 py-1.5 rounded-lg truncate flex-1 text-center">
               {targetNode?.data?.name || edge.target}
             </div>
+          </div>
+        </div>
+
+        {/* Diagram Type */}
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            Diagram Type
+          </p>
+          <div className="space-y-1.5">
+            {DIAGRAM_TYPES.map((dt) => {
+              const colors = DIAGRAM_COLORS[dt.color]
+              const active = diagramType === dt.value
+              return (
+                <button
+                  key={dt.value}
+                  onClick={() => { setDiagramType(dt.value); setSaved(false) }}
+                  className={`w-full flex items-center gap-3 p-2.5 rounded-xl border-2 transition-all text-left
+                    ${active
+                      ? `${colors.border} ${colors.bg}`
+                      : 'border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50'
+                    }`}
+                >
+                  <span className={active ? colors.text : 'text-gray-400'}>
+                    {dt.icon}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className={`text-xs font-semibold ${active ? colors.text : 'text-gray-700'}`}>
+                      {dt.label}
+                    </span>
+                    <p className="text-xs text-gray-400 truncate">{dt.description}</p>
+                  </div>
+                  {active && (
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${colors.dot}`}/>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -202,50 +321,10 @@ export default function RelationshipEditor({ edge, onClose }) {
           </div>
         </div>
 
-        {/* Named association — UML-style labels for each side */}
+        {/* Cardinality */}
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            Role Names <span className="text-gray-300 font-normal normal-case">(optional)</span>
-          </p>
-          <div className="space-y-2">
-            <div>
-              <p className="text-xs text-gray-400 mb-1">
-                {sourceNode?.data?.name || 'Source'} side
-              </p>
-              <input
-                type="text"
-                value={sourceLabel}
-                onChange={e => { setSourceLabel(e.target.value); setSaved(false) }}
-                placeholder='e.g. "places many"'
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                           placeholder:text-gray-300"
-              />
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 mb-1">
-                {targetNode?.data?.name || 'Target'} side
-              </p>
-              <input
-                type="text"
-                value={targetLabel}
-                onChange={e => { setTargetLabel(e.target.value); setSaved(false) }}
-                placeholder='e.g. "belongs to one"'
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                           placeholder:text-gray-300"
-              />
-            </div>
-          </div>
-          <p className="text-xs text-gray-400 mt-1.5">
-            Canvas shows: <span className="font-mono text-gray-500">source [1:M] target</span>
-          </p>
-        </div>
-
-        {/* Type selector */}
-        <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            Relationship Type
+            Cardinality
           </p>
           <div className="space-y-2">
             {RELATIONSHIP_TYPES.map((type) => (
@@ -274,12 +353,43 @@ export default function RelationshipEditor({ edge, onClose }) {
             ))}
           </div>
         </div>
+
+        {/* Role Names */}
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            Role Names <span className="text-gray-300 font-normal normal-case">(optional)</span>
+          </p>
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-gray-400 mb-1">{sourceNode?.data?.name || 'Source'} side</p>
+              <input
+                type="text"
+                value={sourceLabel}
+                onChange={e => { setSourceLabel(e.target.value); setSaved(false) }}
+                placeholder='e.g. "places many"'
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                           placeholder:text-gray-300"
+              />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1">{targetNode?.data?.name || 'Target'} side</p>
+              <input
+                type="text"
+                value={targetLabel}
+                onChange={e => { setTargetLabel(e.target.value); setSaved(false) }}
+                placeholder='e.g. "belongs to one"'
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                           placeholder:text-gray-300"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-100 bg-gray-50 space-y-2">
-
-        {/* Unsaved warning */}
         {hasChanges && !saved && (
           <p className="text-xs text-amber-600 text-center flex items-center justify-center gap-1">
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -294,7 +404,6 @@ export default function RelationshipEditor({ edge, onClose }) {
           </p>
         )}
 
-        {/* Save button */}
         <button
           onClick={handleSave}
           disabled={!hasChanges && !saved}
@@ -309,15 +418,13 @@ export default function RelationshipEditor({ edge, onClose }) {
           {saved ? (
             <span className="flex items-center justify-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M5 13l4 4L19 7"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
               </svg>
-              Relationship Saved!
+              Saved!
             </span>
           ) : 'Save Relationship'}
         </button>
 
-        {/* Delete */}
         <button
           onClick={handleDelete}
           className="w-full py-2 rounded-lg text-xs text-red-400 hover:text-red-600
@@ -331,7 +438,7 @@ export default function RelationshipEditor({ edge, onClose }) {
         open={showDelModal}
         variant="danger"
         title="Delete relationship?"
-        message={`This will permanently remove the connection between ${sourceNode?.data?.name || 'source'} and ${targetNode?.data?.name || 'target'}.`}
+        message={`Remove the connection between ${sourceNode?.data?.name || 'source'} and ${targetNode?.data?.name || 'target'}?`}
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={confirmDelete}
