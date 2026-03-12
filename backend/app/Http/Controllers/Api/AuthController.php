@@ -15,15 +15,21 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8|confirmed',
+            'name'      => 'required|string|max:255',
+            'email'     => 'required|email|unique:users,email',
+            'password'  => 'required|string|min:8|confirmed',
+            'user_type' => 'nullable|in:student,developer,designer,fullstack,other',
+            'headline'  => 'nullable|string|max:120',
+            'bio'       => 'nullable|string|max:1000',
         ]);
 
         $user = User::create([
-            'name'     => $validated['name'],
-            'email'    => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'name'      => $validated['name'],
+            'email'     => $validated['email'],
+            'password'  => Hash::make($validated['password']),
+            'user_type' => $validated['user_type'] ?? 'developer',
+            'headline'  => $validated['headline'] ?? null,
+            'bio'       => $validated['bio'] ?? null,
         ]);
 
         // Assign default role

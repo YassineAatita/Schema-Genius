@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -17,6 +18,10 @@ class User extends Authenticatable
         'email',
         'password',
         'is_active',
+        'user_type',
+        'headline',
+        'bio',
+        'avatar_url',
     ];
 
     protected $hidden = [
@@ -31,6 +36,13 @@ class User extends Authenticatable
             'password'          => 'hashed',
             'is_active'         => 'boolean',
         ];
+    }
+
+    // Return avatar_url as a full API URL (bypasses storage symlink issues)
+    // Uses basename() to handle both old "/storage/avatars/file.jpg" and new "file.jpg" formats
+    protected function avatarUrl(): Attribute
+    {
+        return Attribute::get(fn ($value) => $value ? url('/api/avatars/' . basename($value)) : null);
     }
 
     // A user owns many projects

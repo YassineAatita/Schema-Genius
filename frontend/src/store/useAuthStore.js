@@ -6,8 +6,12 @@ const useAuthStore = create((set) => ({
   isAuthenticated: !!localStorage.getItem('token'),
 
   setAuth: (user, token) => {
-    localStorage.setItem('token', token)
-    set({ user, token, isAuthenticated: true })
+    if (token) localStorage.setItem('token', token)
+    set((state) => ({
+      user,
+      token: token ?? state.token,
+      isAuthenticated: true,
+    }))
   },
 
   logout: () => {

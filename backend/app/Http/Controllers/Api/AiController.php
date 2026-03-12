@@ -99,4 +99,41 @@ PROMPT;
 
         return response()->json($schema);
     }
+
+    // POST /api/ai/enhance-bio
+    public function enhanceBio(Request $request)
+    {
+        $request->validate([
+            'bio'       => 'required|string|max:1000',
+            'user_type' => 'nullable|string',
+        ]);
+
+        $userType = $request->user_type ?? 'developer';
+
+        $systemPrompt = "You are a professional profile bio writer for a tech platform. " .
+            "Given a rough bio from a {$userType}, rewrite it into a concise, engaging, " .
+            "first-person professional bio (2-3 sentences, max 200 characters). " .
+            "Keep the user's facts and tone. Return ONLY the improved bio text — no quotes, no explanation.";
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . config('services.groq.api_key'),
+            'Content-Type'  => 'application/json',
+        ])->timeout(20)->post('https://api.groq.com/openai/v1/chat/completions', [
+            'model'    => 'llama-3.3-70b-versatile',
+            'messages' => [
+                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'user',   'content' => $request->bio],
+            ],
+            'temperature' => 0.6,
+            'max_tokens'  => 120,
+        ]);
+
+        if (!$response->successful()) {
+            return response()->json(['error' => 'AI service error.'], 503);
+        }
+
+        $enhanced = trim($response->json('choices.0.message.content') ?? '');
+
+        return response()->json(['bio' => $enhanced]);
+    }
 }
