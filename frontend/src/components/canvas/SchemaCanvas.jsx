@@ -35,7 +35,7 @@ function buildEdgeDisplay(edge) {
 }
 
 export default function SchemaCanvas({ onNodeClick, onEdgeClick }) {
-  const { nodes: storeNodes, edges: storeEdges, setNodes, setEdges } = useSchemaStore()
+  const { nodes: storeNodes, edges: storeEdges, setNodes, setEdges, bulkDelete } = useSchemaStore()
 
   const [nodes, setLocalNodes, onNodesChange] = useNodesState(storeNodes)
   const [edges, setLocalEdges, onEdgesChange] = useEdgesState(storeEdges.map(buildEdgeDisplay))
@@ -104,6 +104,15 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick }) {
     })
   }, [setEdges])
 
+  // Intercept React Flow's Delete key — push history THEN remove from store
+  const onNodesDelete = useCallback((deletedNodes) => {
+    bulkDelete(deletedNodes.map(n => n.id), [])
+  }, [bulkDelete])
+
+  const onEdgesDelete = useCallback((deletedEdges) => {
+    bulkDelete([], deletedEdges.map(e => e.id))
+  }, [bulkDelete])
+
   // Allow dragging an edge endpoint to a different handle
   const onReconnect = useCallback((oldEdge, newConnection) => {
     setLocalEdges(eds => {
@@ -123,6 +132,8 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick }) {
         onNodeDragStop={handleNodeDragStop}
         onConnect={onConnect}
         onReconnect={onReconnect}
+        onNodesDelete={onNodesDelete}
+        onEdgesDelete={onEdgesDelete}
         onNodeClick={(_, node) => onNodeClick(node)}
         onEdgeClick={(_, edge) => onEdgeClick(edge)}
         nodeTypes={nodeTypes}

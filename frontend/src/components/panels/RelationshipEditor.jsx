@@ -2,6 +2,49 @@ import { useState, useEffect } from 'react'
 import useSchemaStore from '../../store/useSchemaStore'
 import ConfirmModal from '../ui/ConfirmModal'
 
+const LINE_STYLES = [
+  {
+    value: 'default',
+    label: 'Curved',
+    description: 'Smooth bezier curve',
+    icon: (
+      <svg viewBox="0 0 40 20" className="w-10 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M2 18 C10 18, 15 2, 38 2" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    value: 'smoothstep',
+    label: 'Elbow',
+    description: 'Rounded 90° bends',
+    icon: (
+      <svg viewBox="0 0 40 20" className="w-10 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M2 18 Q2 2, 20 2 L38 2" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    value: 'step',
+    label: 'Step',
+    description: 'Hard 90° angles',
+    icon: (
+      <svg viewBox="0 0 40 20" className="w-10 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="2,18 2,2 38,2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    value: 'straight',
+    label: 'Straight',
+    description: 'Direct line',
+    icon: (
+      <svg viewBox="0 0 40 20" className="w-10 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+        <line x1="2" y1="18" x2="38" y2="2" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+]
+
 const RELATIONSHIP_TYPES = [
   {
     value: '1:1',
@@ -10,13 +53,13 @@ const RELATIONSHIP_TYPES = [
     example: 'User → Profile',
   },
   {
-    value: '1:N',
+    value: '1M',
     label: 'One to Many',
     description: 'One row in A links to many rows in B',
     example: 'User → Orders',
   },
   {
-    value: 'N:1',
+    value: 'M:1',
     label: 'Many to One',
     description: 'Many rows in A link to one row in B',
     example: 'Orders → User',
@@ -32,7 +75,8 @@ const RELATIONSHIP_TYPES = [
 export default function RelationshipEditor({ edge, onClose }) {
   const { nodes, updateEdge, deleteEdge, setEdges, edges } = useSchemaStore()
 
-  const [selectedType,   setSelectedType]   = useState('1:N')
+  const [selectedType,   setSelectedType]   = useState('1:M')
+  const [lineStyle,      setLineStyle]      = useState('default')
   const [sourceLabel,    setSourceLabel]    = useState('')
   const [targetLabel,    setTargetLabel]    = useState('')
   const [saved,          setSaved]          = useState(false)
@@ -41,10 +85,11 @@ export default function RelationshipEditor({ edge, onClose }) {
   const sourceNode = nodes.find(n => n.id === edge.source)
   const targetNode = nodes.find(n => n.id === edge.target)
 
-  // Load current type + labels when edge changes
+  // Load current type + labels + line style when edge changes
   useEffect(() => {
-    const current = edge.data?.relationshipType || '1:N'
+    const current = edge.data?.relationshipType || '1:M'
     setSelectedType(current)
+    setLineStyle(edge.type || 'default')
     setSourceLabel(edge.data?.sourceLabel || '')
     setTargetLabel(edge.data?.targetLabel || '')
     setSaved(false)
@@ -57,6 +102,7 @@ export default function RelationshipEditor({ edge, onClose }) {
       ? `${src || '—'} [${selectedType}] ${tgt || '—'}`
       : selectedType
     updateEdge(edge.id, {
+      type:  lineStyle,
       label: canvasLabel,
       data:  { ...edge.data, relationshipType: selectedType, sourceLabel: src, targetLabel: tgt },
       style: { stroke: '#6B7280', strokeWidth: 2 },
@@ -76,7 +122,8 @@ export default function RelationshipEditor({ edge, onClose }) {
   }
 
   const hasChanges =
-    selectedType !== (edge.data?.relationshipType || '1:N') ||
+    selectedType !== (edge.data?.relationshipType || '1:M') ||
+    lineStyle    !== (edge.type || 'default') ||
     sourceLabel  !== (edge.data?.sourceLabel || '') ||
     targetLabel  !== (edge.data?.targetLabel || '')
 
@@ -126,6 +173,35 @@ export default function RelationshipEditor({ edge, onClose }) {
           </div>
         </div>
 
+        {/* Line Style */}
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            Line Style
+          </p>
+          <div className="grid grid-cols-4 gap-1.5">
+            {LINE_STYLES.map((style) => (
+              <button
+                key={style.value}
+                onClick={() => { setLineStyle(style.value); setSaved(false) }}
+                title={style.description}
+                className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all
+                  ${lineStyle === style.value
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50'
+                  }`}
+              >
+                <span className={lineStyle === style.value ? 'text-blue-600' : 'text-gray-500'}>
+                  {style.icon}
+                </span>
+                <span className={`text-xs font-medium leading-tight
+                  ${lineStyle === style.value ? 'text-blue-600' : 'text-gray-500'}`}>
+                  {style.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Named association — UML-style labels for each side */}
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -162,7 +238,7 @@ export default function RelationshipEditor({ edge, onClose }) {
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-1.5">
-            Canvas shows: <span className="font-mono text-gray-500">source [1:N] target</span>
+            Canvas shows: <span className="font-mono text-gray-500">source [1:M] target</span>
           </p>
         </div>
 

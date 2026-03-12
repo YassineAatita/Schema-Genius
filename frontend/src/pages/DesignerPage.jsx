@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ReactFlowProvider } from '@xyflow/react'
 import SchemaCanvas from '../components/canvas/SchemaCanvas'
@@ -13,7 +13,8 @@ import { validateSchema } from '../utils/validateSchema'
 export default function DesignerPage() {
   const { projectId } = useParams()
   const navigate      = useNavigate()
-  const { loadSchema, addTable, nodes, edges, isDirty, markSaved, aiGenerate } = useSchemaStore()
+  const { loadSchema, addTable, nodes, edges, isDirty, markSaved, aiGenerate,
+          undo, redo, past, future } = useSchemaStore()
   const { user } = useAuthStore()
 
   const [project,          setProject]          = useState(null)
@@ -30,7 +31,10 @@ export default function DesignerPage() {
   const [showAiConfirm,     setShowAiConfirm]     = useState(false)
   const [showShareModal,    setShowShareModal]    = useState(false)
   const [showTemplatesModal,setShowTemplatesModal]= useState(false)
+  const [showMoreMenu,      setShowMoreMenu]      = useState(false)
+  const [undoToast,         setUndoToast]         = useState(null)  // { message }
   const pendingAiSchema = useRef(null)
+  const moreMenuRef     = useRef(null)
 
   const isOwner = project?.owner_id === user?.id
 
@@ -73,6 +77,45 @@ export default function DesignerPage() {
       else setSelectedEdge(null)
     }
   }, [edges])
+
+  // Keyboard shortcuts: Ctrl+Z = undo, Ctrl+Shift+Z / Ctrl+Y = redo
+  const handleUndo = useCallback(() => {
+    if (useSchemaStore.getState().past.length === 0) return
+    undo()
+    setUndoToast({ message: 'Undone' })
+    setTimeout(() => setUndoToast(null), 2000)
+  }, [undo])
+
+  const handleRedo = useCallback(() => {
+    if (useSchemaStore.getState().future.length === 0) return
+    redo()
+    setUndoToast({ message: 'Redone' })
+    setTimeout(() => setUndoToast(null), 2000)
+  }, [redo])
+
+  useEffect(() => {
+    const onKey = (e) => {
+      const mod = e.ctrlKey || e.metaKey
+      if (!mod) return
+      // Don't intercept when typing in an input/textarea
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return
+      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo() }
+      if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); handleRedo() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [handleUndo, handleRedo])
+
+  // Close "More" menu when clicking outside
+  useEffect(() => {
+    const onMouseDown = (e) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
+        setShowMoreMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
 
   const handleNodeClick = (node) => {
     setSelectedEdge(null)
@@ -245,6 +288,51 @@ export default function DesignerPage() {
         {/* Right */}
         <div className="flex items-center gap-2">
 
+          {/* Undo / Redo */}
+          <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden">
+            <button
+              onClick={handleUndo}
+              disabled={past.length === 0}
+              title="Undo (Ctrl+Z)"
+              className={`flex items-center justify-center p-1.5 transition-all
+                ${past.length === 0
+                  ? 'text-gray-300 bg-white cursor-not-allowed'
+                  : 'text-gray-600 bg-white hover:bg-gray-50 hover:text-blue-600'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+              </svg>
+            </button>
+            <div className="w-px h-5 bg-gray-200"/>
+            <button
+              onClick={handleRedo}
+              disabled={future.length === 0}
+              title="Redo (Ctrl+Shift+Z)"
+              className={`flex items-center justify-center p-1.5 transition-all
+                ${future.length === 0
+                  ? 'text-gray-300 bg-white cursor-not-allowed'
+                  : 'text-gray-600 bg-white hover:bg-gray-50 hover:text-blue-600'}`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6"/>
+              </svg>
+            </button>
+          </div>
+
+          <div className="w-px h-5 bg-gray-200"/>
+
+          {/* Add Table */}
+          <button
+            onClick={addTable}
+            className="flex items-center gap-1.5 text-sm text-gray-700 border border-gray-200
+                       hover:border-blue-300 hover:text-blue-600 px-3 py-1.5 rounded-lg
+                       transition-all bg-white hover:bg-blue-50 font-medium">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+            </svg>
+            Add Table
+          </button>
+
           {/* AI Generate */}
           <button
             onClick={() => { setShowAiModal(true); setAiError('') }}
@@ -258,72 +346,74 @@ export default function DesignerPage() {
             AI Generate
           </button>
 
-          {/* Templates */}
-          <button
-            onClick={() => setShowTemplatesModal(true)}
-            className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg
-                       border border-gray-200 text-gray-600 bg-white
-                       hover:bg-gray-50 hover:border-gray-300 transition-all">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
-            </svg>
-            Templates
-          </button>
-
-          <button
-            onClick={addTable}
-            className="flex items-center gap-1.5 text-sm text-gray-700 border border-gray-200
-                       hover:border-blue-300 hover:text-blue-600 px-3 py-1.5 rounded-lg
-                       transition-all bg-white hover:bg-blue-50 font-medium">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
-            </svg>
-            Add Table
-          </button>
-
-          {/* Validate button */}
-          {nodes.length > 0 && (
+          {/* ⋯ More dropdown */}
+          <div className="relative" ref={moreMenuRef}>
             <button
-              onClick={handleValidateClick}
-              className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5
-                          rounded-lg border transition-all ${validateBtnClass}
-                          ${showValidation ? 'ring-2 ring-offset-1 ring-current/30' : ''}`}
-            >
-              {errorCount > 0 ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                </svg>
-              ) : warningCount > 0 ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-              )}
-              {errorCount > 0
-                ? `${errorCount} error${errorCount !== 1 ? 's' : ''}`
-                : warningCount > 0
-                  ? `${warningCount} warning${warningCount !== 1 ? 's' : ''}`
-                  : 'Valid'}
+              onClick={() => setShowMoreMenu(v => !v)}
+              className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg
+                         border transition-all
+                         ${showMoreMenu
+                           ? 'border-gray-300 bg-gray-100 text-gray-700'
+                           : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-300'}`}>
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+              </svg>
+              More
             </button>
-          )}
 
-          {/* Export SQL */}
-          <button
-            onClick={handleExportSQL}
-            className="flex items-center gap-1.5 text-sm text-gray-700 border border-gray-200
-                       hover:border-blue-300 hover:text-blue-600 px-3 py-1.5 rounded-lg
-                       transition-all bg-white hover:bg-blue-50 font-medium">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-            </svg>
-            Export SQL
-          </button>
+            {showMoreMenu && (
+              <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-xl border
+                              border-gray-200 shadow-lg z-50 overflow-hidden py-1">
+
+                {/* Templates */}
+                <button
+                  onClick={() => { setShowTemplatesModal(true); setShowMoreMenu(false) }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700
+                             hover:bg-gray-50 transition-colors text-left">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
+                  </svg>
+                  Templates
+                </button>
+
+                {/* Validate */}
+                <button
+                  onClick={() => { handleValidateClick(); setShowMoreMenu(false) }}
+                  className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-sm
+                             hover:bg-gray-50 transition-colors text-left
+                             ${errorCount > 0 ? 'text-red-600' : warningCount > 0 ? 'text-amber-600' : 'text-gray-700'}`}>
+                  <span className="flex items-center gap-3">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Validate Schema
+                  </span>
+                  {(errorCount > 0 || warningCount > 0) && (
+                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full
+                      ${errorCount > 0 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+                      {errorCount > 0 ? errorCount : warningCount}
+                    </span>
+                  )}
+                </button>
+
+                <div className="h-px bg-gray-100 my-1"/>
+
+                {/* Export SQL */}
+                <button
+                  onClick={() => { handleExportSQL(); setShowMoreMenu(false) }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700
+                             hover:bg-gray-50 transition-colors text-left">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                  </svg>
+                  Export SQL
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Share — owner only */}
           {isOwner && (
@@ -427,9 +517,23 @@ export default function DesignerPage() {
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-10">
         <p className="text-xs text-gray-400 bg-white/90 backdrop-blur px-3 py-1.5
                       rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
-          Click table to edit · Click relationship line to change type · Drag handle to connect · Delete key to remove
+          Click table to edit · Click relationship to change · Drag handle to connect · Del to remove · Ctrl+Z to undo
         </p>
       </div>
+
+      {/* Undo / Redo toast */}
+      {undoToast && (
+        <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+          <div className="flex items-center gap-2 bg-gray-800 text-white text-xs font-medium
+                          px-4 py-2 rounded-full shadow-lg animate-fade-in">
+            <svg className="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
+                d="M5 13l4 4L19 7"/>
+            </svg>
+            {undoToast.message}
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         open={showLeaveModal}
