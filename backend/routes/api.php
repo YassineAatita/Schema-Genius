@@ -9,7 +9,7 @@ use App\Http\Controllers\Api\AiController;
 use App\Http\Controllers\Api\CollaboratorController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\ProfileController;
-use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\FriendshipController;
 
 
 // ── Public routes ────────────────────────────────────────────────
@@ -60,7 +60,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/schemas/{id}/export/sql', [SchemaController::class, 'exportSql']);
 
     // AI Schema Generation
-    Route::post('/ai/generate', [AiController::class, 'generate']);
+    Route::post('/ai/generate',            [AiController::class, 'generate']);
+    Route::post('/ai/generate-from-image', [AiController::class, 'generateFromImage']);
 
     // Profile
     Route::get('/profile',          [ProfileController::class, 'show']);
@@ -78,11 +79,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/invitations/{projectId}/accept',        [InvitationController::class, 'accept']);
     Route::post('/invitations/{projectId}/decline',       [InvitationController::class, 'decline']);
 
-    // Notifications
-    Route::get('/notifications',              [NotificationController::class, 'index']);
-    Route::post('/notifications/read-all',    [NotificationController::class, 'markAllRead']);
-    Route::post('/notifications/{id}/read',   [NotificationController::class, 'markRead']);
-    Route::delete('/notifications/clear',     [NotificationController::class, 'clear']);
+    // Friends & user search
+    Route::get('/users/search',              [FriendshipController::class, 'search']);
+    Route::get('/friends',                   [FriendshipController::class, 'index']);
+    Route::get('/friends/requests',          [FriendshipController::class, 'requests']);
+    Route::get('/friends/sent',              [FriendshipController::class, 'sent']);
+    Route::post('/friends',                  [FriendshipController::class, 'store']);
+    Route::post('/friends/{id}/accept',      [FriendshipController::class, 'accept']);
+    Route::post('/friends/{id}/decline',     [FriendshipController::class, 'decline']);
+    Route::delete('/friends/{id}',           [FriendshipController::class, 'destroy']);
 });
 
 // Public user profiles

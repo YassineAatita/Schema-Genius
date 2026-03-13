@@ -58,4 +58,16 @@ class User extends Authenticatable
                     ->withPivot('role', 'status', 'invited_at')
                     ->withTimestamps();
     }
+
+    // Friendships where this user sent the request
+    public function sentFriendRequests()
+    {
+        return $this->hasMany(Friendship::class, 'requester_id');
+    }
+
+    // Friendships where this user received the request
+    public function receivedFriendRequests()
+    {
+        return $this->hasMany(Friendship::class, 'receiver_id');
+    }
 }

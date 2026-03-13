@@ -27,17 +27,21 @@ class CollaboratorController extends Controller
     }
 
     // POST /api/projects/{id}/collaborators
+    // Accepts { email, role } OR { user_id, role }
     public function store(Request $request, $projectId)
     {
         $project = Project::findOrFail($projectId);
         $this->ownerOnly($request->user(), $project);
 
         $request->validate([
-            'email' => 'required|email|exists:users,email',
-            'role'  => 'required|in:editor,viewer',
+            'role'    => 'required|in:editor,viewer',
+            'email'   => 'required_without:user_id|nullable|email|exists:users,email',
+            'user_id' => 'required_without:email|nullable|integer|exists:users,id',
         ]);
 
-        $invitee = User::where('email', $request->email)->first();
+        $invitee = $request->filled('user_id')
+            ? User::findOrFail($request->user_id)
+            : User::where('email', $request->email)->firstOrFail();
 
         if ($invitee->id === $request->user()->id) {
             return response()->json(['message' => 'You cannot invite yourself.'], 422);
@@ -54,11 +58,12 @@ class CollaboratorController extends Controller
         ]);
 
         return response()->json([
-            'id'     => $invitee->id,
-            'name'   => $invitee->name,
-            'email'  => $invitee->email,
-            'role'   => $request->role,
-            'status' => 'pending',
+            'id'        => $invitee->id,
+            'name'      => $invitee->name,
+            'email'     => $invitee->email,
+            'avatar_url'=> $invitee->avatar_url,
+            'role'      => $request->role,
+            'status'    => 'pending',
         ], 201);
     }
 

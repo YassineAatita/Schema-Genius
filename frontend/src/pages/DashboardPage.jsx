@@ -32,11 +32,25 @@ export default function DashboardPage() {
   const [showModal,     setShowModal]     = useState(false)
   const [search,        setSearch]        = useState('')
   const [pendingDelete, setPendingDelete] = useState(null)
-  const [invitations,    setInvitations]    = useState([])
-  const [notifications,  setNotifications]  = useState([])
-  const [bellTab,        setBellTab]        = useState('invitations') // 'invitations' | 'notifications'
-  const [showBell,       setShowBell]       = useState(false)
+  const [invitations,       setInvitations]       = useState([])
+  const [notifications,     setNotifications]     = useState([])
+  const [bellTab,           setBellTab]           = useState('invitations') // 'invitations' | 'notifications'
+  const [showBell,          setShowBell]          = useState(false)
+  const [friendReqCount,    setFriendReqCount]    = useState(0)
   const bellRef = useRef(null)
+
+  // ── Friends view state ────────────────────────────────────────
+  const [friendsList,        setFriendsList]        = useState([])
+  const [friendRequests,     setFriendRequests]     = useState([])
+  const [friendsLoaded,      setFriendsLoaded]      = useState(false)
+  const [friendsTab,         setFriendsTab]         = useState('friends')
+  const [friendSearch,       setFriendSearch]       = useState('')
+  const [friendSearchRes,    setFriendSearchRes]    = useState([])
+  const [friendSearching,    setFriendSearching]    = useState(false)
+  const [friendSearchDone,   setFriendSearchDone]   = useState(false)
+  const [friendActionLoading,setFriendActionLoading]= useState(null)
+  const [friendToast,        setFriendToast]        = useState(null)
+  const friendSearchTimer = useRef(null)
 
   // ── Profile state ─────────────────────────────────────────────
   const fileRef                                   = useRef()
@@ -60,6 +74,7 @@ export default function DashboardPage() {
     fetchProjects()
     fetchInvitations()
     fetchNotifications()
+    api.get('/friends/requests').then(r => setFriendReqCount(r.data.length)).catch(() => {})
   }, [])
 
   // Sync profile fields when user changes
@@ -108,6 +123,88 @@ export default function DashboardPage() {
 
   const unreadCount = notifications.filter(n => !n.read).length
   const totalBellCount = invitations.length + unreadCount
+
+  // ── Friends helpers ────────────────────────────────────────────
+  const loadFriendsData = async () => {
+    if (friendsLoaded) return
+    const [fl, rq] = await Promise.all([api.get('/friends'), api.get('/friends/requests')]).catch(() => [{ data: [] }, { data: [] }])
+    setFriendsList(fl?.data || [])
+    setFriendRequests(rq?.data || [])
+    setFriendReqCount((rq?.data || []).length)
+    setFriendsLoaded(true)
+  }
+
+  useEffect(() => {
+    if (view === 'friends') loadFriendsData()
+  }, [view])
+
+  useEffect(() => {
+    clearTimeout(friendSearchTimer.current)
+    if (friendSearch.trim().length < 2) { setFriendSearchRes([]); setFriendSearchDone(false); return }
+    setFriendSearching(true)
+    friendSearchTimer.current = setTimeout(async () => {
+      try {
+        const res = await api.get(`/users/search?q=${encodeURIComponent(friendSearch.trim())}`)
+        setFriendSearchRes(res.data); setFriendSearchDone(true)
+      } catch { setFriendSearchRes([]) }
+      finally { setFriendSearching(false) }
+    }, 400)
+  }, [friendSearch])
+
+  const showFriendToast = (msg, type = 'success') => {
+    setFriendToast({ msg, type })
+    setTimeout(() => setFriendToast(null), 3000)
+  }
+
+  const updateFriendStatus = (userId, status, fid = null) => {
+    setFriendSearchRes(prev => prev.map(u => u.id === userId ? { ...u, friendship_status: status, friendship_id: fid } : u))
+  }
+
+  const handleFriendSend = async (target) => {
+    setFriendActionLoading(target.id)
+    try {
+      const res = await api.post('/friends', { user_id: target.id })
+      updateFriendStatus(target.id, 'request_sent', res.data.friendship_id)
+      showFriendToast(`Friend request sent to ${target.name}!`)
+    } catch (err) { showFriendToast(err.response?.data?.message || 'Could not send request.', 'error') }
+    finally { setFriendActionLoading(null) }
+  }
+
+  const handleFriendAccept = async (target, fid) => {
+    setFriendActionLoading(target.id)
+    try {
+      await api.post(`/friends/${fid}/accept`)
+      setFriendRequests(prev => prev.filter(r => r.friendship_id !== fid))
+      setFriendsList(prev => [{ friendship_id: fid, id: target.id, name: target.name, email: target.email, avatar_url: target.avatar_url, headline: target.headline }, ...prev])
+      setFriendReqCount(c => Math.max(0, c - 1))
+      updateFriendStatus(target.id, 'friends', fid)
+      showFriendToast(`You and ${target.name} are now friends!`)
+    } catch (err) { showFriendToast(err.response?.data?.message || 'Could not accept.', 'error') }
+    finally { setFriendActionLoading(null) }
+  }
+
+  const handleFriendDecline = async (target, fid) => {
+    setFriendActionLoading(target.id)
+    try {
+      await api.post(`/friends/${fid}/decline`)
+      setFriendRequests(prev => prev.filter(r => r.friendship_id !== fid))
+      setFriendReqCount(c => Math.max(0, c - 1))
+      updateFriendStatus(target.id, 'none', null)
+      showFriendToast('Request removed.')
+    } catch (err) { showFriendToast(err.response?.data?.message || 'Error.', 'error') }
+    finally { setFriendActionLoading(null) }
+  }
+
+  const handleFriendUnfriend = async (target, fid) => {
+    setFriendActionLoading(target.id)
+    try {
+      await api.delete(`/friends/${fid}`)
+      setFriendsList(prev => prev.filter(f => f.friendship_id !== fid))
+      updateFriendStatus(target.id, 'none', null)
+      showFriendToast(`Removed ${target.name} from friends.`)
+    } catch (err) { showFriendToast(err.response?.data?.message || 'Error.', 'error') }
+    finally { setFriendActionLoading(null) }
+  }
 
   // ── Auth ──────────────────────────────────────────────────────
   const handleLogout = async () => {
@@ -204,6 +301,18 @@ export default function DashboardPage() {
         <nav className="px-3 space-y-0.5">
           <SideNavItem icon={<GridIcon/>}  label="Dashboard" active={view==='dashboard'} onClick={() => setView('dashboard')} />
           <SideNavItem icon={<UserIcon/>}  label="Profile"   active={view==='profile'}   onClick={() => setView('profile')}   />
+          <SideNavItem
+            icon={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+            }
+            label="Friends"
+            badge={friendReqCount > 0 ? friendReqCount : null}
+            active={view === 'friends'}
+            onClick={() => setView('friends')}
+          />
         </nav>
 
         <div className="mx-6 border-t border-white/8 my-3"/>
@@ -244,6 +353,11 @@ export default function DashboardPage() {
               <>
                 <h1 className="text-lg font-bold text-gray-900">{getGreeting()}, {user?.name?.split(' ')[0]} 👋</h1>
                 <p className="text-xs text-gray-400 mt-0.5">Here's an overview of your schema projects</p>
+              </>
+            ) : view === 'friends' ? (
+              <>
+                <h1 className="text-lg font-bold text-gray-900">Your Network</h1>
+                <p className="text-xs text-gray-400 mt-0.5">Connect with teammates to invite them to projects instantly</p>
               </>
             ) : (
               <>
@@ -481,6 +595,155 @@ export default function DashboardPage() {
             </>
           )}
 
+          {/* ════════ FRIENDS VIEW ════════ */}
+          {view === 'friends' && (
+            <div className="max-w-2xl mx-auto">
+
+              {/* Search bar */}
+              <div className="relative mb-5">
+                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input type="text" placeholder="Search by name or email…"
+                  value={friendSearch}
+                  onChange={e => { setFriendSearch(e.target.value); if (e.target.value.length >= 2) setFriendsTab('search') }}
+                  className="w-full pl-10 pr-4 py-3 text-sm border border-gray-200 rounded-xl bg-white
+                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                             placeholder:text-gray-400 shadow-sm"/>
+                {friendSearching && (
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>
+                  </div>
+                )}
+              </div>
+
+              {/* Tabs */}
+              <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl">
+                {[
+                  { id: 'friends',  label: 'Friends',     count: friendsList.length },
+                  { id: 'requests', label: 'Requests',    count: friendRequests.length, badge: friendRequests.length > 0 },
+                  { id: 'search',   label: 'Find People', count: null },
+                ].map(t => (
+                  <button key={t.id} onClick={() => setFriendsTab(t.id)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all
+                      ${friendsTab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    {t.label}
+                    {t.count !== null && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold
+                        ${friendsTab === t.id
+                          ? t.badge ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'
+                          : t.badge ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                        {t.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Search tab ── */}
+              {friendsTab === 'search' && (
+                <div className="space-y-2">
+                  {friendSearch.length < 2 && !friendSearchDone ? (
+                    <div className="text-center py-16">
+                      <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 font-medium text-sm">Find people to connect with</p>
+                      <p className="text-xs text-gray-400 mt-1">Type a name or email address above</p>
+                    </div>
+                  ) : friendSearchDone && friendSearchRes.length === 0 ? (
+                    <div className="text-center py-16">
+                      <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                      </div>
+                      <p className="text-gray-600 font-medium text-sm">No account found</p>
+                      <p className="text-xs text-gray-400 mt-1">Nobody matches "<span className="font-medium">{friendSearch}</span>"</p>
+                    </div>
+                  ) : friendSearchRes.map(u => (
+                    <FriendCard key={u.id} user={u} actionLoading={friendActionLoading}
+                      onSend={handleFriendSend} onAccept={handleFriendAccept}
+                      onDecline={handleFriendDecline} onUnfriend={handleFriendUnfriend} />
+                  ))}
+                </div>
+              )}
+
+              {/* ── Friends tab ── */}
+              {friendsTab === 'friends' && (
+                <div className="space-y-2">
+                  {friendsList.length === 0 ? (
+                    <div className="text-center py-16">
+                      <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                      </div>
+                      <p className="text-gray-600 font-medium text-sm">No friends yet</p>
+                      <p className="text-xs text-gray-400 mt-1">Use the search bar above to find teammates</p>
+                      <button onClick={() => setFriendsTab('search')}
+                        className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">Find people →</button>
+                    </div>
+                  ) : friendsList.map(f => (
+                    <FriendCard key={f.friendship_id}
+                      user={{ ...f, friendship_status: 'friends', friendship_id: f.friendship_id }}
+                      actionLoading={friendActionLoading}
+                      onSend={handleFriendSend} onAccept={handleFriendAccept}
+                      onDecline={handleFriendDecline} onUnfriend={handleFriendUnfriend} />
+                  ))}
+                </div>
+              )}
+
+              {/* ── Requests tab ── */}
+              {friendsTab === 'requests' && (
+                <div className="space-y-2">
+                  {friendRequests.length === 0 ? (
+                    <div className="text-center py-16">
+                      <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-7 h-7 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                      </div>
+                      <p className="text-gray-600 font-medium text-sm">No pending requests</p>
+                      <p className="text-xs text-gray-400 mt-1">Friend requests will appear here</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 px-1">
+                        {friendRequests.length} incoming request{friendRequests.length !== 1 ? 's' : ''}
+                      </p>
+                      {friendRequests.map(r => (
+                        <FriendCard key={r.friendship_id}
+                          user={{ ...r, friendship_status: 'request_received', friendship_id: r.friendship_id }}
+                          actionLoading={friendActionLoading}
+                          onSend={handleFriendSend} onAccept={handleFriendAccept}
+                          onDecline={handleFriendDecline} onUnfriend={handleFriendUnfriend} />
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Toast */}
+              {friendToast && (
+                <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5
+                                 px-5 py-3 rounded-xl shadow-lg text-sm font-medium
+                                 ${friendToast.type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-900 text-white'}`}>
+                  {friendToast.type === 'error'
+                    ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+                    : <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
+                  }
+                  {friendToast.msg}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ════════ PROFILE VIEW ════════ */}
           {view === 'profile' && (
             <div className="max-w-2xl mx-auto">
@@ -686,7 +949,7 @@ export default function DashboardPage() {
 }
 
 // ── Sidebar nav item ──────────────────────────────────────────────
-function SideNavItem({ icon, label, active, onClick, danger }) {
+function SideNavItem({ icon, label, active, onClick, danger, badge }) {
   const base = `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer`
   const cls  = active
     ? `${base} bg-blue-600 text-white shadow-md shadow-blue-900/30`
@@ -696,8 +959,88 @@ function SideNavItem({ icon, label, active, onClick, danger }) {
   return (
     <button onClick={onClick} className={cls}>
       <span className="w-4 h-4 flex-shrink-0">{icon}</span>
-      {label}
+      <span className="flex-1 text-left">{label}</span>
+      {badge != null && (
+        <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
     </button>
+  )
+}
+
+// ── Friend card (used in Friends view) ───────────────────────────
+function FriendCard({ user, actionLoading, onSend, onAccept, onDecline, onUnfriend }) {
+  const { friendship_status: status, friendship_id: fid } = user
+  const loading = actionLoading === user.id
+  const statusBadge = {
+    friends:          { label: 'Friends',          cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    request_sent:     { label: 'Request sent',     cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+    request_received: { label: 'Wants to connect', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+  }[status]
+
+  return (
+    <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100
+                    hover:border-gray-200 hover:shadow-sm transition-all group">
+      <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center
+                       font-bold text-white text-sm overflow-hidden
+                       ${user.avatar_url ? '' : status === 'friends' ? 'bg-emerald-500' : 'bg-blue-500'}`}>
+        {user.avatar_url
+          ? <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover"/>
+          : (user.name || '?')[0].toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+          {statusBadge && (
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusBadge.cls}`}>
+              {statusBadge.label}
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-gray-400 truncate">{user.email}</p>
+        {user.headline && <p className="text-xs text-gray-500 truncate mt-0.5">{user.headline}</p>}
+      </div>
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        {loading ? (
+          <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>
+        ) : status === 'none' ? (
+          <button onClick={() => onSend(user)}
+            className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg
+                       bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+            </svg>
+            Add
+          </button>
+        ) : status === 'request_sent' ? (
+          <button onClick={() => onDecline(user, fid)}
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200
+                       text-gray-500 hover:border-red-200 hover:text-red-500 hover:bg-red-50 transition-colors">
+            Cancel
+          </button>
+        ) : status === 'request_received' ? (
+          <>
+            <button onClick={() => onAccept(user, fid)}
+              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm">
+              Accept
+            </button>
+            <button onClick={() => onDecline(user, fid)}
+              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200
+                         text-gray-500 hover:border-red-200 hover:text-red-500 hover:bg-red-50 transition-colors">
+              Decline
+            </button>
+          </>
+        ) : status === 'friends' ? (
+          <button onClick={() => onUnfriend(user, fid)}
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200
+                       text-gray-400 hover:border-red-200 hover:text-red-500 hover:bg-red-50
+                       transition-colors opacity-0 group-hover:opacity-100">
+            Unfriend
+          </button>
+        ) : null}
+      </div>
+    </div>
   )
 }
 
