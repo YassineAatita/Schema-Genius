@@ -16,7 +16,7 @@ A web-based SaaS-style platform that lets developers, students, and teams visual
 | Auth | Laravel Sanctum (token-based) |
 | Roles | Spatie Laravel Permission |
 | Database | MySQL (MariaDB via XAMPP) |
-| AI | Groq API — Llama 3.3 70B |
+| AI | Groq API — Llama 4 Scout (meta-llama/llama-4-scout-17b-16e-instruct) |
 
 ---
 
@@ -38,7 +38,7 @@ Schema-Genius/
 │   │   ├── pages/            ← Landing, Login, Register, Dashboard, Designer
 │   │   ├── services/         ← API service layer
 │   │   ├── store/            ← Zustand stores
-│   │   └── utils/            ← validateSchema, etc.
+│   │   └── utils/            ← validateSchema, parseSql, etc.
 └── README.md
 ```
 
@@ -110,14 +110,18 @@ Frontend runs at: `http://localhost:5173`
 ### Schema Management
 - Schema auto-saves as versioned JSON (`schema_versions` table)
 - Auto-loads last saved schema when reopening a project
+- **Version history browser** — visual list of past saves with restore to any point
 - **Unsaved changes** indicator with browser-close warning
 - SQL export — downloads a `.sql` file of the full schema
+- **Import from SQL** — paste or upload a `.sql` file to generate a visual schema
 
 ### AI Schema Generation
 - Natural language prompt → full schema on canvas
-- Powered by Groq API (Llama 3.3 70B — free tier)
+- Powered by Groq API (Llama 4 Scout — free tier)
+- Image-to-schema: upload an ER diagram image and AI generates the schema
 - Confirmation modal before replacing an existing canvas
 - Example prompts for quick start
+- AI-assisted bio enhancement on Profile page
 
 ### Schema Validation
 - Client-side validation panel detects errors and warnings
@@ -128,25 +132,42 @@ Frontend runs at: `http://localhost:5173`
 - One-click pre-built schemas: Blog Platform, E-Commerce Store, SaaS Platform
 - Each template loads with tables, columns, and labelled relationships ready to customize
 
+### Friends & Network
+- Search any user by name or email — shows "user not found" feedback when no results match
+- Send / cancel friend requests
+- Accept or decline incoming friend requests
+- Friends list with unfriend option
+- Badge on Dashboard sidebar showing pending friend request count
+- **Dashboard "Friends" view** — full friends management in one place (no separate page)
+
 ### Collaboration & Invitations
-- Project owners can invite teammates by email (Editor or Viewer role)
+- **Invite from Friends** — Share modal now has a "Friends" tab to invite teammates in one click
+- **Invite by Email** — classic email-based invite still works alongside friend invites
 - Invitations are **pending** until the invitee accepts or declines
-- Notification bell on Dashboard shows all pending invitations with Accept / Decline buttons
+- Notification bell on Dashboard shows all pending invitations and notifications
 - Owners can remove collaborators or cancel pending invitations from the Share modal
 - Shared projects appear in the invitee's dashboard only after acceptance
+- Role assignment (Editor or Viewer) for every collaborator
+
+### User Profile
+- Edit name, user type, headline, and bio
+- Upload profile photo (JPEG/PNG/GIF/WebP, max 2 MB)
+- AI-powered bio enhancement with one click
+- Profile and Friends accessible directly from Dashboard sidebar
 
 ### UI / UX
+- Sidebar navigation in Dashboard: Dashboard / Profile / Friends with active state + badges
 - Toolbar decluttered — Templates, Validate Schema, and Export SQL moved into a **⋯ More** dropdown
 - Undo / Redo icon buttons in toolbar (grayed out when unavailable)
 - "Undone / Redone" toast confirmation on keyboard shortcut use
 - Bottom help bar updated with keyboard shortcut hints
+- Toast notifications for all friend actions
 
 ---
 
 ## 🗺️ Roadmap
 
 ### In Progress / Next Up
-- [ ] **Version history browser** — visual list of past saves, ability to restore any version
 - [ ] **Real-time collaboration** — live cursor presence and instant canvas sync via WebSockets (Laravel Reverb)
 
 ### Community & Discovery
@@ -157,7 +178,6 @@ Frontend runs at: `http://localhost:5173`
 
 ### Power User Features
 - [ ] **Multi-DB SQL export** — PostgreSQL, SQLite, SQL Server (currently MySQL only)
-- [ ] **Import from SQL** — paste or upload an existing `.sql` file to generate a visual schema
 - [ ] **Schema diff viewer** — compare any two saved versions with highlighted changes
 - [ ] **Table annotations / notes** — add sticky-note style comments directly on canvas nodes
 - [ ] **Dark mode** for the designer canvas
@@ -182,12 +202,26 @@ Frontend runs at: `http://localhost:5173`
 | GET | `/api/projects/{id}` | Get project with schema |
 | GET | `/api/schemas/{id}` | Get schema with current version |
 | PUT | `/api/schemas/{id}` | Save schema (creates new version) |
+| GET | `/api/schemas/{id}/versions` | List all saved versions |
+| POST | `/api/schemas/{id}/versions/{versionId}/restore` | Restore a past version |
 | GET | `/api/schemas/{id}/export/sql` | Download SQL file |
-| POST | `/api/ai/generate` | AI schema generation |
-| POST | `/api/projects/{id}/collaborators` | Invite a collaborator |
+| POST | `/api/ai/generate` | AI schema generation from prompt |
+| POST | `/api/ai/generate-from-image` | AI schema generation from image |
+| POST | `/api/ai/enhance-bio` | AI bio enhancement |
+| GET | `/api/users/search?q=` | Search users by name or email |
+| GET | `/api/friends` | List accepted friends |
+| GET | `/api/friends/requests` | List incoming friend requests |
+| POST | `/api/friends` | Send a friend request |
+| POST | `/api/friends/{id}/accept` | Accept a friend request |
+| POST | `/api/friends/{id}/decline` | Decline or cancel a request |
+| DELETE | `/api/friends/{id}` | Unfriend |
+| POST | `/api/projects/{id}/collaborators` | Invite a collaborator (by email or user_id) |
 | GET | `/api/invitations` | List pending invitations |
 | POST | `/api/invitations/{projectId}/accept` | Accept an invitation |
 | POST | `/api/invitations/{projectId}/decline` | Decline an invitation |
+| GET | `/api/profile` | Get own profile |
+| PUT | `/api/profile` | Update profile |
+| POST | `/api/profile/avatar` | Upload profile photo |
 
 ---
 
