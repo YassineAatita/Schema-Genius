@@ -6,12 +6,17 @@ import { parseSqlToSchema } from '../utils/parseSql'
 import SchemaCanvas from '../components/canvas/SchemaCanvas'
 import TableEditor from '../components/panels/TableEditor'
 import RelationshipEditor from '../components/panels/RelationshipEditor'
-import useSchemaStore from '../store/useSchemaStore'
+import useSchemaStore, { setBroadcastFn, setRemoteUpdate } from '../store/useSchemaStore'
 import useAuthStore from '../store/useAuthStore'
 import api from '../services/api'
 import ConfirmModal from '../components/ui/ConfirmModal'
 import HistoryPanel from '../components/panels/HistoryPanel'
 import { validateSchema } from '../utils/validateSchema'
+import { joinProjectChannel, leaveProjectChannel } from '../services/websocket'
+
+// Deterministic cursor / avatar colors for remote collaborators
+const CURSOR_COLORS = ['#3B82F6','#EF4444','#10B981','#F59E0B','#8B5CF6','#EC4899','#06B6D4','#84CC16']
+const getCursorColor = (id) => CURSOR_COLORS[(id || 0) % CURSOR_COLORS.length]
 
 export default function DesignerPage() {
   const { projectId } = useParams()
@@ -46,6 +51,11 @@ export default function DesignerPage() {
   const moreMenuRef      = useRef(null)
   const generateMenuRef  = useRef(null)
   const canvasRef        = useRef(null)
+
+  // ── Real-time collaboration ────────────────────────────────────────────────
+  const channelRef               = useRef(null)
+  const [activeUsers,   setActiveUsers]   = useState([])   // presence members
+  const [remoteCursors, setRemoteCursors] = useState({})   // { userId: { userId, name, color, x, y } }
 
   const isOwner  = project?.owner_id === user?.id
   const myRole   = project?.collaborators?.find(c => c.id === user?.id)?.pivot?.role ?? null
@@ -131,6 +141,101 @@ export default function DesignerPage() {
     document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
+
+  // ── Reverb presence channel ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!projectId || !user?.id) return
+
+    const channel = joinProjectChannel(parseInt(projectId))
+    channelRef.current = channel
+
+    // Presence: who is viewing this project right now
+    channel
+      .here(users  => setActiveUsers(users))
+      .joining(u   => setActiveUsers(prev => [...prev.filter(p => p.id !== u.id), u]))
+      .leaving(u   => {
+        setActiveUsers(prev => prev.filter(p => p.id !== u.id))
+        setRemoteCursors(prev => { const n = { ...prev }; delete n[u.id]; return n })
+      })
+
+    // Wire store broadcast → channel whisper (viewers get the fn but store skips
+    // emitting when canEdit is false, so this is safe)
+    setBroadcastFn((event, data) => {
+      try { channelRef.current?.whisper(event, data) } catch {}
+    })
+
+    // Helper: apply an incoming remote event without re-broadcasting or dirtying
+    const applyRemote = (fn) => { setRemoteUpdate(true); fn(); setRemoteUpdate(false) }
+
+    channel
+      .listenForWhisper('SchemaNodeAdded', ({ node }) =>
+        applyRemote(() => useSchemaStore.setState(s => ({
+          nodes: s.nodes.some(n => n.id === node.id) ? s.nodes : [...s.nodes, node],
+        })))
+      )
+      .listenForWhisper('SchemaNodeUpdated', ({ nodeId, data }) =>
+        applyRemote(() => useSchemaStore.getState().updateNodeData(nodeId, data))
+      )
+      .listenForWhisper('SchemaNodeMoved', ({ nodeId, position }) =>
+        applyRemote(() => useSchemaStore.setState(s => ({
+          nodes: s.nodes.map(n => n.id === nodeId ? { ...n, position } : n),
+        })))
+      )
+      .listenForWhisper('SchemaNodeDeleted', ({ nodeId }) =>
+        applyRemote(() => useSchemaStore.setState(s => ({
+          nodes: s.nodes.filter(n => n.id !== nodeId),
+          edges: s.edges.filter(e => e.source !== nodeId && e.target !== nodeId),
+        })))
+      )
+      .listenForWhisper('SchemaEdgeAdded', ({ edge }) =>
+        applyRemote(() => useSchemaStore.setState(s => ({
+          edges: s.edges.some(e => e.id === edge.id) ? s.edges : [...s.edges, edge],
+        })))
+      )
+      .listenForWhisper('SchemaEdgeDeleted', ({ edgeId }) =>
+        applyRemote(() => useSchemaStore.setState(s => ({
+          edges: s.edges.filter(e => e.id !== edgeId),
+        })))
+      )
+      .listenForWhisper('CursorMoved', ({ userId, name, x, y }) => {
+        if (userId === user.id) return
+        setRemoteCursors(prev => ({
+          ...prev,
+          [userId]: { userId, name, x, y, color: getCursorColor(userId) },
+        }))
+      })
+
+    return () => {
+      setBroadcastFn(null)
+      channelRef.current = null
+      leaveProjectChannel(parseInt(projectId))
+      setActiveUsers([])
+      setRemoteCursors({})
+    }
+  }, [projectId, user?.id])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Active-user heartbeat ──────────────────────────────────────────────────
+  // POST on mount so the dashboard badge increments within one polling cycle.
+  // Refresh every 90 s so the cache TTL (300 s) never expires while designing.
+  // DELETE on unmount so the badge clears immediately without waiting for TTL.
+  useEffect(() => {
+    if (!projectId || !user?.id) return
+    api.post(`/projects/${projectId}/active`).catch(() => {})
+    const interval = setInterval(
+      () => api.post(`/projects/${projectId}/active`).catch(() => {}),
+      90000
+    )
+    return () => {
+      clearInterval(interval)
+      api.delete(`/projects/${projectId}/active`).catch(() => {})
+    }
+  }, [projectId, user?.id])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cursor move handler — only editors/owners emit; viewers receive only
+  const handleCursorMove = useCallback((x, y) => {
+    if (!user || isViewer) return
+    try { channelRef.current?.whisper('CursorMoved', { userId: user.id, name: user.name, x, y }) } catch {}
+  }, [user, isViewer])
 
   const handleValidateClick = () => {
     setSelectedNode(null)
@@ -224,15 +329,16 @@ export default function DesignerPage() {
     setSaveMsg('')
   }
 
-  const handleExportSQL = async () => {
+  const handleExportSQL = async (dialect = 'mysql') => {
     const { schemaId } = useSchemaStore.getState()
     if (!schemaId) return
     try {
-      const response = await api.get(`/schemas/${schemaId}/export/sql`, { responseType: 'blob' })
+      const response = await api.get(`/schemas/${schemaId}/export/sql?dialect=${dialect}`, { responseType: 'blob' })
       const url      = window.URL.createObjectURL(new Blob([response.data]))
       const link     = document.createElement('a')
       link.href      = url
-      link.download  = `schema_${project?.name || schemaId}.sql`.replace(/\s+/g, '_').toLowerCase()
+      const dialectSuffix = dialect !== 'mysql' ? `_${dialect}` : ''
+      link.download  = `schema_${project?.name || schemaId}${dialectSuffix}.sql`.replace(/\s+/g, '_').toLowerCase()
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -545,13 +651,28 @@ export default function DesignerPage() {
 
                 <div className="h-px bg-gray-100 my-1"/>
 
-                <button onClick={() => { handleExportSQL(); setShowMoreMenu(false) }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                  </svg>
-                  Export SQL
-                </button>
+                {/* Export SQL — dialect sub-menu */}
+                <div className="px-4 pt-2.5 pb-1">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Export SQL
+                  </p>
+                  <div className="flex gap-1.5">
+                    {[
+                      { dialect: 'mysql',      label: 'MySQL',      color: 'text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100' },
+                      { dialect: 'postgresql', label: 'PostgreSQL', color: 'text-blue-600 bg-blue-50 border-blue-200 hover:bg-blue-100' },
+                      { dialect: 'sqlite',     label: 'SQLite',     color: 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100' },
+                    ].map(({ dialect, label, color }) => (
+                      <button key={dialect}
+                        onClick={() => { handleExportSQL(dialect); setShowMoreMenu(false) }}
+                        className={`flex-1 text-[11px] font-semibold py-1.5 rounded-lg border transition-colors ${color}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 <button onClick={() => { handleExportImage(); setShowMoreMenu(false) }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
@@ -566,6 +687,40 @@ export default function DesignerPage() {
           </div>
 
           <div className="w-px h-5 bg-gray-200 mx-0.5"/>
+
+          {/* Active collaborators avatar stack */}
+          {activeUsers.filter(u => u.id !== user?.id).length > 0 && (
+            <div className="flex items-center gap-1.5 mr-1">
+              <div className="flex -space-x-2">
+                {activeUsers
+                  .filter(u => u.id !== user?.id)
+                  .slice(0, 4)
+                  .map(u => (
+                    <div
+                      key={u.id}
+                      title={u.name}
+                      className="w-7 h-7 rounded-full ring-2 ring-white flex items-center justify-center
+                                 text-[11px] font-bold text-white overflow-hidden flex-shrink-0"
+                      style={{ backgroundColor: getCursorColor(u.id) }}>
+                      {u.avatar_url
+                        ? <img src={u.avatar_url} alt={u.name} className="w-full h-full object-cover"/>
+                        : (u.name || '?')[0].toUpperCase()
+                      }
+                    </div>
+                  ))
+                }
+                {activeUsers.filter(u => u.id !== user?.id).length > 4 && (
+                  <div className="w-7 h-7 rounded-full ring-2 ring-white bg-gray-400 flex items-center
+                                  justify-center text-[11px] font-bold text-white flex-shrink-0">
+                    +{activeUsers.filter(u => u.id !== user?.id).length - 4}
+                  </div>
+                )}
+              </div>
+              <span className="text-[11px] text-gray-400 hidden lg:inline whitespace-nowrap">
+                {activeUsers.filter(u => u.id !== user?.id).length} online
+              </span>
+            </div>
+          )}
 
           {/* Share */}
           {isOwner && (
@@ -621,6 +776,8 @@ export default function DesignerPage() {
               onNodeClick={handleNodeClick}
               onEdgeClick={handleEdgeClick}
               readOnly={isViewer}
+              onCursorMove={handleCursorMove}
+              remoteCursors={remoteCursors}
             />
           </ReactFlowProvider>
         </div>

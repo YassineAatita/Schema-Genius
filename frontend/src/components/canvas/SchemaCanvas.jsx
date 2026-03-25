@@ -8,6 +8,8 @@ import {
   reconnectEdge,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  useViewport,
   BackgroundVariant,
   ConnectionMode,
 } from '@xyflow/react'
@@ -23,7 +25,6 @@ const KNOWN_LINE_STYLES = ['default', 'smoothstep', 'step', 'straight']
 
 // Normalise a raw store edge into display-ready form for the custom edge component
 function buildEdgeDisplay(edge) {
-  // Migrate old edges: edge.type used to hold the line style
   const lineStyle = edge.data?.lineStyle
     || (KNOWN_LINE_STYLES.includes(edge.type) ? edge.type : 'default')
 
@@ -36,14 +37,20 @@ function buildEdgeDisplay(edge) {
 
   return {
     ...edge,
-    type:  'schema',        // always use our custom edge renderer
+    type:  'schema',
     label,
     data:  { ...edge.data, lineStyle, diagramType },
     style: { stroke: '#6B7280', strokeWidth: 2, ...edge.style },
   }
 }
 
-export default function SchemaCanvas({ onNodeClick, onEdgeClick, readOnly = false }) {
+export default function SchemaCanvas({
+  onNodeClick,
+  onEdgeClick,
+  readOnly      = false,
+  onCursorMove,          // (flowX, flowY) => void  — throttled 50 ms
+  remoteCursors = {},    // { [userId]: { userId, name, color, x, y } }
+}) {
   const { nodes: storeNodes, edges: storeEdges, setNodes, setEdges, bulkDelete } = useSchemaStore()
 
   const [nodes, setLocalNodes, onNodesChange] = useNodesState(storeNodes)
@@ -51,17 +58,22 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick, readOnly = fals
 
   const prevStoreNodesRef = useRef(storeNodes)
   const prevStoreEdgesRef = useRef(storeEdges)
+  const cursorTimerRef    = useRef(null)
 
-  // Sync nodes — smart merge, never reset
+  // React Flow instance — for screenToFlowPosition
+  const rfInstance = useReactFlow()
+  // Current viewport transform — for converting flow coords → container pixels
+  const viewport   = useViewport()
+
+  // ── Store → local sync ──────────────────────────────────────────────────────
+
   useEffect(() => {
     const prev    = prevStoreNodesRef.current
     const current = storeNodes
-
     if (prev === current) return
     prevStoreNodesRef.current = current
 
     const storeIds = new Set(current.map(n => n.id))
-
     setLocalNodes(prevLocal => {
       const filtered = prevLocal.filter(n => storeIds.has(n.id))
       const localIds  = new Set(filtered.map(n => n.id))
@@ -75,18 +87,20 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick, readOnly = fals
     })
   }, [storeNodes])
 
-  // Sync edges — rebuild display props every time store edges change
   useEffect(() => {
     if (prevStoreEdgesRef.current === storeEdges) return
     prevStoreEdgesRef.current = storeEdges
     setLocalEdges(storeEdges.map(buildEdgeDisplay))
   }, [storeEdges])
 
+  // ── Drag stop — update store positions; store emits SchemaNodeMoved ─────────
+
   const handleNodeDragStop = useCallback((_, __, currentNodes) => {
     if (!readOnly) setNodes(currentNodes)
   }, [setNodes, readOnly])
 
-  // Strip display-only props before saving to store; keep handle IDs for routing
+  // ── Strip display-only props before persisting to store ─────────────────────
+
   const toStoreEdge = (e) => ({
     id:           e.id,
     source:       e.source,
@@ -97,6 +111,8 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick, readOnly = fals
     targetHandle: e.targetHandle ?? null,
   })
 
+  // ── New connection — forward newEdge so store emits SchemaEdgeAdded ─────────
+
   const onConnect = useCallback((params) => {
     const base = {
       ...params,
@@ -105,15 +121,15 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick, readOnly = fals
       animated: false,
       data:     { relationshipType: '1:N', sourceLabel: '', targetLabel: '', lineStyle: 'smoothstep', diagramType: 'association' },
     }
-    const newEdge = buildEdgeDisplay(base)
+    const displayEdge = buildEdgeDisplay(base)
+    const storeEdge   = toStoreEdge(displayEdge)
     setLocalEdges(eds => {
-      const updated = addEdge(newEdge, eds)
-      setEdges(updated.map(toStoreEdge))
+      const updated = addEdge(displayEdge, eds)
+      setEdges(updated.map(toStoreEdge), storeEdge)   // storeEdge triggers SchemaEdgeAdded emit
       return updated
     })
   }, [setEdges])
 
-  // Intercept React Flow's Delete key — push history THEN remove from store
   const onNodesDelete = useCallback((deletedNodes) => {
     bulkDelete(deletedNodes.map(n => n.id), [])
   }, [bulkDelete])
@@ -122,7 +138,6 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick, readOnly = fals
     bulkDelete([], deletedEdges.map(e => e.id))
   }, [bulkDelete])
 
-  // Allow dragging an edge endpoint to a different handle
   const onReconnect = useCallback((oldEdge, newConnection) => {
     setLocalEdges(eds => {
       const updated = reconnectEdge(oldEdge, newConnection, eds)
@@ -131,8 +146,25 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick, readOnly = fals
     })
   }, [setEdges])
 
+  // ── Cursor broadcast — throttled to 50 ms ───────────────────────────────────
+
+  const handleMouseMove = useCallback((e) => {
+    if (!onCursorMove || readOnly) return
+    clearTimeout(cursorTimerRef.current)
+    cursorTimerRef.current = setTimeout(() => {
+      const fp = rfInstance.screenToFlowPosition({ x: e.clientX, y: e.clientY })
+      onCursorMove(fp.x, fp.y)
+    }, 50)
+  }, [onCursorMove, readOnly, rfInstance])
+
+  useEffect(() => () => clearTimeout(cursorTimerRef.current), [])
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  const cursorEntries = Object.values(remoteCursors)
+
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full relative" onMouseMove={handleMouseMove}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -166,6 +198,44 @@ export default function SchemaCanvas({ onNodeClick, onEdgeClick, readOnly = fals
           className="!border !border-gray-200 !rounded-xl !shadow-md"
         />
       </ReactFlow>
+
+      {/* ── Remote cursor overlay ─────────────────────────────────────────── */}
+      {cursorEntries.length > 0 && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {cursorEntries.map(cursor => {
+            // Convert flow coordinate → pixel position within this container
+            const sx = Math.round(cursor.x * viewport.zoom + viewport.x)
+            const sy = Math.round(cursor.y * viewport.zoom + viewport.y)
+            return (
+              <div
+                key={cursor.userId}
+                className="absolute pointer-events-none"
+                style={{ left: sx, top: sy, willChange: 'left, top' }}
+              >
+                <svg
+                  width="14" height="18" viewBox="0 0 14 18"
+                  style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.35))' }}
+                >
+                  <path
+                    d="M0 0 L0 13 L3.5 9 L6.5 16 L8.5 15 L5.5 8.5 L10 8.5 Z"
+                    fill={cursor.color}
+                    stroke="white"
+                    strokeWidth="1"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <div
+                  className="absolute left-3.5 top-0 px-1.5 py-0.5 rounded-full text-white
+                             text-[10px] font-semibold whitespace-nowrap shadow-sm leading-tight"
+                  style={{ backgroundColor: cursor.color }}
+                >
+                  {cursor.name}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

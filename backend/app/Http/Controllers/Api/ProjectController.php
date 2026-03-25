@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\Schema;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class ProjectController extends Controller
 {
@@ -124,6 +126,58 @@ class ProjectController extends Controller
         $project->delete();
 
         return response()->json(['message' => 'Project deleted successfully.']);
+    }
+
+    // POST /api/projects/{id}/active
+    // Called by DesignerPage on mount to mark user as currently designing.
+    // Stores a timestamp in a per-project cache map so activeCounts() can
+    // return fresh numbers without Reverb presence-channel membership.
+    public function markActive(Request $request, $id)
+    {
+        $userId = $request->user()->id;
+        $key    = "project_active_{$id}";
+        $map    = Cache::get($key, []);
+        $map[$userId] = time();
+        Cache::put($key, $map, 300); // 5-min safety TTL (heartbeat refreshes it)
+        return response()->json(['ok' => true]);
+    }
+
+    // DELETE /api/projects/{id}/active
+    // Called by DesignerPage on unmount to immediately clear the user's entry.
+    public function markInactive(Request $request, $id)
+    {
+        $userId = $request->user()->id;
+        $key    = "project_active_{$id}";
+        $map    = Cache::get($key, []);
+        unset($map[$userId]);
+        empty($map) ? Cache::forget($key) : Cache::put($key, $map, 300);
+        return response()->json(['ok' => true]);
+    }
+
+    // GET /api/projects/active-counts
+    // Returns { projectId: count } for all projects the user can access,
+    // counting only OTHER users who have been active in the last 3 minutes.
+    public function activeCounts(Request $request)
+    {
+        $user   = $request->user();
+        $now    = time();
+        $counts = [];
+
+        $ownedIds  = Project::where('owner_id', $user->id)->pluck('id');
+        $collabIds = DB::table('project_collaborators')
+            ->where('user_id', $user->id)
+            ->where('status', 'accepted')
+            ->pluck('project_id');
+
+        foreach ($ownedIds->concat($collabIds)->unique() as $pid) {
+            $map  = Cache::get("project_active_{$pid}", []);
+            // Entries older than 3 minutes are considered stale
+            $live = array_filter($map, fn($ts) => ($now - $ts) < 180);
+            unset($live[$user->id]); // don't count self
+            $counts[(string) $pid] = count($live);
+        }
+
+        return response()->json($counts);
     }
 
     // Helper — check if user has access to a project

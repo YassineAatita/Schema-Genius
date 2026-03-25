@@ -4,6 +4,7 @@ import useAuthStore from '../store/useAuthStore'
 import useProjectStore from '../store/useProjectStore'
 import api from '../services/api'
 import ConfirmModal from '../components/ui/ConfirmModal'
+import '../services/websocket'   // ensure window.Echo is initialised
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -38,6 +39,10 @@ export default function DashboardPage() {
   const [showBell,          setShowBell]          = useState(false)
   const [friendReqCount,    setFriendReqCount]    = useState(0)
   const bellRef = useRef(null)
+
+  // ── Active-users-per-project (presence badge) ─────────────────
+  // { [projectId]: number }  — how many OTHER users are in that project's designer
+  const [projectActiveUsers, setProjectActiveUsers] = useState({})
 
   // ── Friends view state ────────────────────────────────────────
   const [friendsList,        setFriendsList]        = useState([])
@@ -137,6 +142,25 @@ export default function DashboardPage() {
   useEffect(() => {
     if (view === 'friends') loadFriendsData()
   }, [view])
+
+  // ── Active-user badges (polling) ──────────────────────────────
+  // Do NOT join presence channels here — that would make the dashboard user
+  // a presence member, causing other users' dashboards to incorrectly count
+  // them as "active in the designer".  Instead, DesignerPage writes a
+  // heartbeat to the cache (POST /projects/{id}/active) and this effect
+  // polls the summary endpoint every 10 s.  Counts are cleared immediately
+  // when the user leaves the designer (DELETE /projects/{id}/active).
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const res = await api.get('/projects/active-counts')
+        setProjectActiveUsers(res.data)
+      } catch { /* network error — keep stale counts */ }
+    }
+    fetchCounts()
+    const interval = setInterval(fetchCounts, 10000)
+    return () => clearInterval(interval)
+  }, [])   // run once on mount; the endpoint always returns fresh data
 
   useEffect(() => {
     clearTimeout(friendSearchTimer.current)
@@ -588,6 +612,7 @@ export default function DashboardPage() {
                     <ProjectCard key={project.id} project={project}
                       onOpen={() => navigate(`/projects/${project.id}/designer`)}
                       onDelete={() => handleDelete(project.id, project.name)}
+                      activeCount={projectActiveUsers[project.id] || 0}
                     />
                   ))}
                 </div>
@@ -1083,7 +1108,7 @@ const PROJECT_GRADIENTS = [
   'from-cyan-500 to-blue-500',
   'from-fuchsia-500 to-pink-600',
 ]
-function ProjectCard({ project, onOpen, onDelete }) {
+function ProjectCard({ project, onOpen, onDelete, activeCount = 0 }) {
   const date     = new Date(project.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
   const gradient = PROJECT_GRADIENTS[project.id % PROJECT_GRADIENTS.length]
   const initial  = (project.name || 'P')[0].toUpperCase()
@@ -1097,6 +1122,13 @@ function ProjectCard({ project, onOpen, onDelete }) {
             <span className="text-white font-bold text-sm">{initial}</span>
           </div>
           <div className="flex items-center gap-1.5">
+            {activeCount > 0 && (
+              <span className="text-[11px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full
+                               font-semibold border border-emerald-200 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block"/>
+                {activeCount} active
+              </span>
+            )}
             {!project.is_owner && (
               <span className="text-[11px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full font-semibold border border-violet-100">
                 Shared

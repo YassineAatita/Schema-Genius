@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\CollaboratorController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\FriendshipController;
+use App\Http\Controllers\Api\NotificationController;
 
 
 // ── Public routes ────────────────────────────────────────────────
@@ -46,6 +47,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me',      [AuthController::class, 'me']);
 
     // Projects
+    // active-counts MUST be declared before apiResource so 'active-counts' is not
+    // captured as the {project} wildcard by the GET /projects/{project} show route.
+    Route::get('/projects/active-counts',  [ProjectController::class, 'activeCounts']);
+    Route::post('/projects/{id}/active',   [ProjectController::class, 'markActive']);
+    Route::delete('/projects/{id}/active', [ProjectController::class, 'markInactive']);
     Route::apiResource('projects', ProjectController::class);
 
     // Schemas
@@ -78,6 +84,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/invitations',                            [InvitationController::class, 'index']);
     Route::post('/invitations/{projectId}/accept',        [InvitationController::class, 'accept']);
     Route::post('/invitations/{projectId}/decline',       [InvitationController::class, 'decline']);
+
+    // Notifications
+    Route::get('/notifications',           [NotificationController::class, 'index']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    Route::delete('/notifications/clear',  [NotificationController::class, 'clear']);
 
     // Friends & user search
     Route::get('/users/search',              [FriendshipController::class, 'search']);

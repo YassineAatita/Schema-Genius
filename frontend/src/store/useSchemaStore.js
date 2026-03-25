@@ -8,55 +8,98 @@ const snap = ({ nodes, edges }) => ({
   edges: edges.map(e => ({ ...e })),
 })
 
+// ── Real-time broadcast mechanism ─────────────────────────────────────────────
+//
+// _broadcastFn  — set by DesignerPage after joining the Reverb presence channel.
+//                 Calls channel.whisper(event, data) so all other collaborators
+//                 receive the change instantly without a server roundtrip.
+//
+// _isRemote     — set to true while applying an incoming whisper, so store
+//                 actions skip re-emitting and skip marking isDirty.
+//
+let _broadcastFn = null
+let _isRemote    = false
+
+export const setBroadcastFn  = (fn)  => { _broadcastFn = fn }
+export const setRemoteUpdate = (val) => { _isRemote = val }
+
+const emit = (event, data) => {
+  if (!_isRemote && _broadcastFn) {
+    try { _broadcastFn(event, data) } catch { /* channel may not be open yet */ }
+  }
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
 const useSchemaStore = create((set, get) => ({
-  nodes: [],
-  edges: [],
-  schemaId: null,
+  nodes:     [],
+  edges:     [],
+  schemaId:  null,
   projectId: null,
-  isDirty: false,
-  past: [],    // undo stack — array of { nodes, edges }
-  future: [],  // redo stack — array of { nodes, edges }
+  isDirty:   false,
+  past:    [],   // undo stack — array of { nodes, edges }
+  future:  [],   // redo stack — array of { nodes, edges }
 
   loadSchema: (schemaId, projectId, versionJson) => {
     set({
       schemaId,
       projectId,
-      nodes: versionJson?.nodes || [],
-      edges: versionJson?.edges || [],
+      nodes:   versionJson?.nodes || [],
+      edges:   versionJson?.edges || [],
       isDirty: false,
-      past: [],
-      future: [],
+      past:    [],
+      future:  [],
     })
   },
 
-  // Internal — push current canvas to undo stack before mutating
+  // Internal — push current canvas to undo stack before mutating.
+  // Skipped for remote updates so remote actions are not undoable locally.
   _pushHistory: () => {
+    if (_isRemote) return
     const { nodes, edges, past } = get()
     set({
-      past: [...past.slice(-(MAX_HISTORY - 1)), snap({ nodes, edges })],
+      past:   [...past.slice(-(MAX_HISTORY - 1)), snap({ nodes, edges })],
       future: [],
     })
   },
 
+  // Called by SchemaCanvas onNodeDragStop with the full nodes array.
+  // Merges positions; emits SchemaNodeMoved for each node that moved.
   setNodes: (incomingNodes) => {
+    const prevNodes = get().nodes
     set((state) => {
-      // Merge incoming positions into existing nodes (drag support)
       const positionMap = new Map(incomingNodes.map(n => [n.id, n.position]))
       const merged = state.nodes.map(n => ({
         ...n,
         position: positionMap.get(n.id) ?? n.position,
       }))
-      return { nodes: merged, isDirty: true }
+      return { nodes: merged, isDirty: _isRemote ? state.isDirty : true }
     })
+    if (!_isRemote) {
+      incomingNodes.forEach(incoming => {
+        if (!incoming.position) return
+        const prev = prevNodes.find(p => p.id === incoming.id)
+        if (prev && (
+          Math.abs(prev.position.x - incoming.position.x) > 0.5 ||
+          Math.abs(prev.position.y - incoming.position.y) > 0.5
+        )) {
+          emit('SchemaNodeMoved', { nodeId: incoming.id, position: incoming.position })
+        }
+      })
+    }
   },
 
-  setEdges: (edges) => set({ edges, isDirty: true }),
+  // newEdge — the single newly-created edge (from onConnect), passed so we
+  //           can emit SchemaEdgeAdded without diffing the whole array.
+  setEdges: (edges, newEdge = null) => {
+    set((state) => ({ edges, isDirty: _isRemote ? state.isDirty : true }))
+    if (newEdge) emit('SchemaEdgeAdded', { edge: newEdge })
+  },
 
   addTable: () => {
     get()._pushHistory()
     const existing = get().nodes
-    const id = `table_${Date.now()}`
-    const newNode = {
+    const id       = `table_${Date.now()}`
+    const newNode  = {
       id,
       type: 'tableNode',
       position: {
@@ -66,19 +109,23 @@ const useSchemaStore = create((set, get) => ({
       data: {
         name: `table_${existing.length + 1}`,
         columns: [{
-          id: `col_${Date.now()}`,
-          name: 'id',
-          type: 'BIGINT',
-          nullable: false,
-          pk: true,
-          unique: true,
+          id:            `col_${Date.now()}`,
+          name:          'id',
+          type:          'BIGINT',
+          nullable:      false,
+          pk:            true,
+          unique:        true,
           autoIncrement: true,
-          default: null,
-          fk: false,
+          default:       null,
+          fk:            false,
         }],
       },
     }
-    set((state) => ({ nodes: [...state.nodes, newNode], isDirty: true }))
+    set((state) => ({
+      nodes:   [...state.nodes, newNode],
+      isDirty: _isRemote ? state.isDirty : true,
+    }))
+    emit('SchemaNodeAdded', { node: newNode })
   },
 
   updateEdge: (edgeId, changes) => {
@@ -88,37 +135,38 @@ const useSchemaStore = create((set, get) => ({
           ? { ...e, ...changes, data: { ...e.data, ...changes.data } }
           : e
       ),
-      isDirty: true,
+      isDirty: _isRemote ? state.isDirty : true,
     }))
   },
 
   deleteEdge: (edgeId) => {
     get()._pushHistory()
     set((state) => ({
-      edges: state.edges.filter(e => e.id !== edgeId),
-      isDirty: true,
+      edges:   state.edges.filter(e => e.id !== edgeId),
+      isDirty: _isRemote ? state.isDirty : true,
     }))
+    emit('SchemaEdgeDeleted', { edgeId })
   },
 
   updateNodeData: (nodeId, newData) => {
     get()._pushHistory()
     set((state) => ({
       nodes: state.nodes.map(n =>
-        n.id === nodeId
-          ? { ...n, data: { ...n.data, ...newData } }
-          : n
+        n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n
       ),
-      isDirty: true,
+      isDirty: _isRemote ? state.isDirty : true,
     }))
+    emit('SchemaNodeUpdated', { nodeId, data: newData })
   },
 
   deleteNode: (nodeId) => {
     get()._pushHistory()
     set((state) => ({
-      nodes: state.nodes.filter(n => n.id !== nodeId),
-      edges: state.edges.filter(e => e.source !== nodeId && e.target !== nodeId),
-      isDirty: true,
+      nodes:   state.nodes.filter(n => n.id !== nodeId),
+      edges:   state.edges.filter(e => e.source !== nodeId && e.target !== nodeId),
+      isDirty: _isRemote ? state.isDirty : true,
     }))
+    emit('SchemaNodeDeleted', { nodeId })
   },
 
   // Bulk delete — one history entry for multi-select or keyboard Delete
@@ -128,15 +176,17 @@ const useSchemaStore = create((set, get) => ({
     const nSet = new Set(nodeIds)
     const eSet = new Set(edgeIds)
     set((state) => ({
-      nodes: state.nodes.filter(n => !nSet.has(n.id)),
-      edges: state.edges.filter(e =>
+      nodes:   state.nodes.filter(n => !nSet.has(n.id)),
+      edges:   state.edges.filter(e =>
         !eSet.has(e.id) && !nSet.has(e.source) && !nSet.has(e.target)
       ),
-      isDirty: true,
+      isDirty: _isRemote ? state.isDirty : true,
     }))
+    nodeIds.forEach(nodeId => emit('SchemaNodeDeleted', { nodeId }))
+    edgeIds.forEach(edgeId => emit('SchemaEdgeDeleted', { edgeId }))
   },
 
-  // Replace entire canvas with AI-generated schema
+  // Replace entire canvas with AI-generated schema — always local, always dirty
   aiGenerate: (nodes, edges) => {
     get()._pushHistory()
     set({ nodes, edges, isDirty: true })
@@ -146,13 +196,13 @@ const useSchemaStore = create((set, get) => ({
   undo: () => {
     const { past, nodes, edges, future } = get()
     if (past.length === 0) return
-    const prev = past[past.length - 1]
+    const prev    = past[past.length - 1]
     const current = snap({ nodes, edges })
     set({
-      past: past.slice(0, -1),
-      future: [current, ...future.slice(0, MAX_HISTORY - 1)],
-      nodes: prev.nodes,
-      edges: prev.edges,
+      past:    past.slice(0, -1),
+      future:  [current, ...future.slice(0, MAX_HISTORY - 1)],
+      nodes:   prev.nodes,
+      edges:   prev.edges,
       isDirty: true,
     })
   },
@@ -161,13 +211,13 @@ const useSchemaStore = create((set, get) => ({
   redo: () => {
     const { future, nodes, edges, past } = get()
     if (future.length === 0) return
-    const next = future[0]
+    const next    = future[0]
     const current = snap({ nodes, edges })
     set({
-      past: [...past.slice(-(MAX_HISTORY - 1)), current],
-      future: future.slice(1),
-      nodes: next.nodes,
-      edges: next.edges,
+      past:    [...past.slice(-(MAX_HISTORY - 1)), current],
+      future:  future.slice(1),
+      nodes:   next.nodes,
+      edges:   next.edges,
       isDirty: true,
     })
   },
