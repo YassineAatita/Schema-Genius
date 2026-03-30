@@ -44,15 +44,8 @@ export default function LoginPage() {
 
       {/* ── Top bar ── */}
       <div className="px-6 py-4 flex items-center justify-between border-b border-white/10">
-        <Link to="/" className="flex items-center gap-2 group">
-          <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center
-                          group-hover:bg-blue-500 transition-colors">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M4 7v10c0 1.1.9 2 2 2h12a2 2 0 002-2V7M4 7l8-4 8 4M4 7h16"/>
-            </svg>
-          </div>
-          <span className="font-bold text-white text-sm tracking-tight">Schema Genius</span>
+        <Link to="/" className="flex items-center">
+          <img src="/logo_white.svg" alt="Schema Genius" className="h-7 w-auto" />
         </Link>
         <Link to="/"
           className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300

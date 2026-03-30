@@ -27,7 +27,7 @@ const getCursorColor = (id) => CURSOR_COLORS[(id || 0) % CURSOR_COLORS.length]
 export default function DesignerPage() {
   const { projectId } = useParams()
   const navigate      = useNavigate()
-  const { loadSchema, addTable, nodes, edges, isDirty, markSaved, aiGenerate,
+  const { loadSchema, addTable, addTableAt, nodes, edges, isDirty, markSaved, aiGenerate,
           undo, redo, past, future } = useSchemaStore()
   const { user } = useAuthStore()
 
@@ -69,6 +69,11 @@ export default function DesignerPage() {
       return next
     })
   }, [])
+
+  // Drop handler — called by SchemaCanvas when a table chip is dropped onto the canvas
+  const handleDropTable = useCallback((x, y) => {
+    addTableAt(x, y)
+  }, [addTableAt])
 
   // ── Real-time collaboration ────────────────────────────────────────────────
   const channelRef               = useRef(null)
@@ -676,6 +681,7 @@ export default function DesignerPage() {
               readOnly={isViewer}
               onCursorMove={handleCursorMove}
               remoteCursors={remoteCursors}
+              onDropTable={canEdit ? handleDropTable : undefined}
             />
           </ReactFlowProvider>
         </div>
@@ -721,18 +727,24 @@ export default function DesignerPage() {
                       bg-white dark:bg-[#141620]
                       border-gray-200 dark:border-[#252a3e]">
 
-        {/* Add Table */}
+        {/* Add Table — click to place at auto-position, drag to place at exact drop position */}
         {canEdit && (
           <div className="relative group">
             <button
               onClick={() => addTable()}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/reactflow', 'tableNode')
+                e.dataTransfer.effectAllowed = 'copy'
+              }}
               className="flex items-center justify-center w-8 h-8 rounded-full transition-colors
+                         cursor-grab active:cursor-grabbing
                          text-gray-500 dark:text-gray-400
                          hover:text-blue-600 dark:hover:text-blue-400
                          hover:bg-blue-50 dark:hover:bg-blue-950">
               <Plus className="w-4 h-4"/>
             </button>
-            <PillTooltip>Add Table</PillTooltip>
+            <PillTooltip>Add Table · drag to place</PillTooltip>
           </div>
         )}
 

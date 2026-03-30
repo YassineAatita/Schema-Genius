@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -51,6 +51,7 @@ export default function SchemaCanvas({
   readOnly      = false,
   onCursorMove,          // (flowX, flowY) => void  — throttled 50 ms
   remoteCursors = {},    // { [userId]: { userId, name, color, x, y } }
+  onDropTable,           // (flowX, flowY) => void  — called when a table is dropped onto canvas
 }) {
   const dark = useCanvasTheme()
   const { nodes: storeNodes, edges: storeEdges, setNodes, setEdges, bulkDelete } = useSchemaStore()
@@ -61,6 +62,7 @@ export default function SchemaCanvas({
   const prevStoreNodesRef = useRef(storeNodes)
   const prevStoreEdgesRef = useRef(storeEdges)
   const cursorTimerRef    = useRef(null)
+  const [isDraggingOver, setIsDraggingOver] = useState(false)
 
   // React Flow instance — for screenToFlowPosition
   const rfInstance = useReactFlow()
@@ -162,12 +164,48 @@ export default function SchemaCanvas({
 
   useEffect(() => () => clearTimeout(cursorTimerRef.current), [])
 
+  // ── Drag-and-drop table creation ─────────────────────────────────────────────
+
+  const handleDragOver = useCallback((e) => {
+    if (!onDropTable) return
+    // Only respond to our own table drags
+    if (!Array.from(e.dataTransfer.types).includes('application/reactflow')) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    setIsDraggingOver(true)
+  }, [onDropTable])
+
+  const handleDragLeave = useCallback((e) => {
+    // Only clear when the cursor truly leaves the canvas container
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsDraggingOver(false)
+    }
+  }, [])
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault()
+    setIsDraggingOver(false)
+    if (!onDropTable) return
+    if (e.dataTransfer.getData('application/reactflow') !== 'tableNode') return
+    const { x, y } = rfInstance.screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    onDropTable(x, y)
+  }, [onDropTable, rfInstance])
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   const cursorEntries = Object.values(remoteCursors)
 
   return (
-    <div className="w-full h-full relative transition-colors duration-200" onMouseMove={handleMouseMove}>
+    <div
+      className={`w-full h-full relative transition-all duration-150
+                  ${isDraggingOver
+                    ? 'ring-2 ring-inset ring-blue-400/60 dark:ring-blue-500/50'
+                    : ''}`}
+      onMouseMove={handleMouseMove}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}

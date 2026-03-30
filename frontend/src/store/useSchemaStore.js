@@ -132,6 +132,37 @@ const useSchemaStore = create((set, get) => ({
     emit('SchemaNodeAdded', { node: newNode })
   },
 
+  // Same as addTable but places the node at an explicit canvas position (for drag-and-drop).
+  addTableAt: (x, y) => {
+    get()._pushHistory()
+    const existing = get().nodes
+    const id       = `table_${Date.now()}`
+    const newNode  = {
+      id,
+      type: 'tableNode',
+      position: { x, y },
+      data: {
+        name: `table_${existing.length + 1}`,
+        columns: [{
+          id:            `col_${Date.now()}`,
+          name:          'id',
+          type:          'BIGINT',
+          nullable:      false,
+          pk:            true,
+          unique:        true,
+          autoIncrement: true,
+          default:       null,
+          fk:            false,
+        }],
+      },
+    }
+    set((state) => ({
+      nodes:   [...state.nodes, newNode],
+      isDirty: _isRemote ? state.isDirty : true,
+    }))
+    emit('SchemaNodeAdded', { node: newNode })
+  },
+
   updateEdge: (edgeId, changes) => {
     set((state) => ({
       edges: state.edges.map(e =>
