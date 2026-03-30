@@ -92,6 +92,7 @@ class SchemaController extends Controller
                 'created_at'     => $v->created_at,
                 'created_by'     => $v->creator?->name ?? 'Unknown',
                 'is_current'     => $v->id === $schema->current_version_id,
+                'schema_json'    => $v->schema_json,
             ])
         );
     }

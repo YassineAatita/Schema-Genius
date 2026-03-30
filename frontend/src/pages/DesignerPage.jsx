@@ -688,6 +688,7 @@ export default function DesignerPage() {
                 schemaId={useSchemaStore.getState().schemaId}
                 onRestore={handleHistoryRestore}
                 onClose={() => setShowHistory(false)}
+                onFocusNode={handleFocusNode}
               />
             )}
             {!showHistory && showValidation && (

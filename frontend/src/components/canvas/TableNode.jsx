@@ -1,4 +1,7 @@
+import { useState } from 'react'
 import { Handle, Position } from '@xyflow/react'
+import { MessageSquare } from 'lucide-react'
+import useSchemaStore from '../../store/useSchemaStore'
 
 // Light type-badge classes
 const TYPE_COLORS = {
@@ -26,7 +29,40 @@ const TYPE_COLORS_DARK = {
   ENUM:     'dark:bg-pink-950   dark:text-pink-300',
 }
 
-export default function TableNode({ data, selected }) {
+// id is provided by React Flow alongside data and selected
+export default function TableNode({ id, data, selected }) {
+  const { updateNodeData } = useSchemaStore()
+
+  const [editingNote, setEditingNote] = useState(false)
+  const [noteText,    setNoteText]    = useState('')
+
+  const hasNote = !!(data.annotation && data.annotation.trim())
+
+  // Open the note editor — called from the header icon OR from clicking the note body
+  const openNote = (e) => {
+    e.stopPropagation()
+    setNoteText(data.annotation || '')
+    setEditingNote(true)
+  }
+
+  // onBlur of the textarea — persist whatever the user typed
+  const saveNote = () => {
+    const trimmed = noteText.trim()
+    // Avoid a spurious updateNodeData call if nothing changed
+    if (trimmed !== (data.annotation || '').trim()) {
+      updateNodeData(id, { annotation: trimmed || null })
+    }
+    setEditingNote(false)
+  }
+
+  // × button — erase the annotation
+  const clearNote = (e) => {
+    e.stopPropagation()
+    updateNodeData(id, { annotation: null })
+    setEditingNote(false)
+    setNoteText('')
+  }
+
   return (
     <div className={`rounded-xl shadow-md border-2 min-w-[220px] max-w-[280px]
                      transition-all duration-150
@@ -35,9 +71,11 @@ export default function TableNode({ data, selected }) {
                        ? 'border-blue-500 shadow-blue-200 dark:shadow-blue-900/40 shadow-lg'
                        : 'border-gray-200 dark:border-[#2d3247]'}`}>
 
-      {/* Table Header */}
-      <div className="bg-blue-600 dark:bg-blue-800 rounded-t-xl px-4 py-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      {/* ── Table Header ── */}
+      {/* `group` enables opacity-0 → group-hover:opacity-100 for the note icon */}
+      <div className="group bg-blue-600 dark:bg-blue-800 rounded-t-xl px-4 py-2.5
+                      flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
           <svg className="w-3.5 h-3.5 text-blue-200 flex-shrink-0" fill="none"
             stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -47,12 +85,30 @@ export default function TableNode({ data, selected }) {
             {data.name}
           </span>
         </div>
-        <span className="text-blue-200 dark:text-blue-300 text-xs">
-          {data.columns?.length || 0} col{data.columns?.length !== 1 ? 's' : ''}
-        </span>
+
+        {/* Right side of header: col count + note icon */}
+        <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+          <span className="text-blue-200 dark:text-blue-300 text-xs">
+            {data.columns?.length || 0} col{data.columns?.length !== 1 ? 's' : ''}
+          </span>
+
+          {/* Note icon — invisible until hover; stays visible (yellow) when a note exists */}
+          <button
+            onClick={openNote}
+            title={hasNote ? 'Edit note' : 'Add note'}
+            className={`nodrag nopan p-0.5 rounded transition-all leading-none
+              ${hasNote
+                ? 'text-yellow-300 opacity-100'
+                : 'text-blue-200 opacity-0 group-hover:opacity-100 hover:text-yellow-200'}`}>
+            <MessageSquare
+              className="w-3 h-3"
+              fill={hasNote ? 'currentColor' : 'none'}
+            />
+          </button>
+        </div>
       </div>
 
-      {/* Columns List */}
+      {/* ── Columns List ── */}
       <div className="divide-y divide-gray-100 dark:divide-[#252a3e]">
         {data.columns?.map((col) => (
           <div key={col.id}
@@ -106,7 +162,71 @@ export default function TableNode({ data, selected }) {
         )}
       </div>
 
-      {/* 4-way handles — connect from/to any side */}
+      {/* ── Sticky Note ──
+          Renders at the bottom of the node when a note exists or is being written.
+          `nodrag nopan` prevents React Flow from treating this area as draggable.
+          Handles reposition automatically as the node's height grows. */}
+      {(hasNote || editingNote) && (
+        <div
+          className="nodrag nopan border-t border-yellow-300 dark:border-yellow-600/40"
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          {editingNote ? (
+            /* ── Edit mode: yellow textarea ── */
+            <textarea
+              autoFocus
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              onBlur={saveNote}
+              onKeyDown={e => {
+                // Escape cancels without saving
+                if (e.key === 'Escape') {
+                  setEditingNote(false)
+                  setNoteText(data.annotation || '')
+                }
+                // Prevent React Flow from capturing arrow/delete keys while typing
+                e.stopPropagation()
+              }}
+              placeholder="Add a note…"
+              rows={3}
+              className="nodrag nopan w-full px-3 py-2 text-[11px] leading-relaxed
+                         resize-none outline-none border-none
+                         bg-yellow-100 dark:bg-yellow-900/30
+                         text-yellow-900 dark:text-yellow-200
+                         placeholder:text-yellow-500 dark:placeholder:text-yellow-700
+                         rounded-b-[10px]"
+            />
+          ) : (
+            /* ── View mode: note text + × button ── */
+            <div
+              className="group/note relative px-3 py-2 cursor-pointer
+                         bg-yellow-100 dark:bg-yellow-900/30
+                         rounded-b-[10px]"
+              onClick={openNote}
+            >
+              <p className="text-[11px] leading-relaxed break-words whitespace-pre-wrap pr-5
+                            text-yellow-900 dark:text-yellow-200">
+                {data.annotation}
+              </p>
+
+              {/* Delete note button — appears on hover */}
+              <button
+                onClick={clearNote}
+                title="Remove note"
+                className="nodrag nopan absolute top-1.5 right-1.5
+                           text-yellow-500 dark:text-yellow-600
+                           hover:text-yellow-700 dark:hover:text-yellow-400
+                           opacity-0 group-hover/note:opacity-100
+                           transition-opacity leading-none text-xs font-bold">
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 4-way connection handles ── */}
       <Handle type="source" position={Position.Top}    id="top"    className="!w-2.5 !h-2.5 !bg-blue-400 !border-2 !border-white dark:!border-[#1c1f2e]"/>
       <Handle type="source" position={Position.Right}  id="right"  className="!w-2.5 !h-2.5 !bg-blue-400 !border-2 !border-white dark:!border-[#1c1f2e]"/>
       <Handle type="source" position={Position.Bottom} id="bottom" className="!w-2.5 !h-2.5 !bg-blue-400 !border-2 !border-white dark:!border-[#1c1f2e]"/>

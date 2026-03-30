@@ -145,6 +145,7 @@ npm run dev
 - Schema auto-saves as versioned JSON (`schema_versions` table)
 - Auto-loads last saved schema when reopening a project
 - **Version history browser** — visual list of past saves with restore to any point
+- **Schema diff viewer** — compare any two saved versions; highlights added/removed/modified tables, column-level field changes, and relationship changes with a color-coded inline diff panel
 - **Unsaved changes** indicator with browser-close warning
 - **SQL export** — MySQL, PostgreSQL, and SQLite dialects; downloads a `.sql` file of the full schema
 - **Import from SQL** — paste or upload a `.sql` file to generate a visual schema
@@ -202,6 +203,7 @@ npm run dev
 - Sidebar navigation in Dashboard: Dashboard / Profile / Friends with active state + badges
 - **Floating action pill** — clean bottom-center pill replaces the old toolbar dropdown menus; all canvas actions (Add Table, Generate, Import SQL, Validate, Templates, Export SQL, Version History, Export PNG) accessible via icon buttons with hover tooltips
 - **Dark mode toggle** — Sun/Moon button in the floating pill switches the designer canvas between light and dark; preference persisted to localStorage
+- **Table annotations** — sticky-note style comments on any table node; click the 📝 icon in the node header to add/edit, × to remove; notes persist in schema JSON and sync to collaborators in real time
 - Undo / Redo icon buttons in toolbar (grayed out when unavailable)
 - "Undone / Redone" toast confirmation on keyboard shortcut use
 - Bottom help bar with keyboard shortcut hints
@@ -212,8 +214,6 @@ npm run dev
 ## 🗺️ Roadmap
 
 ### Power User Features
-- [ ] **Schema diff viewer** — compare any two saved versions with highlighted changes
-- [ ] **Table annotations / notes** — add sticky-note style comments directly on canvas nodes
 - [ ] **Keyboard shortcuts panel** — in-app cheat sheet overlay
 
 ### Community & Discovery
