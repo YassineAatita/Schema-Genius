@@ -1,4 +1,5 @@
 import { getBezierPath, getSmoothStepPath, getStraightPath, EdgeLabelRenderer } from '@xyflow/react'
+import { useCanvasTheme } from '../../contexts/CanvasThemeContext'
 
 // SVG marker definitions — shared IDs across all edges (identical content so last-wins is fine)
 function EdgeDefs() {
@@ -81,6 +82,7 @@ export default function CustomSchemaEdge({
   labelX,
   labelY,
 }) {
+  const dark = useCanvasTheme()
   const lineStyle   = data.lineStyle   || 'default'
   const diagramType = data.diagramType || 'association'
 
@@ -88,7 +90,7 @@ export default function CustomSchemaEdge({
     sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition,
   })
 
-  const strokeColor = selected ? '#3B82F6' : (style.stroke || '#6B7280')
+  const strokeColor = selected ? '#3B82F6' : (style.stroke || (dark ? '#9ca3af' : '#6B7280'))
   const strokeWidth = style.strokeWidth || 2
   const isDashed    = diagramType === 'dependency'
 
@@ -133,11 +135,11 @@ export default function CustomSchemaEdge({
               pointerEvents: 'all',
               fontSize: 11,
               fontWeight: 600,
-              color: selected ? '#1D4ED8' : '#374151',
-              backgroundColor: '#F3F4F6',
+              color:           selected ? (dark ? '#93c5fd' : '#1D4ED8') : (dark ? '#9ca3af' : '#374151'),
+              backgroundColor: dark ? '#1c1f2e' : '#F3F4F6',
               padding: '2px 6px',
               borderRadius: 4,
-              border: `1px solid ${selected ? '#93C5FD' : '#E5E7EB'}`,
+              border: `1px solid ${selected ? (dark ? '#3b82f6' : '#93C5FD') : (dark ? '#2d3247' : '#E5E7EB')}`,
               whiteSpace: 'nowrap',
             }}
             className="nodrag nopan"

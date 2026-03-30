@@ -17,6 +17,7 @@ import '@xyflow/react/dist/style.css'
 import TableNode from './TableNode'
 import CustomSchemaEdge from './CustomSchemaEdge'
 import useSchemaStore from '../../store/useSchemaStore'
+import { useCanvasTheme } from '../../contexts/CanvasThemeContext'
 
 const nodeTypes = { tableNode: TableNode }
 const edgeTypes = { schema: CustomSchemaEdge }
@@ -51,6 +52,7 @@ export default function SchemaCanvas({
   onCursorMove,          // (flowX, flowY) => void  — throttled 50 ms
   remoteCursors = {},    // { [userId]: { userId, name, color, x, y } }
 }) {
+  const dark = useCanvasTheme()
   const { nodes: storeNodes, edges: storeEdges, setNodes, setEdges, bulkDelete } = useSchemaStore()
 
   const [nodes, setLocalNodes, onNodesChange] = useNodesState(storeNodes)
@@ -165,7 +167,7 @@ export default function SchemaCanvas({
   const cursorEntries = Object.values(remoteCursors)
 
   return (
-    <div className="w-full h-full relative" onMouseMove={handleMouseMove}>
+    <div className="w-full h-full relative transition-colors duration-200" onMouseMove={handleMouseMove}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -190,13 +192,26 @@ export default function SchemaCanvas({
         deleteKeyCode={readOnly ? null : 'Delete'}
         minZoom={0.2}
         maxZoom={2}
+        style={dark ? { background: '#0f1117' } : undefined}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#E5E7EB"/>
-        <Controls className="!shadow-md !border !border-gray-200 !rounded-xl overflow-hidden"/>
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={20}
+          size={1}
+          color={dark ? '#2d3247' : '#E5E7EB'}
+        />
+        <Controls className={`!shadow-md !rounded-xl overflow-hidden
+          ${dark
+            ? '!border !border-[#252a3e] [&_button]:!bg-[#141620] [&_button]:!text-gray-400 [&_button:hover]:!bg-[#252a3e]'
+            : '!border !border-gray-200'}`}
+        />
         <MiniMap
-          nodeColor="#1A56DB"
-          maskColor="rgba(249,250,251,0.8)"
-          className="!border !border-gray-200 !rounded-xl !shadow-md"
+          nodeColor={dark ? '#3b82f6' : '#1A56DB'}
+          maskColor={dark ? 'rgba(15,17,23,0.85)' : 'rgba(249,250,251,0.8)'}
+          className={`!rounded-xl !shadow-md
+            ${dark
+              ? '!border !border-[#252a3e] !bg-[#141620]'
+              : '!border !border-gray-200'}`}
         />
       </ReactFlow>
 

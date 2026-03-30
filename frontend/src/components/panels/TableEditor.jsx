@@ -22,7 +22,7 @@ export default function TableEditor({ nodeId, onClose }) {
   const currentNodeId = useRef(null)
 
   // Load data when nodeId changes — and ONLY then
-    useEffect(() => {
+  useEffect(() => {
     if (currentNodeId.current === nodeId) return
     currentNodeId.current = nodeId
 
@@ -33,7 +33,7 @@ export default function TableEditor({ nodeId, onClose }) {
     setColumns(JSON.parse(JSON.stringify(node.data.columns || [])))
     setIsDirty(false)
     setSaved(false)
-    }, [nodeId, nodes])  // ← add nodes here
+  }, [nodeId, nodes])
 
   const node = nodes.find(n => n.id === nodeId)
   if (!node) return null
@@ -76,7 +76,6 @@ export default function TableEditor({ nodeId, onClose }) {
   }
 
   const handleSaveTable = () => {
-    // Deep clone columns before saving to avoid reference issues
     const colsToSave = JSON.parse(JSON.stringify(columns))
     updateNodeData(nodeId, { name: tableName, columns: colsToSave })
     setIsDirty(false)
@@ -91,16 +90,24 @@ export default function TableEditor({ nodeId, onClose }) {
   }
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full shadow-lg">
+    <div className="w-80 flex flex-col h-full shadow-lg
+                    bg-white dark:bg-[#141620]
+                    border-l border-gray-200 dark:border-[#252a3e]
+                    transition-colors duration-200">
 
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+      <div className="px-4 py-3 border-b flex items-center justify-between
+                      bg-gray-50 dark:bg-[#0f1117]
+                      border-gray-100 dark:border-[#252a3e]">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-blue-500"/>
-          <h3 className="font-semibold text-gray-800 text-sm">Table Editor</h3>
+          <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100">Table Editor</h3>
         </div>
         <button onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition-colors">
+          className="p-1 rounded transition-colors
+                     text-gray-400 dark:text-gray-500
+                     hover:text-gray-600 dark:hover:text-gray-300
+                     hover:bg-gray-100 dark:hover:bg-[#252a3e]">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M6 18L18 6M6 6l12 12"/>
@@ -113,28 +120,36 @@ export default function TableEditor({ nodeId, onClose }) {
 
         {/* Table Name */}
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+          <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5
+                            text-gray-500 dark:text-gray-500">
             Table Name
           </label>
           <input
             type="text"
             value={tableName}
             onChange={e => handleNameChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm
-                       focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+            className="w-full px-3 py-2 border rounded-lg text-sm font-mono
+                       focus:outline-none focus:ring-2 focus:ring-blue-500
+                       bg-white dark:bg-[#1c1f2e]
+                       border-gray-200 dark:border-[#2d3247]
+                       text-gray-800 dark:text-gray-100
+                       transition-colors duration-200"
           />
         </div>
 
         {/* Columns */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            <label className="text-xs font-semibold uppercase tracking-wide
+                              text-gray-500 dark:text-gray-500">
               Columns ({columns.length})
             </label>
             <button
               onClick={addColumn}
-              className="text-xs text-blue-600 hover:text-blue-700 font-medium
-                         flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors">
+              className="text-xs font-medium flex items-center gap-1 px-2 py-1 rounded transition-colors
+                         text-blue-600 dark:text-blue-400
+                         hover:text-blue-700 dark:hover:text-blue-300
+                         hover:bg-blue-50 dark:hover:bg-blue-950">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M12 4v16m8-8H4"/>
@@ -153,8 +168,10 @@ export default function TableEditor({ nodeId, onClose }) {
               />
             ))}
             {columns.length === 0 && (
-              <div className="text-center py-6 text-gray-300 text-xs
-                              border-2 border-dashed border-gray-200 rounded-lg">
+              <div className="text-center py-6 text-xs
+                              border-2 border-dashed rounded-lg
+                              text-gray-300 dark:text-gray-600
+                              border-gray-200 dark:border-[#252a3e]">
                 No columns — click Add Column
               </div>
             )}
@@ -163,10 +180,12 @@ export default function TableEditor({ nodeId, onClose }) {
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-100 bg-gray-50 space-y-2">
+      <div className="p-4 border-t space-y-2
+                      bg-gray-50 dark:bg-[#0f1117]
+                      border-gray-100 dark:border-[#252a3e]">
 
         {isDirty && (
-          <p className="text-xs text-amber-600 text-center flex items-center justify-center gap-1">
+          <p className="text-xs text-amber-600 dark:text-amber-500 text-center flex items-center justify-center gap-1">
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd"
                 d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213
@@ -187,7 +206,7 @@ export default function TableEditor({ nodeId, onClose }) {
               ? 'bg-green-500 text-white'
               : isDirty
                 ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-gray-100 dark:bg-[#252a3e] text-gray-400 dark:text-gray-600 cursor-not-allowed'
             }`}
         >
           {saved
@@ -204,9 +223,10 @@ export default function TableEditor({ nodeId, onClose }) {
 
         <button
           onClick={handleDeleteTable}
-          className="w-full py-2 rounded-lg text-xs text-red-400 hover:text-red-600
-                     hover:bg-red-50 transition-colors border border-transparent
-                     hover:border-red-100">
+          className="w-full py-2 rounded-lg text-xs transition-colors border border-transparent
+                     text-red-400 hover:text-red-600
+                     hover:bg-red-50 dark:hover:bg-red-950/40
+                     hover:border-red-100 dark:hover:border-red-900">
           Delete this table
         </button>
       </div>
@@ -230,17 +250,20 @@ function ColumnRow({ col, onChange, onDelete }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+    <div className="border rounded-lg overflow-hidden
+                    border-gray-200 dark:border-[#252a3e]
+                    bg-white dark:bg-[#1c1f2e]">
 
       {/* Main row */}
-      <div className="flex items-center gap-1.5 px-2 py-2 bg-gray-50">
+      <div className="flex items-center gap-1.5 px-2 py-2
+                      bg-gray-50 dark:bg-[#252a3e]">
 
         {/* PK toggle */}
         <button
           onClick={() => onChange('pk', !col.pk)}
           title="Toggle Primary Key"
           className={`flex-shrink-0 p-0.5 rounded transition-colors
-            ${col.pk ? 'text-yellow-500' : 'text-gray-300 hover:text-gray-400'}`}>
+            ${col.pk ? 'text-yellow-500' : 'text-gray-300 dark:text-gray-600 hover:text-gray-400 dark:hover:text-gray-400'}`}>
           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd"
               d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6
@@ -254,8 +277,8 @@ function ColumnRow({ col, onChange, onDelete }) {
           type="text"
           value={col.name}
           onChange={e => onChange('name', e.target.value)}
-          className="flex-1 min-w-0 text-xs bg-transparent border-none
-                     outline-none font-mono text-gray-700"
+          className="flex-1 min-w-0 text-xs bg-transparent border-none outline-none font-mono
+                     text-gray-700 dark:text-gray-300"
           placeholder="column_name"
         />
 
@@ -263,8 +286,10 @@ function ColumnRow({ col, onChange, onDelete }) {
         <select
           value={col.type}
           onChange={e => onChange('type', e.target.value)}
-          className="text-xs border border-gray-200 bg-white rounded px-1 py-0.5
-                     outline-none text-gray-600 cursor-pointer max-w-[80px]">
+          className="text-xs rounded px-1 py-0.5 outline-none cursor-pointer max-w-[80px]
+                     border border-gray-200 dark:border-[#2d3247]
+                     bg-white dark:bg-[#1c1f2e]
+                     text-gray-600 dark:text-gray-300">
           {COLUMN_TYPES.map(t => (
             <option key={t} value={t}>{t}</option>
           ))}
@@ -273,7 +298,8 @@ function ColumnRow({ col, onChange, onDelete }) {
         {/* Expand */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-gray-300 hover:text-gray-500 flex-shrink-0 transition-colors">
+          className="flex-shrink-0 transition-colors
+                     text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400">
           <svg className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`}
             fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round"
@@ -284,7 +310,8 @@ function ColumnRow({ col, onChange, onDelete }) {
         {/* Delete */}
         <button
           onClick={onDelete}
-          className="text-gray-300 hover:text-red-400 flex-shrink-0 transition-colors">
+          className="flex-shrink-0 transition-colors
+                     text-gray-300 dark:text-gray-600 hover:text-red-400 dark:hover:text-red-400">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round"
               strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
@@ -294,7 +321,9 @@ function ColumnRow({ col, onChange, onDelete }) {
 
       {/* Expanded */}
       {expanded && (
-        <div className="px-3 py-3 space-y-2.5 bg-white border-t border-gray-100">
+        <div className="px-3 py-3 space-y-2.5 border-t
+                        bg-white dark:bg-[#1c1f2e]
+                        border-gray-100 dark:border-[#252a3e]">
           <div className="grid grid-cols-2 gap-2">
             {[
               ['nullable',      'Nullable'],
@@ -309,19 +338,23 @@ function ColumnRow({ col, onChange, onDelete }) {
                   onChange={e => onChange(field, e.target.checked)}
                   className="rounded text-blue-600 cursor-pointer w-3 h-3"
                 />
-                <span className="text-xs text-gray-600">{label}</span>
+                <span className="text-xs text-gray-600 dark:text-gray-400">{label}</span>
               </label>
             ))}
           </div>
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Default Value</label>
+            <label className="text-xs block mb-1 text-gray-400 dark:text-gray-500">Default Value</label>
             <input
               type="text"
               value={col.default || ''}
               onChange={e => onChange('default', e.target.value || null)}
               placeholder="NULL"
-              className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-lg
-                         focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+              className="w-full text-xs px-2 py-1.5 rounded-lg font-mono
+                         focus:outline-none focus:ring-1 focus:ring-blue-500
+                         border border-gray-200 dark:border-[#2d3247]
+                         bg-white dark:bg-[#0f1117]
+                         text-gray-700 dark:text-gray-300
+                         placeholder:text-gray-300 dark:placeholder:text-gray-600"
             />
           </div>
         </div>

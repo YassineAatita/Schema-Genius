@@ -4,8 +4,8 @@ import ConfirmModal from '../ui/ConfirmModal'
 
 function timeAgo(dateStr) {
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000)
-  if (diff < 60)   return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 60)    return 'just now'
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
   return `${Math.floor(diff / 86400)}d ago`
 }
@@ -18,11 +18,11 @@ function formatDate(dateStr) {
 }
 
 export default function HistoryPanel({ schemaId, onRestore, onClose }) {
-  const [versions,        setVersions]        = useState([])
-  const [loading,         setLoading]         = useState(true)
-  const [error,           setError]           = useState('')
-  const [restoreTarget,   setRestoreTarget]   = useState(null)   // version to confirm
-  const [restoring,       setRestoring]       = useState(false)
+  const [versions,      setVersions]      = useState([])
+  const [loading,       setLoading]       = useState(true)
+  const [error,         setError]         = useState('')
+  const [restoreTarget, setRestoreTarget] = useState(null)
+  const [restoring,     setRestoring]     = useState(false)
 
   useEffect(() => {
     if (!schemaId) return
@@ -40,7 +40,6 @@ export default function HistoryPanel({ schemaId, onRestore, onClose }) {
     try {
       const res = await api.post(`/schemas/${schemaId}/versions/${restoreTarget.id}/restore`)
       onRestore(res.data.schema_json)
-      // Refresh list so new current is highlighted
       const updated = await api.get(`/schemas/${schemaId}/versions`)
       setVersions(updated.data)
     } catch {
@@ -52,17 +51,25 @@ export default function HistoryPanel({ schemaId, onRestore, onClose }) {
   }
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full shadow-lg">
+    <div className="w-80 flex flex-col h-full shadow-lg
+                    bg-white dark:bg-[#141620]
+                    border-l border-gray-200 dark:border-[#252a3e]
+                    transition-colors duration-200">
 
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+      <div className="px-4 py-3 border-b flex items-center justify-between
+                      bg-gray-50 dark:bg-[#0f1117]
+                      border-gray-100 dark:border-[#252a3e]">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-indigo-500"/>
-          <h3 className="font-semibold text-gray-800 text-sm">Version History</h3>
+          <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100">Version History</h3>
         </div>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition-colors"
+          className="p-1 rounded transition-colors
+                     text-gray-400 dark:text-gray-500
+                     hover:text-gray-600 dark:hover:text-gray-300
+                     hover:bg-gray-100 dark:hover:bg-[#252a3e]"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
@@ -85,7 +92,10 @@ export default function HistoryPanel({ schemaId, onRestore, onClose }) {
 
         {/* Error */}
         {!loading && error && (
-          <div className="m-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
+          <div className="m-4 p-3 rounded-xl text-xs
+                          bg-red-50 dark:bg-red-950/40
+                          border border-red-200 dark:border-red-900
+                          text-red-600 dark:text-red-400">
             {error}
           </div>
         )}
@@ -93,68 +103,77 @@ export default function HistoryPanel({ schemaId, onRestore, onClose }) {
         {/* Empty */}
         {!loading && !error && versions.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-            <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center mb-3">
-              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3
+                            bg-gray-100 dark:bg-[#252a3e]">
+              <svg className="w-6 h-6 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
-            <p className="font-medium text-gray-600 text-sm mb-1">No saves yet</p>
-            <p className="text-xs text-gray-400">Save your schema to start building version history.</p>
+            <p className="font-medium text-sm mb-1 text-gray-600 dark:text-gray-400">No saves yet</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              Save your schema to start building version history.
+            </p>
           </div>
         )}
 
         {/* Version list */}
         {!loading && !error && versions.length > 0 && (
           <div className="p-3 space-y-2">
-            {versions.map((v, idx) => (
+            {versions.map((v) => (
               <div
                 key={v.id}
                 className={`rounded-xl border p-3 transition-all
                   ${v.is_current
-                    ? 'border-indigo-300 bg-indigo-50'
-                    : 'border-gray-200 bg-white hover:border-gray-300'}`}
+                    ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/50'
+                    : 'border-gray-200 dark:border-[#252a3e] bg-white dark:bg-[#1c1f2e] hover:border-gray-300 dark:hover:border-[#2d3247]'}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    {/* Version badge + label */}
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`text-xs font-bold font-mono px-1.5 py-0.5 rounded
                         ${v.is_current
-                          ? 'bg-indigo-200 text-indigo-700'
-                          : 'bg-gray-100 text-gray-500'}`}>
+                          ? 'bg-indigo-200 dark:bg-indigo-800 text-indigo-700 dark:text-indigo-300'
+                          : 'bg-gray-100 dark:bg-[#252a3e] text-gray-500 dark:text-gray-400'}`}>
                         v{v.version_number}
                       </span>
                       {v.is_current && (
-                        <span className="text-xs font-semibold text-indigo-600 bg-indigo-100
-                                         px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-semibold px-1.5 py-0.5 rounded
+                                         text-indigo-600 dark:text-indigo-300
+                                         bg-indigo-100 dark:bg-indigo-900">
                           Current
                         </span>
                       )}
                       {v.label && (
-                        <span className="text-xs text-gray-500 italic truncate">{v.label}</span>
+                        <span className="text-xs italic truncate
+                                         text-gray-500 dark:text-gray-400">
+                          {v.label}
+                        </span>
                       )}
                     </div>
 
-                    {/* Timestamp + author */}
-                    <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
+                    <p className="text-xs mt-1.5 flex items-center gap-1
+                                  text-gray-400 dark:text-gray-500">
                       <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                           d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                       </svg>
                       <span title={formatDate(v.created_at)}>{timeAgo(v.created_at)}</span>
-                      <span className="text-gray-300">·</span>
+                      <span className="text-gray-300 dark:text-gray-600">·</span>
                       <span className="truncate">{v.created_by}</span>
                     </p>
                   </div>
 
-                  {/* Restore button */}
                   {!v.is_current && (
                     <button
                       onClick={() => setRestoreTarget(v)}
                       className="flex-shrink-0 text-xs font-medium px-2.5 py-1 rounded-lg
-                                 border border-indigo-200 text-indigo-600 bg-white
-                                 hover:bg-indigo-50 hover:border-indigo-300 transition-all"
+                                 transition-all
+                                 border border-indigo-200 dark:border-indigo-700
+                                 text-indigo-600 dark:text-indigo-400
+                                 bg-white dark:bg-transparent
+                                 hover:bg-indigo-50 dark:hover:bg-indigo-950
+                                 hover:border-indigo-300 dark:hover:border-indigo-600"
                     >
                       Restore
                     </button>
@@ -168,14 +187,15 @@ export default function HistoryPanel({ schemaId, onRestore, onClose }) {
 
       {/* Footer hint */}
       {!loading && versions.length > 0 && (
-        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
-          <p className="text-xs text-gray-400 text-center">
+        <div className="px-4 py-3 border-t
+                        bg-gray-50 dark:bg-[#0f1117]
+                        border-gray-100 dark:border-[#252a3e]">
+          <p className="text-xs text-center text-gray-400 dark:text-gray-500">
             {versions.length} save{versions.length !== 1 ? 's' : ''} · restoring doesn't delete history
           </p>
         </div>
       )}
 
-      {/* Confirm restore modal */}
       <ConfirmModal
         open={!!restoreTarget}
         variant="warning"

@@ -201,6 +201,7 @@ npm run dev
 ### UI / UX
 - Sidebar navigation in Dashboard: Dashboard / Profile / Friends with active state + badges
 - **Floating action pill** — clean bottom-center pill replaces the old toolbar dropdown menus; all canvas actions (Add Table, Generate, Import SQL, Validate, Templates, Export SQL, Version History, Export PNG) accessible via icon buttons with hover tooltips
+- **Dark mode toggle** — Sun/Moon button in the floating pill switches the designer canvas between light and dark; preference persisted to localStorage
 - Undo / Redo icon buttons in toolbar (grayed out when unavailable)
 - "Undone / Redone" toast confirmation on keyboard shortcut use
 - Bottom help bar with keyboard shortcut hints
@@ -213,7 +214,6 @@ npm run dev
 ### Power User Features
 - [ ] **Schema diff viewer** — compare any two saved versions with highlighted changes
 - [ ] **Table annotations / notes** — add sticky-note style comments directly on canvas nodes
-- [ ] **Dark mode** for the designer canvas
 - [ ] **Keyboard shortcuts panel** — in-app cheat sheet overlay
 
 ### Community & Discovery

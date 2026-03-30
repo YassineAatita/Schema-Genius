@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Plus, Sparkles, Upload, CheckCircle, LayoutTemplate,
   Download, History, Image as ImageIcon,
+  Sun, Moon,
 } from 'lucide-react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { toPng } from 'html-to-image'
@@ -17,6 +18,7 @@ import ConfirmModal from '../components/ui/ConfirmModal'
 import HistoryPanel from '../components/panels/HistoryPanel'
 import { validateSchema } from '../utils/validateSchema'
 import { joinProjectChannel, leaveProjectChannel } from '../services/websocket'
+import { CanvasThemeContext } from '../contexts/CanvasThemeContext'
 
 // Deterministic cursor / avatar colors for remote collaborators
 const CURSOR_COLORS = ['#3B82F6','#EF4444','#10B981','#F59E0B','#8B5CF6','#EC4899','#06B6D4','#84CC16']
@@ -55,6 +57,18 @@ export default function DesignerPage() {
   const moreMenuRef      = useRef(null)
   const generateMenuRef  = useRef(null)
   const canvasRef        = useRef(null)
+
+  // Canvas dark mode — persisted to localStorage
+  const [canvasDark, setCanvasDark] = useState(
+    () => localStorage.getItem('canvas-theme') === 'dark'
+  )
+  const toggleCanvasTheme = useCallback(() => {
+    setCanvasDark(d => {
+      const next = !d
+      localStorage.setItem('canvas-theme', next ? 'dark' : 'light')
+      return next
+    })
+  }, [])
 
   // ── Real-time collaboration ────────────────────────────────────────────────
   const channelRef               = useRef(null)
@@ -482,11 +496,17 @@ export default function DesignerPage() {
       : 'border-green-200 text-green-600 bg-green-50 hover:bg-green-100'
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden relative">
+  <CanvasThemeContext.Provider value={canvasDark}>
+    <div
+      data-canvas-theme={canvasDark ? 'dark' : 'light'}
+      className="h-screen flex flex-col overflow-hidden relative transition-colors duration-200
+                 bg-gray-50 dark:bg-[#0f1117]">
 
       {/* ── Toolbar ── */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center
-                      justify-between flex-shrink-0 z-10 shadow-sm">
+      <div className="px-4 py-2.5 flex items-center justify-between flex-shrink-0 z-10 shadow-sm
+                      transition-colors duration-200
+                      bg-white dark:bg-[#141620]
+                      border-b border-gray-200 dark:border-[#252a3e]">
 
         {/* Left */}
         <div className="flex items-center gap-3">
@@ -494,13 +514,15 @@ export default function DesignerPage() {
               if (isDirty) { setShowLeaveModal(true); return }
               navigate('/dashboard')
             }}
-            className="text-gray-400 hover:text-gray-700 p-1 rounded-lg
-                       hover:bg-gray-100 transition-colors">
+            className="p-1 rounded-lg transition-colors
+                       text-gray-400 dark:text-gray-500
+                       hover:text-gray-700 dark:hover:text-gray-300
+                       hover:bg-gray-100 dark:hover:bg-[#252a3e]">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
             </svg>
           </button>
-          <div className="w-px h-5 bg-gray-200"/>
+          <div className="w-px h-5 bg-gray-200 dark:bg-[#252a3e]"/>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -509,10 +531,10 @@ export default function DesignerPage() {
               </svg>
             </div>
             <div>
-              <p className="font-semibold text-gray-800 text-sm leading-tight">
+              <p className="font-semibold text-sm leading-tight text-gray-800 dark:text-gray-100">
                 {project?.name || 'Loading...'}
               </p>
-              <p className="text-xs text-gray-400 leading-tight">
+              <p className="text-xs leading-tight text-gray-400 dark:text-gray-500">
                 {nodes.length} table{nodes.length !== 1 ? 's' : ''} · {edges.length} relationship{edges.length !== 1 ? 's' : ''}
               </p>
             </div>
@@ -541,16 +563,22 @@ export default function DesignerPage() {
 
           {/* Undo / Redo */}
           {canEdit && (
-            <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden">
+            <div className="flex items-center rounded-lg overflow-hidden border border-gray-200 dark:border-[#252a3e]">
               <button onClick={handleUndo} disabled={past.length === 0} title="Undo (Ctrl+Z)"
-                className={`p-1.5 transition-all ${past.length === 0 ? 'text-gray-300 bg-white cursor-not-allowed' : 'text-gray-500 bg-white hover:bg-gray-50 hover:text-blue-600'}`}>
+                className={`p-1.5 transition-all
+                  ${past.length === 0
+                    ? 'text-gray-300 dark:text-gray-600 bg-white dark:bg-[#141620] cursor-not-allowed'
+                    : 'text-gray-500 bg-white dark:bg-[#141620] hover:bg-gray-50 dark:hover:bg-[#252a3e] hover:text-blue-600'}`}>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
                 </svg>
               </button>
-              <div className="w-px h-4 bg-gray-200"/>
+              <div className="w-px h-4 bg-gray-200 dark:bg-[#252a3e]"/>
               <button onClick={handleRedo} disabled={future.length === 0} title="Redo (Ctrl+Shift+Z)"
-                className={`p-1.5 transition-all ${future.length === 0 ? 'text-gray-300 bg-white cursor-not-allowed' : 'text-gray-500 bg-white hover:bg-gray-50 hover:text-blue-600'}`}>
+                className={`p-1.5 transition-all
+                  ${future.length === 0
+                    ? 'text-gray-300 dark:text-gray-600 bg-white dark:bg-[#141620] cursor-not-allowed'
+                    : 'text-gray-500 bg-white dark:bg-[#141620] hover:bg-gray-50 dark:hover:bg-[#252a3e] hover:text-blue-600'}`}>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6"/>
                 </svg>
@@ -687,23 +715,23 @@ export default function DesignerPage() {
 
       {/* ── Floating Action Pill ── */}
       <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-20
-                      flex items-center bg-white rounded-full border border-gray-200
-                      shadow-lg px-2 py-1.5 gap-0.5">
+                      flex items-center rounded-full border shadow-lg px-2 py-1.5 gap-0.5
+                      transition-colors duration-200
+                      bg-white dark:bg-[#141620]
+                      border-gray-200 dark:border-[#252a3e]">
 
         {/* Add Table */}
         {canEdit && (
           <div className="relative group">
             <button
               onClick={() => addTable()}
-              className="flex items-center justify-center w-8 h-8 rounded-full
-                         text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+              className="flex items-center justify-center w-8 h-8 rounded-full transition-colors
+                         text-gray-500 dark:text-gray-400
+                         hover:text-blue-600 dark:hover:text-blue-400
+                         hover:bg-blue-50 dark:hover:bg-blue-950">
               <Plus className="w-4 h-4"/>
             </button>
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                            opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
-                              rounded-lg whitespace-nowrap shadow-lg">Add Table</div>
-            </div>
+            <PillTooltip>Add Table</PillTooltip>
           </div>
         )}
 
@@ -712,27 +740,31 @@ export default function DesignerPage() {
           <div className="relative group" ref={generateMenuRef}>
             <button
               onClick={() => setShowGenerateMenu(v => !v)}
-              className="flex items-center justify-center w-8 h-8 rounded-full
-                         text-gray-500 hover:text-purple-600 hover:bg-purple-50 transition-colors">
+              className="flex items-center justify-center w-8 h-8 rounded-full transition-colors
+                         text-gray-500 dark:text-gray-400
+                         hover:text-purple-600 dark:hover:text-purple-400
+                         hover:bg-purple-50 dark:hover:bg-purple-950">
               <Sparkles className="w-4 h-4"/>
             </button>
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                            opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
-                              rounded-lg whitespace-nowrap shadow-lg">Generate</div>
-            </div>
+            <PillTooltip>Generate</PillTooltip>
             {showGenerateMenu && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-10
-                              w-44 bg-white border border-gray-200 rounded-xl shadow-xl z-30 py-1 overflow-hidden">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-10 w-44
+                              rounded-xl shadow-xl z-30 py-1 overflow-hidden
+                              bg-white dark:bg-[#1c1f2e]
+                              border border-gray-200 dark:border-[#252a3e]">
                 <button
                   onClick={() => { setShowGenerateMenu(false); setShowAiModal(true) }}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                  className="w-full text-left px-3 py-2 text-sm flex items-center gap-2
+                             text-gray-700 dark:text-gray-300
+                             hover:bg-gray-50 dark:hover:bg-[#252a3e]">
                   <Sparkles className="w-3.5 h-3.5 text-purple-500"/>
                   From description
                 </button>
                 <button
                   onClick={() => { setShowGenerateMenu(false); setShowVisionAi(true) }}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                  className="w-full text-left px-3 py-2 text-sm flex items-center gap-2
+                             text-gray-700 dark:text-gray-300
+                             hover:bg-gray-50 dark:hover:bg-[#252a3e]">
                   <ImageIcon className="w-3.5 h-3.5 text-blue-500"/>
                   From image
                 </button>
@@ -746,20 +778,18 @@ export default function DesignerPage() {
           <div className="relative group">
             <button
               onClick={() => setShowImportSql(true)}
-              className="flex items-center justify-center w-8 h-8 rounded-full
-                         text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors">
+              className="flex items-center justify-center w-8 h-8 rounded-full transition-colors
+                         text-gray-500 dark:text-gray-400
+                         hover:text-orange-600 dark:hover:text-orange-400
+                         hover:bg-orange-50 dark:hover:bg-orange-950">
               <Upload className="w-4 h-4"/>
             </button>
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                            opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
-                              rounded-lg whitespace-nowrap shadow-lg">Import SQL</div>
-            </div>
+            <PillTooltip>Import SQL</PillTooltip>
           </div>
         )}
 
-        {/* Divider — only shown when canEdit (so there are edit icons before it) */}
-        {canEdit && <div className="w-px h-5 bg-gray-200 mx-0.5"/>}
+        {/* Divider — only shown when canEdit */}
+        {canEdit && <div className="w-px h-5 mx-0.5 bg-gray-200 dark:bg-[#252a3e]"/>}
 
         {/* Validate */}
         <div className="relative group">
@@ -767,8 +797,8 @@ export default function DesignerPage() {
             onClick={() => { setShowValidation(v => !v); setShowHistory(false); setSelectedNode(null); setSelectedEdge(null) }}
             className={`relative flex items-center justify-center w-8 h-8 rounded-full transition-colors
               ${showValidation
-                ? 'text-blue-600 bg-blue-50'
-                : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'}`}>
+                ? 'text-blue-600 bg-blue-50 dark:bg-blue-950'
+                : 'text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950'}`}>
             <CheckCircle className="w-4 h-4"/>
             {(errorCount > 0 || warningCount > 0) && (
               <span className={`absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 flex items-center justify-center
@@ -778,11 +808,7 @@ export default function DesignerPage() {
               </span>
             )}
           </button>
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                          opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
-                            rounded-lg whitespace-nowrap shadow-lg">Validate</div>
-          </div>
+          <PillTooltip>Validate</PillTooltip>
         </div>
 
         {/* Templates */}
@@ -790,15 +816,13 @@ export default function DesignerPage() {
           <div className="relative group">
             <button
               onClick={() => setShowTemplatesModal(true)}
-              className="flex items-center justify-center w-8 h-8 rounded-full
-                         text-gray-500 hover:text-teal-600 hover:bg-teal-50 transition-colors">
+              className="flex items-center justify-center w-8 h-8 rounded-full transition-colors
+                         text-gray-500 dark:text-gray-400
+                         hover:text-teal-600 dark:hover:text-teal-400
+                         hover:bg-teal-50 dark:hover:bg-teal-950">
               <LayoutTemplate className="w-4 h-4"/>
             </button>
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                            opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
-                              rounded-lg whitespace-nowrap shadow-lg">Templates</div>
-            </div>
+            <PillTooltip>Templates</PillTooltip>
           </div>
         )}
 
@@ -808,23 +832,23 @@ export default function DesignerPage() {
             onClick={() => setShowMoreMenu(v => !v)}
             className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors
               ${showMoreMenu
-                ? 'text-green-600 bg-green-50'
-                : 'text-gray-500 hover:text-green-600 hover:bg-green-50'}`}>
+                ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950'
+                : 'text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-950'}`}>
             <Download className="w-4 h-4"/>
           </button>
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                          opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
-                            rounded-lg whitespace-nowrap shadow-lg">Export SQL</div>
-          </div>
+          <PillTooltip>Export SQL</PillTooltip>
           {showMoreMenu && (
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-10
-                            w-36 bg-white border border-gray-200 rounded-xl shadow-xl z-30 py-1 overflow-hidden">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-10 w-36
+                            rounded-xl shadow-xl z-30 py-1 overflow-hidden
+                            bg-white dark:bg-[#1c1f2e]
+                            border border-gray-200 dark:border-[#252a3e]">
               {['mysql','postgresql','sqlite'].map(d => (
                 <button
                   key={d}
                   onClick={() => { setShowMoreMenu(false); handleExportSQL(d) }}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 capitalize">
+                  className="w-full text-left px-3 py-2 text-sm capitalize
+                             text-gray-700 dark:text-gray-300
+                             hover:bg-gray-50 dark:hover:bg-[#252a3e]">
                   {d === 'mysql' ? 'MySQL' : d === 'postgresql' ? 'PostgreSQL' : 'SQLite'}
                 </button>
               ))}
@@ -838,38 +862,51 @@ export default function DesignerPage() {
             onClick={() => { setShowHistory(v => !v); setShowValidation(false); setSelectedNode(null); setSelectedEdge(null) }}
             className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors
               ${showHistory
-                ? 'text-indigo-600 bg-indigo-50'
-                : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`}>
+                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950'
+                : 'text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}>
             <History className="w-4 h-4"/>
           </button>
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                          opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
-                            rounded-lg whitespace-nowrap shadow-lg">Version History</div>
-          </div>
+          <PillTooltip>Version History</PillTooltip>
         </div>
 
         {/* Export PNG */}
         <div className="relative group">
           <button
             onClick={handleExportImage}
-            className="flex items-center justify-center w-8 h-8 rounded-full
-                       text-gray-500 hover:text-pink-600 hover:bg-pink-50 transition-colors">
+            className="flex items-center justify-center w-8 h-8 rounded-full transition-colors
+                       text-gray-500 dark:text-gray-400
+                       hover:text-pink-600 dark:hover:text-pink-400
+                       hover:bg-pink-50 dark:hover:bg-pink-950">
             <ImageIcon className="w-4 h-4"/>
           </button>
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                          opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
-                            rounded-lg whitespace-nowrap shadow-lg">Export PNG</div>
-          </div>
+          <PillTooltip>Export PNG</PillTooltip>
+        </div>
+
+        {/* Divider before theme toggle */}
+        <div className="w-px h-5 mx-0.5 bg-gray-200 dark:bg-[#252a3e]"/>
+
+        {/* Dark Mode Toggle */}
+        <div className="relative group">
+          <button
+            onClick={toggleCanvasTheme}
+            className="flex items-center justify-center w-8 h-8 rounded-full transition-colors
+                       text-gray-500 dark:text-gray-400
+                       hover:text-amber-500 dark:hover:text-amber-400
+                       hover:bg-amber-50 dark:hover:bg-amber-950">
+            {canvasDark ? <Sun className="w-4 h-4"/> : <Moon className="w-4 h-4"/>}
+          </button>
+          <PillTooltip>{canvasDark ? 'Light Mode' : 'Dark Mode'}</PillTooltip>
         </div>
 
       </div>
 
       {/* Help tip */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-10">
-        <p className="text-xs text-gray-400 bg-white/90 backdrop-blur px-3 py-1.5
-                      rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
+        <p className="text-xs backdrop-blur px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap
+                      transition-colors duration-200
+                      text-gray-400 dark:text-gray-600
+                      bg-white/90 dark:bg-[#141620]/90
+                      border border-gray-200 dark:border-[#252a3e]">
           Click table to edit · Click relationship to change · Drag handle to connect · Del to remove · Ctrl+Z to undo
         </p>
       </div>
@@ -954,6 +991,20 @@ export default function DesignerPage() {
           onClose={() => setShowTemplatesModal(false)}
         />
       )}
+    </div>
+  </CanvasThemeContext.Provider>
+  )
+}
+
+// ── Pill tooltip (shared by all floating pill icon buttons) ───────
+function PillTooltip({ children }) {
+  return (
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                    opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+      <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
+                      rounded-lg whitespace-nowrap shadow-lg">
+        {children}
+      </div>
     </div>
   )
 }
@@ -1239,16 +1290,24 @@ function ValidationPanel({ issues, onClose, onFocusNode }) {
   const warnings = issues.filter(i => i.type === 'warning')
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full shadow-lg">
+    <div className="w-80 flex flex-col h-full shadow-lg
+                    bg-white dark:bg-[#141620]
+                    border-l border-gray-200 dark:border-[#252a3e]
+                    transition-colors duration-200">
 
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+      <div className="px-4 py-3 border-b flex items-center justify-between
+                      bg-gray-50 dark:bg-[#0f1117]
+                      border-gray-100 dark:border-[#252a3e]">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-rose-500"/>
-          <h3 className="font-semibold text-gray-800 text-sm">Schema Validation</h3>
+          <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100">Schema Validation</h3>
         </div>
         <button onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition-colors">
+          className="p-1 rounded transition-colors
+                     text-gray-400 dark:text-gray-500
+                     hover:text-gray-600 dark:hover:text-gray-300
+                     hover:bg-gray-100 dark:hover:bg-[#252a3e]">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
           </svg>
@@ -1260,13 +1319,14 @@ function ValidationPanel({ issues, onClose, onFocusNode }) {
         {/* All clear */}
         {issues.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mb-4">
-              <svg className="w-7 h-7 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4
+                            bg-green-100 dark:bg-green-950">
+              <svg className="w-7 h-7 text-green-500 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
-            <p className="font-semibold text-gray-800 mb-1">Schema looks good!</p>
-            <p className="text-xs text-gray-400">No errors or warnings found.</p>
+            <p className="font-semibold mb-1 text-gray-800 dark:text-gray-100">Schema looks good!</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">No errors or warnings found.</p>
           </div>
         )}
 
@@ -1274,15 +1334,15 @@ function ValidationPanel({ issues, onClose, onFocusNode }) {
         {issues.length > 0 && (
           <div className="flex gap-2">
             {errors.length > 0 && (
-              <span className="flex items-center gap-1 text-xs font-semibold bg-red-50
-                               border border-red-200 text-red-600 px-2.5 py-1 rounded-full">
+              <span className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full
+                               bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"/>
                 {errors.length} error{errors.length !== 1 ? 's' : ''}
               </span>
             )}
             {warnings.length > 0 && (
-              <span className="flex items-center gap-1 text-xs font-semibold bg-amber-50
-                               border border-amber-200 text-amber-600 px-2.5 py-1 rounded-full">
+              <span className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full
+                               bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"/>
                 {warnings.length} warning{warnings.length !== 1 ? 's' : ''}
               </span>
@@ -1290,24 +1350,11 @@ function ValidationPanel({ issues, onClose, onFocusNode }) {
           </div>
         )}
 
-        {/* Errors */}
         {errors.length > 0 && (
-          <IssueGroup
-            title="Errors"
-            color="red"
-            issues={errors}
-            onFocusNode={onFocusNode}
-          />
+          <IssueGroup title="Errors" color="red" issues={errors} onFocusNode={onFocusNode}/>
         )}
-
-        {/* Warnings */}
         {warnings.length > 0 && (
-          <IssueGroup
-            title="Warnings"
-            color="amber"
-            issues={warnings}
-            onFocusNode={onFocusNode}
-          />
+          <IssueGroup title="Warnings" color="amber" issues={warnings} onFocusNode={onFocusNode}/>
         )}
       </div>
     </div>
@@ -1319,7 +1366,7 @@ function IssueGroup({ title, color, issues, onFocusNode }) {
   return (
     <div>
       <p className={`text-xs font-bold uppercase tracking-wide mb-2
-        ${isRed ? 'text-red-500' : 'text-amber-500'}`}>
+        ${isRed ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}>
         {title}
       </p>
       <div className="space-y-2">
@@ -1327,37 +1374,36 @@ function IssueGroup({ title, color, issues, onFocusNode }) {
           <div key={i}
             className={`rounded-xl border p-3 flex items-start gap-3
               ${isRed
-                ? 'bg-red-50 border-red-100'
-                : 'bg-amber-50 border-amber-100'}`}
+                ? 'bg-red-50 dark:bg-red-950/40 border-red-100 dark:border-red-900'
+                : 'bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-900'}`}
           >
-            {/* Icon */}
             <div className={`flex-shrink-0 w-6 h-6 rounded-lg flex items-center justify-center mt-0.5
-              ${isRed ? 'bg-red-100' : 'bg-amber-100'}`}>
-              <svg className={`w-3.5 h-3.5 ${isRed ? 'text-red-500' : 'text-amber-500'}`}
+              ${isRed ? 'bg-red-100 dark:bg-red-900' : 'bg-amber-100 dark:bg-amber-900'}`}>
+              <svg className={`w-3.5 h-3.5 ${isRed ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}
                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
               </svg>
             </div>
 
-            {/* Text */}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-gray-500 font-mono mb-0.5 truncate">
+              <p className="text-xs font-semibold font-mono mb-0.5 truncate
+                            text-gray-500 dark:text-gray-400">
                 {issue.tableName}
               </p>
-              <p className={`text-xs leading-snug ${isRed ? 'text-red-700' : 'text-amber-700'}`}>
+              <p className={`text-xs leading-snug
+                ${isRed ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}`}>
                 {issue.message}
               </p>
             </div>
 
-            {/* Go to button */}
             <button
               onClick={() => onFocusNode(issue.nodeId)}
               title="Open table editor"
               className={`flex-shrink-0 p-1 rounded-lg transition-colors
                 ${isRed
-                  ? 'text-red-400 hover:text-red-600 hover:bg-red-100'
-                  : 'text-amber-400 hover:text-amber-600 hover:bg-amber-100'}`}
+                  ? 'text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900'
+                  : 'text-amber-400 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900'}`}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
