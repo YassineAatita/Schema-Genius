@@ -170,10 +170,24 @@ class ProjectController extends Controller
             ->pluck('project_id');
 
         foreach ($ownedIds->concat($collabIds)->unique() as $pid) {
-            $map  = Cache::get("project_active_{$pid}", []);
-            // Entries older than 3 minutes are considered stale
+            $key = "project_active_{$pid}";
+            $map = Cache::get($key, []);
+
+            // Remove stale entries (older than 3 minutes)
             $live = array_filter($map, fn($ts) => ($now - $ts) < 180);
-            unset($live[$user->id]); // don't count self
+
+            // If the requesting user still has an entry, they are on the dashboard
+            // now (not in the designer). Remove their entry from cache immediately
+            // so the badge doesn't linger even if the async DELETE from DesignerPage
+            // hasn't completed yet.
+            if (isset($live[$user->id])) {
+                unset($live[$user->id]);
+                empty($live) ? Cache::forget($key) : Cache::put($key, $live, 300);
+            } elseif (count($live) !== count($map)) {
+                // Stale entries were pruned — write the cleaned map back to cache
+                empty($live) ? Cache::forget($key) : Cache::put($key, $live, 300);
+            }
+
             $counts[(string) $pid] = count($live);
         }
 

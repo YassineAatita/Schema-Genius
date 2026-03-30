@@ -56,8 +56,8 @@ return [
     | The 'provider' key is required — without it the AppManager cannot
     | resolve apps and every WebSocket connection closes with error 4001.
     |
-    | 'accept_client_events_from' => 'everyone' enables Echo whispers on
-    | all channel types (presence, private, public).
+    | 'accept_client_events_from' => 'all' enables Echo whispers (client events).
+    | Valid values: 'all' (any subscriber) or 'members' (presence members only).
     |
     */
 
@@ -81,7 +81,7 @@ return [
                 'activity_timeout'          => env('REVERB_APP_ACTIVITY_TIMEOUT', 30),
                 'max_connections'           => env('REVERB_APP_MAX_CONNECTIONS'),
                 'max_message_size'          => env('REVERB_APP_MAX_MESSAGE_SIZE', 10_000),
-                'accept_client_events_from' => 'everyone',  // enables Echo whispers
+                'accept_client_events_from' => 'all',  // valid values: 'all' or 'members'
             ],
         ],
 

@@ -149,54 +149,101 @@ export default function DesignerPage() {
     const channel = joinProjectChannel(parseInt(projectId))
     channelRef.current = channel
 
+    // Log subscription success/failure so we know if the channel is actually live
+    channel
+      .subscribed(() => console.log('[Collab] ✅ subscribed to presence-project.' + projectId))
+      .error(err  => console.error('[Collab] ❌ channel subscription error:', err))
+
     // Presence: who is viewing this project right now
     channel
-      .here(users  => setActiveUsers(users))
-      .joining(u   => setActiveUsers(prev => [...prev.filter(p => p.id !== u.id), u]))
-      .leaving(u   => {
+      .here(users => {
+        console.log('[Collab] .here() —', users.length, 'member(s):', users.map(u => u.name))
+        setActiveUsers(users)
+      })
+      .joining(u => {
+        console.log('[Collab] .joining():', u.name)
+        setActiveUsers(prev => [...prev.filter(p => p.id !== u.id), u])
+      })
+      .leaving(u => {
+        console.log('[Collab] .leaving():', u.name)
         setActiveUsers(prev => prev.filter(p => p.id !== u.id))
         setRemoteCursors(prev => { const n = { ...prev }; delete n[u.id]; return n })
       })
 
-    // Wire store broadcast → channel whisper (viewers get the fn but store skips
-    // emitting when canEdit is false, so this is safe)
+    // Wire store broadcast → channel whisper.
+    // Echo v2.x whisper() uses this.pusher.channels.channels[this.name].trigger().
+    // Access the pusher-js channel directly to avoid any silent failure in that path.
     setBroadcastFn((event, data) => {
-      try { channelRef.current?.whisper(event, data) } catch {}
+      const echoChannel = channelRef.current
+      if (!echoChannel) {
+        console.warn('[Collab] whisper("' + event + '") skipped — channelRef is null')
+        return
+      }
+      console.log('[Collab] whisper →', event, data)
+      try {
+        // Direct pusher-js trigger — bypasses any Echo wrapper issues
+        const pusherCh = window.Echo?.connector?.pusher?.channels?.channels?.[echoChannel.name]
+        if (pusherCh) {
+          pusherCh.trigger('client-' + event, data)
+        } else {
+          console.warn('[Collab] pusher channel not found for', echoChannel.name, '— falling back to Echo whisper')
+          echoChannel.whisper(event, data)
+        }
+      } catch (err) {
+        console.error('[Collab] whisper error:', err)
+      }
     })
 
     // Helper: apply an incoming remote event without re-broadcasting or dirtying
     const applyRemote = (fn) => { setRemoteUpdate(true); fn(); setRemoteUpdate(false) }
 
     channel
-      .listenForWhisper('SchemaNodeAdded', ({ node }) =>
+      .listenForWhisper('SchemaNodeAdded', (payload) => {
+        console.log('[Collab] ← SchemaNodeAdded', payload)
+        const { node } = payload
         applyRemote(() => useSchemaStore.setState(s => ({
           nodes: s.nodes.some(n => n.id === node.id) ? s.nodes : [...s.nodes, node],
         })))
-      )
-      .listenForWhisper('SchemaNodeUpdated', ({ nodeId, data }) =>
+      })
+      .listenForWhisper('SchemaNodeUpdated', (payload) => {
+        console.log('[Collab] ← SchemaNodeUpdated', payload)
+        const { nodeId, data } = payload
         applyRemote(() => useSchemaStore.getState().updateNodeData(nodeId, data))
-      )
-      .listenForWhisper('SchemaNodeMoved', ({ nodeId, position }) =>
+      })
+      .listenForWhisper('SchemaNodeMoved', (payload) => {
+        console.log('[Collab] ← SchemaNodeMoved', payload)
+        const { nodeId, position } = payload
         applyRemote(() => useSchemaStore.setState(s => ({
           nodes: s.nodes.map(n => n.id === nodeId ? { ...n, position } : n),
         })))
-      )
-      .listenForWhisper('SchemaNodeDeleted', ({ nodeId }) =>
+      })
+      .listenForWhisper('SchemaNodeDeleted', (payload) => {
+        console.log('[Collab] ← SchemaNodeDeleted', payload)
+        const { nodeId } = payload
         applyRemote(() => useSchemaStore.setState(s => ({
           nodes: s.nodes.filter(n => n.id !== nodeId),
           edges: s.edges.filter(e => e.source !== nodeId && e.target !== nodeId),
         })))
-      )
-      .listenForWhisper('SchemaEdgeAdded', ({ edge }) =>
+      })
+      .listenForWhisper('SchemaEdgeAdded', (payload) => {
+        console.log('[Collab] ← SchemaEdgeAdded', payload)
+        const { edge } = payload
         applyRemote(() => useSchemaStore.setState(s => ({
           edges: s.edges.some(e => e.id === edge.id) ? s.edges : [...s.edges, edge],
         })))
-      )
-      .listenForWhisper('SchemaEdgeDeleted', ({ edgeId }) =>
+      })
+      .listenForWhisper('SchemaEdgeDeleted', (payload) => {
+        console.log('[Collab] ← SchemaEdgeDeleted', payload)
+        const { edgeId } = payload
         applyRemote(() => useSchemaStore.setState(s => ({
           edges: s.edges.filter(e => e.id !== edgeId),
         })))
-      )
+      })
+      .listenForWhisper('SchemaEdgeUpdated', (payload) => {
+        console.log('[Collab] ← SchemaEdgeUpdated', payload)
+        const { edgeId, changes } = payload
+        applyRemote(() => useSchemaStore.getState().updateEdge(edgeId, changes))
+      })
       .listenForWhisper('CursorMoved', ({ userId, name, x, y }) => {
         if (userId === user.id) return
         setRemoteCursors(prev => ({

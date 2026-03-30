@@ -81,7 +81,8 @@ export default function SchemaCanvas({
       const updated   = filtered.map(localNode => {
         const storeNode = current.find(n => n.id === localNode.id)
         if (!storeNode) return localNode
-        return { ...localNode, data: storeNode.data }
+        // Sync data AND position so remote moves are immediately visible on canvas
+        return { ...localNode, data: storeNode.data, position: storeNode.position }
       })
       return [...updated, ...toAdd]
     })

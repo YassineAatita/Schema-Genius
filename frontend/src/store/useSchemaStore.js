@@ -24,9 +24,13 @@ export const setBroadcastFn  = (fn)  => { _broadcastFn = fn }
 export const setRemoteUpdate = (val) => { _isRemote = val }
 
 const emit = (event, data) => {
-  if (!_isRemote && _broadcastFn) {
-    try { _broadcastFn(event, data) } catch { /* channel may not be open yet */ }
+  if (_isRemote) return
+  if (!_broadcastFn) {
+    console.warn('[Collab] emit("' + event + '") skipped — broadcastFn not wired yet')
+    return
   }
+  console.log('[Collab] emit →', event, data)
+  _broadcastFn(event, data)
 }
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -137,6 +141,7 @@ const useSchemaStore = create((set, get) => ({
       ),
       isDirty: _isRemote ? state.isDirty : true,
     }))
+    emit('SchemaEdgeUpdated', { edgeId, changes })
   },
 
   deleteEdge: (edgeId) => {
