@@ -16,6 +16,7 @@ A web-based SaaS-style platform that lets developers, students, and teams visual
 | Auth | Laravel Sanctum (token-based) |
 | Roles | Spatie Laravel Permission |
 | Database | MySQL (MariaDB via XAMPP) |
+| WebSockets | Laravel Reverb (real-time collaboration) |
 | AI | Groq API — Llama 4 Scout (meta-llama/llama-4-scout-17b-16e-instruct) |
 
 ---
@@ -28,6 +29,7 @@ Schema-Genius/
 │   ├── app/Http/Controllers/Api/
 │   ├── app/Models/
 │   ├── database/migrations/
+│   ├── config/reverb.php     ← Reverb WebSocket server config
 │   └── routes/api.php
 ├── frontend/                 ← React + Vite SPA
 │   ├── src/
@@ -36,7 +38,7 @@ Schema-Genius/
 │   │   │   ├── panels/       ← TableEditor, RelationshipEditor
 │   │   │   └── ui/           ← ConfirmModal, shared UI
 │   │   ├── pages/            ← Landing, Login, Register, Dashboard, Designer
-│   │   ├── services/         ← API service layer
+│   │   ├── services/         ← API service layer, websocket.js (Reverb/Echo)
 │   │   ├── store/            ← Zustand stores
 │   │   └── utils/            ← validateSchema, parseSql, etc.
 └── README.md
@@ -60,31 +62,62 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-Update `.env` with your database credentials and AI key:
+Update `.env` with your database credentials, AI key, and Reverb config:
 ```env
 DB_DATABASE=schema_genius
 DB_USERNAME=root
 DB_PASSWORD=
 
 GROQ_API_KEY=your_groq_api_key_here
+
+REVERB_APP_ID=your_reverb_app_id
+REVERB_APP_KEY=your_reverb_app_key
+REVERB_APP_SECRET=your_reverb_app_secret
+REVERB_HOST=127.0.0.1
+REVERB_PORT=8080
+REVERB_SCHEME=http
 ```
 
-Then run:
+Then run migrations:
 ```bash
 php artisan migrate
-php artisan serve
 ```
-
-Backend runs at: `http://127.0.0.1:8000`
 
 ### Frontend Setup
 ```bash
 cd frontend
 npm install
+```
+
+Update `frontend/.env` with the Reverb connection details:
+```env
+VITE_REVERB_APP_KEY=your_reverb_app_key
+VITE_REVERB_HOST=127.0.0.1
+VITE_REVERB_PORT=8080
+VITE_REVERB_SCHEME=http
+```
+
+### Running the App (3 terminals)
+
+**Terminal 1 — Backend API (port 8000)**
+```bash
+cd backend
+php artisan serve
+```
+
+**Terminal 2 — WebSocket Server (port 8080)**
+```bash
+cd backend
+php artisan reverb:start
+```
+
+**Terminal 3 — Frontend (port 5173)**
+```bash
+cd frontend
 npm run dev
 ```
 
-Frontend runs at: `http://localhost:5173`
+> All three processes must be running simultaneously for real-time collaboration to work. The WebSocket server (`reverb:start`) must be restarted whenever `config/reverb.php` or Reverb-related `.env` values change.
 
 ---
 
@@ -106,13 +139,14 @@ Frontend runs at: `http://localhost:5173`
 - **Line style switcher** — Curved (bezier), Elbow (smoothstep), Step, or Straight per relationship
 - **Undo / Redo** — Ctrl+Z / Ctrl+Shift+Z (up to 50 steps) for add/delete/edit actions
 - Delete key removes selected tables or relationships with full undo support
+- **Floating action pill** — bottom-center of canvas; icon buttons for Add Table, Generate, Import SQL, Validate, Templates, Export SQL, Version History, Export PNG
 
 ### Schema Management
 - Schema auto-saves as versioned JSON (`schema_versions` table)
 - Auto-loads last saved schema when reopening a project
 - **Version history browser** — visual list of past saves with restore to any point
 - **Unsaved changes** indicator with browser-close warning
-- SQL export — downloads a `.sql` file of the full schema
+- **SQL export** — MySQL, PostgreSQL, and SQLite dialects; downloads a `.sql` file of the full schema
 - **Import from SQL** — paste or upload a `.sql` file to generate a visual schema
 
 ### AI Schema Generation
@@ -131,6 +165,15 @@ Frontend runs at: `http://localhost:5173`
 ### Schema Templates
 - One-click pre-built schemas: Blog Platform, E-Commerce Store, SaaS Platform
 - Each template loads with tables, columns, and labelled relationships ready to customize
+
+### Real-time Collaboration
+- **Live cursor presence** — each collaborator's cursor is visible on the canvas with their name label and a unique color
+- **Instant canvas sync** — table moves, additions, edits, and deletions broadcast and apply to all connected users in real time
+- **Avatar stack** in the toolbar showing who is currently online in the same project
+- **Active users badge** on Dashboard project cards showing how many collaborators are currently designing
+- **Viewer-role enforcement** — viewer-role users receive all real-time updates but cannot broadcast changes
+- Powered by **Laravel Reverb** (WebSockets) with Laravel Echo on the frontend
+- Presence channels track online members; client events (whispers) propagate lightweight cursor and canvas-change payloads
 
 ### Friends & Network
 - Search any user by name or email — shows "user not found" feedback when no results match
@@ -157,31 +200,26 @@ Frontend runs at: `http://localhost:5173`
 
 ### UI / UX
 - Sidebar navigation in Dashboard: Dashboard / Profile / Friends with active state + badges
-- Toolbar decluttered — Templates, Validate Schema, and Export SQL moved into a **⋯ More** dropdown
+- **Floating action pill** — clean bottom-center pill replaces the old toolbar dropdown menus; all canvas actions (Add Table, Generate, Import SQL, Validate, Templates, Export SQL, Version History, Export PNG) accessible via icon buttons with hover tooltips
 - Undo / Redo icon buttons in toolbar (grayed out when unavailable)
 - "Undone / Redone" toast confirmation on keyboard shortcut use
-- Bottom help bar updated with keyboard shortcut hints
+- Bottom help bar with keyboard shortcut hints
 - Toast notifications for all friend actions
 
 ---
 
 ## 🗺️ Roadmap
 
-### In Progress / Next Up
-- [ ] **Real-time collaboration** — live cursor presence and instant canvas sync via WebSockets (Laravel Reverb)
+### Power User Features
+- [ ] **Schema diff viewer** — compare any two saved versions with highlighted changes
+- [ ] **Table annotations / notes** — add sticky-note style comments directly on canvas nodes
+- [ ] **Dark mode** for the designer canvas
+- [ ] **Keyboard shortcuts panel** — in-app cheat sheet overlay
 
 ### Community & Discovery
 - [ ] **Public schema gallery** — browse and search schemas published by the community
 - [ ] **Schema forking** — fork any public schema into your own project and customize it
 - [ ] **Schema upvoting & comments** — rate and discuss community schemas
-- [ ] **User profile page** — public portfolio of published schemas
-
-### Power User Features
-- [ ] **Multi-DB SQL export** — PostgreSQL, SQLite, SQL Server (currently MySQL only)
-- [ ] **Schema diff viewer** — compare any two saved versions with highlighted changes
-- [ ] **Table annotations / notes** — add sticky-note style comments directly on canvas nodes
-- [ ] **Dark mode** for the designer canvas
-- [ ] **Keyboard shortcuts panel** — in-app cheat sheet overlay
 
 ### Platform & Admin
 - [ ] **Admin dashboard** — user management, schema stats, AI usage monitoring
@@ -200,11 +238,14 @@ Frontend runs at: `http://localhost:5173`
 | GET | `/api/projects` | List owned + shared projects |
 | POST | `/api/projects` | Create a new project |
 | GET | `/api/projects/{id}` | Get project with schema |
+| GET | `/api/projects/active-counts` | Active user count per project |
+| POST | `/api/projects/{id}/active` | Mark current user as active in project |
+| DELETE | `/api/projects/{id}/active` | Mark current user as inactive in project |
 | GET | `/api/schemas/{id}` | Get schema with current version |
 | PUT | `/api/schemas/{id}` | Save schema (creates new version) |
 | GET | `/api/schemas/{id}/versions` | List all saved versions |
 | POST | `/api/schemas/{id}/versions/{versionId}/restore` | Restore a past version |
-| GET | `/api/schemas/{id}/export/sql` | Download SQL file |
+| GET | `/api/schemas/{id}/export/sql` | Download SQL file (supports `?dialect=mysql\|postgresql\|sqlite`) |
 | POST | `/api/ai/generate` | AI schema generation from prompt |
 | POST | `/api/ai/generate-from-image` | AI schema generation from image |
 | POST | `/api/ai/enhance-bio` | AI bio enhancement |
@@ -216,15 +257,20 @@ Frontend runs at: `http://localhost:5173`
 | POST | `/api/friends/{id}/decline` | Decline or cancel a request |
 | DELETE | `/api/friends/{id}` | Unfriend |
 | POST | `/api/projects/{id}/collaborators` | Invite a collaborator (by email or user_id) |
+| POST | `/api/projects/{id}/collaborators/invite-friend` | Invite a friend directly |
+| DELETE | `/api/projects/{id}/collaborators/{userId}` | Remove a collaborator |
 | GET | `/api/invitations` | List pending invitations |
 | POST | `/api/invitations/{projectId}/accept` | Accept an invitation |
 | POST | `/api/invitations/{projectId}/decline` | Decline an invitation |
 | GET | `/api/profile` | Get own profile |
 | PUT | `/api/profile` | Update profile |
 | POST | `/api/profile/avatar` | Upload profile photo |
+| GET | `/api/notifications` | List notifications |
+| POST | `/api/notifications/read-all` | Mark all notifications as read |
+| DELETE | `/api/notifications/clear` | Clear all notifications |
 
 ---
 
 ## 👨‍💻 Author
 
-Yassine Aatita — Final Year Engineering Project
+Yassine Aatita - Fatima Zahra Aknioune — Final Year Engineering Project

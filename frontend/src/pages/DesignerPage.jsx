@@ -1,5 +1,9 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import {
+  Plus, Sparkles, Upload, CheckCircle, LayoutTemplate,
+  Download, History, Image as ImageIcon,
+} from 'lucide-react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { toPng } from 'html-to-image'
 import { parseSqlToSchema } from '../utils/parseSql'
@@ -478,7 +482,7 @@ export default function DesignerPage() {
       : 'border-green-200 text-green-600 bg-green-50 hover:bg-green-100'
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden relative">
 
       {/* ── Toolbar ── */}
       <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center
@@ -533,7 +537,7 @@ export default function DesignerPage() {
         </div>
 
         {/* Right */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
 
           {/* Undo / Redo */}
           {canEdit && (
@@ -554,190 +558,9 @@ export default function DesignerPage() {
             </div>
           )}
 
-          {canEdit && <div className="w-px h-5 bg-gray-200 mx-0.5"/>}
-
-          {/* Add Table */}
-          {canEdit && (
-            <button onClick={addTable} title="Add a new table"
-              className="flex items-center gap-1.5 text-sm font-medium px-2.5 py-1.5 rounded-lg
-                         border border-gray-200 bg-white text-gray-600
-                         hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-all">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
-              </svg>
-              <span className="hidden sm:inline">Table</span>
-            </button>
-          )}
-
-          {/* Generate dropdown — editors only */}
-          {canEdit && (
-            <div className="relative" ref={generateMenuRef}>
-              <button
-                onClick={() => setShowGenerateMenu(v => !v)}
-                className={`flex items-center gap-1.5 text-sm font-medium px-2.5 py-1.5 rounded-lg border transition-all
-                  ${showGenerateMenu
-                    ? 'border-violet-300 bg-violet-100 text-violet-700'
-                    : 'border-violet-200 bg-violet-50 text-violet-600 hover:bg-violet-100 hover:border-violet-300'}`}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                </svg>
-                <span className="hidden sm:inline">Generate</span>
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
-                </svg>
-              </button>
-
-              {showGenerateMenu && (
-                <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl border
-                                border-gray-200 shadow-xl z-50 overflow-hidden py-1">
-                  <div className="px-3 py-1.5">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">AI Generation</p>
-                  </div>
-                  <button
-                    onClick={() => { setShowAiModal(true); setAiError(''); setShowGenerateMenu(false) }}
-                    className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left">
-                    <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <svg className="w-3.5 h-3.5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">From description</p>
-                      <p className="text-xs text-gray-400">Describe your app in plain text</p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => { setShowVisionAi(true); setVisionError(''); setShowGenerateMenu(false) }}
-                    className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left">
-                    <div className="w-7 h-7 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <svg className="w-3.5 h-3.5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">From image</p>
-                      <p className="text-xs text-gray-400">Upload a sketch or screenshot</p>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Import SQL */}
-          {canEdit && (
-            <button
-              onClick={() => setShowImportSql(true)}
-              title="Import SQL — paste CREATE TABLE statements"
-              className="flex items-center gap-1.5 text-sm font-medium px-2.5 py-1.5 rounded-lg
-                         border border-blue-200 bg-blue-50 text-blue-600
-                         hover:bg-blue-100 hover:border-blue-300 transition-all">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-              </svg>
-              <span className="hidden sm:inline">Import SQL</span>
-            </button>
-          )}
-
-          <div className="w-px h-5 bg-gray-200 mx-0.5"/>
-
-          {/* ⋯ More dropdown */}
-          <div className="relative" ref={moreMenuRef}>
-            <button
-              onClick={() => setShowMoreMenu(v => !v)}
-              title="More options"
-              className={`flex items-center gap-1 text-sm font-medium px-2.5 py-1.5 rounded-lg border transition-all
-                ${showMoreMenu
-                  ? 'border-gray-300 bg-gray-100 text-gray-700'
-                  : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:border-gray-300'}`}>
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-              </svg>
-            </button>
-
-            {showMoreMenu && (
-              <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-xl border
-                              border-gray-200 shadow-xl z-50 overflow-hidden py-1">
-
-                <button onClick={() => { setShowHistory(true); setSelectedNode(null); setSelectedEdge(null); setShowValidation(false); setShowMoreMenu(false) }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  Version History
-                </button>
-
-                {canEdit && (
-                  <button onClick={() => { setShowTemplatesModal(true); setShowMoreMenu(false) }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
-                    </svg>
-                    Templates
-                  </button>
-                )}
-
-                <button onClick={() => { handleValidateClick(); setShowMoreMenu(false) }}
-                  className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left
-                    ${errorCount > 0 ? 'text-red-600' : warningCount > 0 ? 'text-amber-600' : 'text-gray-700'}`}>
-                  <span className="flex items-center gap-3">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    Validate Schema
-                  </span>
-                  {(errorCount > 0 || warningCount > 0) && (
-                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${errorCount > 0 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
-                      {errorCount > 0 ? errorCount : warningCount}
-                    </span>
-                  )}
-                </button>
-
-                <div className="h-px bg-gray-100 my-1"/>
-
-                {/* Export SQL — dialect sub-menu */}
-                <div className="px-4 pt-2.5 pb-1">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                    </svg>
-                    Export SQL
-                  </p>
-                  <div className="flex gap-1.5">
-                    {[
-                      { dialect: 'mysql',      label: 'MySQL',      color: 'text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100' },
-                      { dialect: 'postgresql', label: 'PostgreSQL', color: 'text-blue-600 bg-blue-50 border-blue-200 hover:bg-blue-100' },
-                      { dialect: 'sqlite',     label: 'SQLite',     color: 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100' },
-                    ].map(({ dialect, label, color }) => (
-                      <button key={dialect}
-                        onClick={() => { handleExportSQL(dialect); setShowMoreMenu(false) }}
-                        className={`flex-1 text-[11px] font-semibold py-1.5 rounded-lg border transition-colors ${color}`}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <button onClick={() => { handleExportImage(); setShowMoreMenu(false) }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                  </svg>
-                  Export as PNG
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="w-px h-5 bg-gray-200 mx-0.5"/>
-
           {/* Active collaborators avatar stack */}
           {activeUsers.filter(u => u.id !== user?.id).length > 0 && (
-            <div className="flex items-center gap-1.5 mr-1">
+            <div className="flex items-center gap-1.5">
               <div className="flex -space-x-2">
                 {activeUsers
                   .filter(u => u.id !== user?.id)
@@ -862,6 +685,187 @@ export default function DesignerPage() {
         )}
       </div>
 
+      {/* ── Floating Action Pill ── */}
+      <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-20
+                      flex items-center bg-white rounded-full border border-gray-200
+                      shadow-lg px-2 py-1.5 gap-0.5">
+
+        {/* Add Table */}
+        {canEdit && (
+          <div className="relative group">
+            <button
+              onClick={() => addTable()}
+              className="flex items-center justify-center w-8 h-8 rounded-full
+                         text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+              <Plus className="w-4 h-4"/>
+            </button>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                            opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
+                              rounded-lg whitespace-nowrap shadow-lg">Add Table</div>
+            </div>
+          </div>
+        )}
+
+        {/* Generate (AI) */}
+        {canEdit && (
+          <div className="relative group" ref={generateMenuRef}>
+            <button
+              onClick={() => setShowGenerateMenu(v => !v)}
+              className="flex items-center justify-center w-8 h-8 rounded-full
+                         text-gray-500 hover:text-purple-600 hover:bg-purple-50 transition-colors">
+              <Sparkles className="w-4 h-4"/>
+            </button>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                            opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
+                              rounded-lg whitespace-nowrap shadow-lg">Generate</div>
+            </div>
+            {showGenerateMenu && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-10
+                              w-44 bg-white border border-gray-200 rounded-xl shadow-xl z-30 py-1 overflow-hidden">
+                <button
+                  onClick={() => { setShowGenerateMenu(false); setShowAiModal(true) }}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-500"/>
+                  From description
+                </button>
+                <button
+                  onClick={() => { setShowGenerateMenu(false); setShowVisionAi(true) }}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                  <ImageIcon className="w-3.5 h-3.5 text-blue-500"/>
+                  From image
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Import SQL */}
+        {canEdit && (
+          <div className="relative group">
+            <button
+              onClick={() => setShowImportSql(true)}
+              className="flex items-center justify-center w-8 h-8 rounded-full
+                         text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors">
+              <Upload className="w-4 h-4"/>
+            </button>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                            opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
+                              rounded-lg whitespace-nowrap shadow-lg">Import SQL</div>
+            </div>
+          </div>
+        )}
+
+        {/* Divider — only shown when canEdit (so there are edit icons before it) */}
+        {canEdit && <div className="w-px h-5 bg-gray-200 mx-0.5"/>}
+
+        {/* Validate */}
+        <div className="relative group">
+          <button
+            onClick={() => { setShowValidation(v => !v); setShowHistory(false); setSelectedNode(null); setSelectedEdge(null) }}
+            className={`relative flex items-center justify-center w-8 h-8 rounded-full transition-colors
+              ${showValidation
+                ? 'text-blue-600 bg-blue-50'
+                : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'}`}>
+            <CheckCircle className="w-4 h-4"/>
+            {(errorCount > 0 || warningCount > 0) && (
+              <span className={`absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 flex items-center justify-center
+                                text-[9px] font-bold text-white rounded-full px-0.5
+                                ${errorCount > 0 ? 'bg-red-500' : 'bg-amber-400'}`}>
+                {errorCount > 0 ? errorCount : warningCount}
+              </span>
+            )}
+          </button>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                          opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
+                            rounded-lg whitespace-nowrap shadow-lg">Validate</div>
+          </div>
+        </div>
+
+        {/* Templates */}
+        {canEdit && (
+          <div className="relative group">
+            <button
+              onClick={() => setShowTemplatesModal(true)}
+              className="flex items-center justify-center w-8 h-8 rounded-full
+                         text-gray-500 hover:text-teal-600 hover:bg-teal-50 transition-colors">
+              <LayoutTemplate className="w-4 h-4"/>
+            </button>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                            opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
+                              rounded-lg whitespace-nowrap shadow-lg">Templates</div>
+            </div>
+          </div>
+        )}
+
+        {/* Export SQL */}
+        <div className="relative group" ref={moreMenuRef}>
+          <button
+            onClick={() => setShowMoreMenu(v => !v)}
+            className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors
+              ${showMoreMenu
+                ? 'text-green-600 bg-green-50'
+                : 'text-gray-500 hover:text-green-600 hover:bg-green-50'}`}>
+            <Download className="w-4 h-4"/>
+          </button>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                          opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
+                            rounded-lg whitespace-nowrap shadow-lg">Export SQL</div>
+          </div>
+          {showMoreMenu && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-10
+                            w-36 bg-white border border-gray-200 rounded-xl shadow-xl z-30 py-1 overflow-hidden">
+              {['mysql','postgresql','sqlite'].map(d => (
+                <button
+                  key={d}
+                  onClick={() => { setShowMoreMenu(false); handleExportSQL(d) }}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 capitalize">
+                  {d === 'mysql' ? 'MySQL' : d === 'postgresql' ? 'PostgreSQL' : 'SQLite'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Version History */}
+        <div className="relative group">
+          <button
+            onClick={() => { setShowHistory(v => !v); setShowValidation(false); setSelectedNode(null); setSelectedEdge(null) }}
+            className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors
+              ${showHistory
+                ? 'text-indigo-600 bg-indigo-50'
+                : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`}>
+            <History className="w-4 h-4"/>
+          </button>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                          opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
+                            rounded-lg whitespace-nowrap shadow-lg">Version History</div>
+          </div>
+        </div>
+
+        {/* Export PNG */}
+        <div className="relative group">
+          <button
+            onClick={handleExportImage}
+            className="flex items-center justify-center w-8 h-8 rounded-full
+                       text-gray-500 hover:text-pink-600 hover:bg-pink-50 transition-colors">
+            <ImageIcon className="w-4 h-4"/>
+          </button>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                          opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <div className="bg-gray-800 text-white text-[11px] font-medium px-2 py-1
+                            rounded-lg whitespace-nowrap shadow-lg">Export PNG</div>
+          </div>
+        </div>
+
+      </div>
+
       {/* Help tip */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-10">
         <p className="text-xs text-gray-400 bg-white/90 backdrop-blur px-3 py-1.5
@@ -872,7 +876,7 @@ export default function DesignerPage() {
 
       {/* Undo / Redo toast */}
       {undoToast && (
-        <div className="absolute bottom-14 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
           <div className="flex items-center gap-2 bg-gray-800 text-white text-xs font-medium
                           px-4 py-2 rounded-full shadow-lg animate-fade-in">
             <svg className="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
