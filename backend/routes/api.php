@@ -11,6 +11,14 @@ use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\FriendshipController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\ExploreController;
+use App\Http\Controllers\Api\StarController;
+use App\Http\Controllers\Api\LikeController;
+use App\Http\Controllers\Api\ForkController;
+use App\Http\Controllers\Api\FollowController;
+use App\Http\Controllers\Api\CommentController;
+use App\Http\Controllers\Api\CollectionController;
+use App\Http\Controllers\Api\FeaturedSchemaController;
 
 
 // ── Public routes ────────────────────────────────────────────────
@@ -103,6 +111,65 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Public user profiles
 Route::get('/users/{id}', [ProfileController::class, 'publicProfile']);
+
+// ── Explore — public endpoints (guests allowed) ───────────────────────────────
+Route::get('/explore',               [ExploreController::class, 'index']);    // Discover all public schemas
+Route::get('/explore/featured',      [ExploreController::class, 'featured']); // Current featured schema
+Route::get('/explore/projects/{id}', [ExploreController::class, 'show']);     // Single public project detail
+
+// Comments are readable by guests
+Route::get('/projects/{id}/comments', [CommentController::class, 'index']);
+
+// Public fork listing & Schema DNA tree
+Route::get('/projects/{id}/forks',      [ForkController::class, 'index']);
+Route::get('/projects/{id}/fork-tree',  [ForkController::class, 'tree']);
+
+// Public follower/following lists
+Route::get('/users/{id}/followers', [FollowController::class, 'followers']);
+Route::get('/users/{id}/following', [FollowController::class, 'following']);
+
+// ── Explore — auth-required endpoints ────────────────────────────────────────
+Route::middleware('auth:sanctum')->group(function () {
+
+    // My Network tab (schemas from people you follow/friend)
+    Route::get('/explore/network',     [ExploreController::class, 'network']);
+    // My Schemas tab (own projects with stats)
+    Route::get('/explore/my-schemas',  [ExploreController::class, 'mySchemas']);
+
+    // Stars
+    Route::post('/projects/{id}/star',   [StarController::class, 'store']);
+    Route::delete('/projects/{id}/star', [StarController::class, 'destroy']);
+
+    // Likes
+    Route::post('/projects/{id}/like',   [LikeController::class, 'store']);
+    Route::delete('/projects/{id}/like', [LikeController::class, 'destroy']);
+
+    // Forks
+    Route::post('/projects/{id}/fork', [ForkController::class, 'store']);
+
+    // Follow / Unfollow
+    Route::post('/users/{id}/follow',        [FollowController::class, 'store']);
+    Route::delete('/users/{id}/follow',      [FollowController::class, 'destroy']);
+    Route::get('/users/{id}/follow-status',  [FollowController::class, 'status']);
+
+    // Comments (write/edit/delete require auth)
+    Route::post('/projects/{id}/comments',  [CommentController::class, 'store']);
+    Route::put('/comments/{id}',            [CommentController::class, 'update']);
+    Route::delete('/comments/{id}',         [CommentController::class, 'destroy']);
+
+    // Collections
+    Route::get('/collections',                                    [CollectionController::class, 'index']);
+    Route::post('/collections',                                   [CollectionController::class, 'store']);
+    Route::get('/collections/{id}',                               [CollectionController::class, 'show']);
+    Route::put('/collections/{id}',                               [CollectionController::class, 'update']);
+    Route::delete('/collections/{id}',                            [CollectionController::class, 'destroy']);
+    Route::post('/collections/{id}/items',                        [CollectionController::class, 'addItem']);
+    Route::delete('/collections/{id}/items/{projectId}',          [CollectionController::class, 'removeItem']);
+
+    // Admin — Featured schema management (role-gated inside controller)
+    Route::post('/admin/featured',         [FeaturedSchemaController::class, 'store']);
+    Route::get('/admin/featured/history',  [FeaturedSchemaController::class, 'history']);
+});
 
 // Test route — to be removed later
 Route::get('/test', function () {

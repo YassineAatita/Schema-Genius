@@ -70,4 +70,70 @@ class User extends Authenticatable
     {
         return $this->hasMany(Friendship::class, 'receiver_id');
     }
+
+    // ── Explore / Community relationships ─────────────────────────────────────
+
+    // Users this user follows
+    public function following()
+    {
+        return $this->hasMany(UserFollow::class, 'follower_id');
+    }
+
+    public function followingUsers()
+    {
+        return $this->belongsToMany(User::class, 'user_follows', 'follower_id', 'following_id')
+                    ->withPivot('created_at');
+    }
+
+    // Users who follow this user
+    public function followers()
+    {
+        return $this->hasMany(UserFollow::class, 'following_id');
+    }
+
+    public function followerUsers()
+    {
+        return $this->belongsToMany(User::class, 'user_follows', 'following_id', 'follower_id')
+                    ->withPivot('created_at');
+    }
+
+    // Projects this user has starred
+    public function stars()
+    {
+        return $this->hasMany(ProjectStar::class);
+    }
+
+    public function starredProjects()
+    {
+        return $this->belongsToMany(Project::class, 'project_stars')->withPivot('created_at');
+    }
+
+    // Projects this user has liked
+    public function likes()
+    {
+        return $this->hasMany(ProjectLike::class);
+    }
+
+    public function likedProjects()
+    {
+        return $this->belongsToMany(Project::class, 'project_likes')->withPivot('created_at');
+    }
+
+    // Forks this user has created
+    public function forks()
+    {
+        return $this->hasMany(ProjectFork::class);
+    }
+
+    // Comments this user has written on public schemas
+    public function schemaComments()
+    {
+        return $this->hasMany(SchemaComment::class);
+    }
+
+    // Named collections this user has curated
+    public function collections()
+    {
+        return $this->hasMany(Collection::class);
+    }
 }
