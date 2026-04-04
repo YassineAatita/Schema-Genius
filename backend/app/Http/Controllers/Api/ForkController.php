@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\Project;
+use App\Models\ProjectCollaborator;
 use App\Models\ProjectFork;
 use App\Models\Schema;
 use App\Models\SchemaVersion;
@@ -24,6 +25,15 @@ class ForkController extends Controller
 
         if ($original->owner_id === $user->id) {
             return response()->json(['error' => 'You cannot fork your own project.'], 403);
+        }
+
+        // BUG 3 FIX — collaborators already have full access; forking would be redundant
+        $isCollaborator = ProjectCollaborator::where('project_id', $original->id)
+            ->where('user_id', $user->id)
+            ->where('status', 'accepted')
+            ->exists();
+        if ($isCollaborator) {
+            return response()->json(['error' => 'You are already a collaborator on this project. Collaborators cannot fork a project they already have access to.'], 403);
         }
 
         // One fork per user per original project
@@ -53,7 +63,7 @@ class ForkController extends Controller
             $version = SchemaVersion::create([
                 'schema_id'      => $forkedSchema->id,
                 'version_number' => 1,
-                'label'          => "Forked from {$original->name}",
+                'label'          => mb_substr("Forked from {$original->name}", 0, 100),
                 'schema_json'    => $original->schema->currentVersion->schema_json,
                 'created_by'     => $user->id,
                 'created_at'     => now(),
@@ -68,19 +78,24 @@ class ForkController extends Controller
             'user_id'             => $user->id,
         ]);
 
-        // Notify the original project owner
-        Notification::create([
-            'user_id' => $original->owner_id,
-            'type'    => 'project_forked',
-            'title'   => 'Someone forked your schema',
-            'message' => "{$user->name} forked "{$original->name}" into their workspace.",
-            'data'    => [
-                'project_id'        => $original->id,
-                'forked_project_id' => $forked->id,
-                'actor_id'          => $user->id,
-                'actor_name'        => $user->name,
-            ],
-        ]);
+        // BUG 3 FIX — straight ASCII quotes, wrapped in try/catch so a notification
+        // failure never causes a 500 and rolls back the successfully created fork.
+        try {
+            Notification::create([
+                'user_id' => $original->owner_id,
+                'type'    => 'project_forked',
+                'title'   => 'Someone forked your schema',
+                'message' => "{$user->name} forked \"{$original->name}\" into their workspace.",
+                'data'    => [
+                    'project_id'        => $original->id,
+                    'forked_project_id' => $forked->id,
+                    'actor_id'          => $user->id,
+                    'actor_name'        => $user->name,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            // Notification failure must not fail the fork action
+        }
 
         return response()->json([
             'message' => 'Project forked successfully.',

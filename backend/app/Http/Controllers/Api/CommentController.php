@@ -62,20 +62,25 @@ class CommentController extends Controller
 
         $comment->load('author');
 
-        // Notify project owner (if commenter is not the owner)
+        // BUG 4 FIX — straight ASCII quotes, wrapped in try/catch so a notification
+        // failure never causes a 500 and discards the successfully saved comment.
         if ($project->owner_id !== $user->id) {
-            Notification::create([
-                'user_id' => $project->owner_id,
-                'type'    => 'new_comment',
-                'title'   => 'New comment on your schema',
-                'message' => "{$user->name} commented on "{$project->name}".",
-                'data'    => [
-                    'project_id' => $project->id,
-                    'comment_id' => $comment->id,
-                    'actor_id'   => $user->id,
-                    'actor_name' => $user->name,
-                ],
-            ]);
+            try {
+                Notification::create([
+                    'user_id' => $project->owner_id,
+                    'type'    => 'new_comment',
+                    'title'   => 'New comment on your schema',
+                    'message' => "{$user->name} commented on \"{$project->name}\".",
+                    'data'    => [
+                        'project_id' => $project->id,
+                        'comment_id' => $comment->id,
+                        'actor_id'   => $user->id,
+                        'actor_name' => $user->name,
+                    ],
+                ]);
+            } catch (\Throwable $e) {
+                // Notification failure must not fail the comment action
+            }
         }
 
         return response()->json($this->formatComment($comment), 201);

@@ -4,6 +4,7 @@ import useAuthStore from '../store/useAuthStore'
 import useProjectStore from '../store/useProjectStore'
 import api from '../services/api'
 import ConfirmModal from '../components/ui/ConfirmModal'
+import ExploreView from '../components/explore/ExploreView'
 import '../services/websocket'   // ensure window.Echo is initialised
 
 function getGreeting() {
@@ -26,14 +27,16 @@ export default function DashboardPage() {
   const { user, setUser, logout } = useAuthStore()
   const { projects, loading, fetchProjects, deleteProject } = useProjectStore()
 
-  // ── View state ────────────────────────────────────────────────
-  const [view, setView] = useState('dashboard') // 'dashboard' | 'profile'
+  // ── View state — BUG 8 FIX: persist to sessionStorage so browser refresh stays on the same tab ──
+  const [view, setViewRaw] = useState(() => sessionStorage.getItem('dashboard_view') || 'dashboard')
+  const setView = (v) => { sessionStorage.setItem('dashboard_view', v); setViewRaw(v) }
 
   // ── Projects state ────────────────────────────────────────────
   const [showModal,     setShowModal]     = useState(false)
   const [search,        setSearch]        = useState('')
   const [pendingDelete, setPendingDelete] = useState(null)
   const [invitations,       setInvitations]       = useState([])
+  const [friendRequestsBell,setFriendRequestsBell]= useState([])
   const [notifications,     setNotifications]     = useState([])
   const [bellTab,           setBellTab]           = useState('invitations') // 'invitations' | 'notifications'
   const [showBell,          setShowBell]          = useState(false)
@@ -100,8 +103,17 @@ export default function DashboardPage() {
   }, [])
 
   // ── Invitations ───────────────────────────────────────────────
+  // BUG 5 FIX — also fetch pending friend requests and show them in the bell
   const fetchInvitations = async () => {
-    try { const res = await api.get('/invitations'); setInvitations(res.data) } catch {}
+    try {
+      const [invRes, frRes] = await Promise.all([
+        api.get('/invitations'),
+        api.get('/friends/requests'),
+      ])
+      setInvitations(invRes.data)
+      setFriendRequestsBell(frRes.data)
+      setFriendReqCount(frRes.data.length)
+    } catch {}
   }
   const handleAccept = async (projectId) => {
     await api.post(`/invitations/${projectId}/accept`)
@@ -111,6 +123,23 @@ export default function DashboardPage() {
   const handleDecline = async (projectId) => {
     await api.post(`/invitations/${projectId}/decline`)
     setInvitations(prev => prev.filter(i => i.project_id !== projectId))
+  }
+
+  // BUG 5 FIX — friend-request accept/decline from bell invitations panel
+  const handleBellFriendAccept = async (req) => {
+    try {
+      await api.post(`/friends/${req.friendship_id}/accept`)
+      setFriendRequestsBell(prev => prev.filter(r => r.friendship_id !== req.friendship_id))
+      setFriendReqCount(c => Math.max(0, c - 1))
+      setFriendsList(prev => [{ friendship_id: req.friendship_id, id: req.id, name: req.name, email: req.email, avatar_url: req.avatar_url, headline: req.headline }, ...prev])
+    } catch {}
+  }
+  const handleBellFriendDecline = async (req) => {
+    try {
+      await api.post(`/friends/${req.friendship_id}/decline`)
+      setFriendRequestsBell(prev => prev.filter(r => r.friendship_id !== req.friendship_id))
+      setFriendReqCount(c => Math.max(0, c - 1))
+    } catch {}
   }
 
   // ── Notifications ─────────────────────────────────────────────
@@ -127,7 +156,7 @@ export default function DashboardPage() {
   }
 
   const unreadCount = notifications.filter(n => !n.read).length
-  const totalBellCount = invitations.length + unreadCount
+  const totalBellCount = invitations.length + friendRequestsBell.length + unreadCount
 
   // ── Friends helpers ────────────────────────────────────────────
   const loadFriendsData = async () => {
@@ -330,6 +359,18 @@ export default function DashboardPage() {
             active={view === 'friends'}
             onClick={() => setView('friends')}
           />
+          <SideNavItem
+            icon={
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" strokeWidth={2}/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"/>
+              </svg>
+            }
+            label="Explore"
+            active={view === 'explore'}
+            onClick={() => setView('explore')}
+          />
         </nav>
 
         <div className="mx-6 border-t border-white/8 my-3"/>
@@ -375,6 +416,11 @@ export default function DashboardPage() {
               <>
                 <h1 className="text-lg font-bold text-gray-900">Your Network</h1>
                 <p className="text-xs text-gray-400 mt-0.5">Connect with teammates to invite them to projects instantly</p>
+              </>
+            ) : view === 'explore' ? (
+              <>
+                <h1 className="text-lg font-bold text-gray-900">Explore</h1>
+                <p className="text-xs text-gray-400 mt-0.5">Discover public schemas from the community</p>
               </>
             ) : (
               <>
@@ -426,9 +472,9 @@ export default function DashboardPage() {
                       className={`flex-1 py-2.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5
                         ${bellTab==='invitations' ? 'text-blue-600 border-b-2 border-blue-500' : 'text-gray-400 hover:text-gray-600'}`}>
                       Invitations
-                      {invitations.length > 0 && (
+                      {(invitations.length + friendRequestsBell.length) > 0 && (
                         <span className="bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
-                          {invitations.length}
+                          {invitations.length + friendRequestsBell.length}
                         </span>
                       )}
                     </button>
@@ -447,11 +493,12 @@ export default function DashboardPage() {
                   {/* Invitations tab */}
                   {bellTab === 'invitations' && (
                     <>
-                      {invitations.length === 0
+                      {invitations.length === 0 && friendRequestsBell.length === 0
                         ? <div className="px-4 py-10 text-center text-sm text-gray-400">No pending invitations</div>
                         : <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+                            {/* Project collaboration invitations */}
                             {invitations.map(inv => (
-                              <div key={inv.project_id} className="px-4 py-3">
+                              <div key={`inv-${inv.project_id}`} className="px-4 py-3">
                                 <p className="text-sm font-medium text-gray-900 truncate">{inv.project_name}</p>
                                 <p className="text-xs text-gray-400 mb-2.5">
                                   by {inv.owner?.name} · <span className="font-medium text-gray-600">{inv.role}</span>
@@ -462,6 +509,27 @@ export default function DashboardPage() {
                                     Accept
                                   </button>
                                   <button onClick={() => handleDecline(inv.project_id)}
+                                    className="flex-1 text-xs border border-gray-200 hover:bg-red-50 hover:border-red-200
+                                               hover:text-red-500 text-gray-500 py-1.5 rounded-lg font-medium transition-colors">
+                                    Decline
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                            {/* BUG 5 FIX — friend requests in bell invitations panel */}
+                            {friendRequestsBell.map(req => (
+                              <div key={`fr-${req.friendship_id}`} className="px-4 py-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-base">🤝</span>
+                                  <p className="text-sm font-medium text-gray-900 truncate">{req.name}</p>
+                                </div>
+                                <p className="text-xs text-gray-400 mb-2.5">Sent you a friend request</p>
+                                <div className="flex gap-2">
+                                  <button onClick={() => handleBellFriendAccept(req)}
+                                    className="flex-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 rounded-lg font-medium transition-colors">
+                                    Accept
+                                  </button>
+                                  <button onClick={() => handleBellFriendDecline(req)}
                                     className="flex-1 text-xs border border-gray-200 hover:bg-red-50 hover:border-red-200
                                                hover:text-red-500 text-gray-500 py-1.5 rounded-lg font-medium transition-colors">
                                     Decline
@@ -484,9 +552,26 @@ export default function DashboardPage() {
                               {notifications.map(n => (
                                 <div key={n.id}
                                   className={`px-4 py-3 flex items-start gap-3 ${!n.read ? 'bg-blue-50/50' : ''}`}>
+                                  {/* BUG 7 FIX — proper icon per notification type */}
                                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm
-                                    ${n.type === 'invitation_accepted' ? 'bg-emerald-100' : 'bg-red-100'}`}>
-                                    {n.type === 'invitation_accepted' ? '✓' : '✕'}
+                                    ${n.type === 'invitation_accepted'      ? 'bg-emerald-100' :
+                                      n.type === 'project_starred'          ? 'bg-amber-100'   :
+                                      n.type === 'project_liked'            ? 'bg-red-100'     :
+                                      n.type === 'project_forked'           ? 'bg-violet-100'  :
+                                      n.type === 'new_comment'              ? 'bg-blue-100'    :
+                                      n.type === 'new_follower'             ? 'bg-teal-100'    :
+                                      n.type === 'friend_request_received'  ? 'bg-pink-100'    :
+                                      n.type === 'friend_request_accepted'  ? 'bg-emerald-100' :
+                                      'bg-gray-100'}`}>
+                                    {n.type === 'invitation_accepted'      ? '✓'  :
+                                     n.type === 'project_starred'          ? '★'  :
+                                     n.type === 'project_liked'            ? '♥'  :
+                                     n.type === 'project_forked'           ? '⑂'  :
+                                     n.type === 'new_comment'              ? '💬' :
+                                     n.type === 'new_follower'             ? '👤' :
+                                     n.type === 'friend_request_received'  ? '🤝' :
+                                     n.type === 'friend_request_accepted'  ? '✓'  :
+                                     '🔔'}
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-semibold text-gray-800">{n.title}</p>
@@ -951,6 +1036,9 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+
+          {/* ════════ EXPLORE VIEW ════════ */}
+          {view === 'explore' && <ExploreView />}
         </div>
       </div>
 

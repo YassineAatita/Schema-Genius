@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Friendship;
+use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -174,8 +175,24 @@ class FriendshipController extends Controller
             return response()->json(['message' => $msg], 422);
         }
 
-        $f      = Friendship::create(['requester_id' => $auth->id, 'receiver_id' => $target, 'status' => 'pending']);
+        $f        = Friendship::create(['requester_id' => $auth->id, 'receiver_id' => $target, 'status' => 'pending']);
         $receiver = User::find($target);
+
+        // BUG 6 FIX — notify the receiver so the bell shows friend requests too
+        try {
+            Notification::create([
+                'user_id' => $target,
+                'type'    => 'friend_request_received',
+                'title'   => 'New friend request',
+                'message' => "{$auth->name} sent you a friend request.",
+                'data'    => [
+                    'friendship_id' => $f->id,
+                    'actor_id'      => $auth->id,
+                    'actor_name'    => $auth->name,
+                    'actor_avatar'  => $auth->avatar_url,
+                ],
+            ]);
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'friendship_id'     => $f->id,
@@ -201,6 +218,24 @@ class FriendshipController extends Controller
         }
 
         $f->update(['status' => 'accepted']);
+
+        // BUG 6 FIX — notify the requester that their request was accepted
+        try {
+            $requester = User::find($f->requester_id);
+            Notification::create([
+                'user_id' => $f->requester_id,
+                'type'    => 'friend_request_accepted',
+                'title'   => 'Friend request accepted',
+                'message' => "{$auth->name} accepted your friend request.",
+                'data'    => [
+                    'friendship_id' => $f->id,
+                    'actor_id'      => $auth->id,
+                    'actor_name'    => $auth->name,
+                    'actor_avatar'  => $auth->avatar_url,
+                ],
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json(['message' => 'Friend request accepted!']);
     }
 

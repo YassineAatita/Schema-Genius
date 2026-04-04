@@ -30,6 +30,7 @@ class AuthController extends Controller
             'user_type' => $validated['user_type'] ?? 'developer',
             'headline'  => $validated['headline'] ?? null,
             'bio'       => $validated['bio'] ?? null,
+            'is_active' => true,
         ]);
 
         // Assign default role

@@ -29,15 +29,18 @@ class StarController extends Controller
 
         ProjectStar::create(['user_id' => $user->id, 'project_id' => $project->id]);
 
-        // Notify the project owner
-        if ($project->owner_id !== $user->id) {
+        // BUG 2 FIX — Use straight ASCII quotes to avoid UTF-8 charset issues on some MySQL configs.
+        // Wrap in try/catch so a notification failure never breaks the star action itself.
+        try {
             Notification::create([
                 'user_id' => $project->owner_id,
                 'type'    => 'project_starred',
                 'title'   => 'Someone starred your schema',
-                'message' => "{$user->name} starred "{$project->name}".",
+                'message' => "{$user->name} starred \"{$project->name}\".",
                 'data'    => ['project_id' => $project->id, 'actor_id' => $user->id, 'actor_name' => $user->name],
             ]);
+        } catch (\Throwable $e) {
+            // Notification failure must not fail the star action
         }
 
         $count = ProjectStar::where('project_id', $project->id)->count();

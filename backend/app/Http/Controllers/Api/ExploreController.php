@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\ProjectFork;
 use App\Models\UserFollow;
 use App\Models\Friendship;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -39,6 +40,17 @@ class ExploreController extends Controller
             ] : null;
         }
 
+        // BUG 3 FIX — compact node layout data for unique per-schema thumbnails
+        $thumbnailNodes = [];
+        if (is_array($schemaJson) && !empty($schemaJson['nodes'])) {
+            $rawNodes = array_slice($schemaJson['nodes'], 0, 12);
+            $thumbnailNodes = array_values(array_map(fn ($n) => [
+                'name' => $n['data']['name'] ?? 'table',
+                'x'    => (float) ($n['position']['x'] ?? 0),
+                'y'    => (float) ($n['position']['y'] ?? 0),
+            ], $rawNodes));
+        }
+
         return [
             'id'          => $project->id,
             'name'        => $project->name,
@@ -53,20 +65,34 @@ class ExploreController extends Controller
                 'headline'  => $project->owner->headline,
             ],
             'stats' => [
-                'stars'    => $project->stars_count,
-                'likes'    => $project->likes_count,
-                'forks'    => $project->forks_count,
-                'comments' => $project->comments_count,
+                'stars'    => $project->stars_count    ?? 0,
+                'likes'    => $project->likes_count    ?? 0,
+                'forks'    => $project->forks_count    ?? 0,
+                'comments' => $project->comments_count ?? 0,
                 'tables'   => is_array($schemaJson) ? count($schemaJson['nodes'] ?? []) : 0,
                 'edges'    => is_array($schemaJson) ? count($schemaJson['edges'] ?? []) : 0,
             ],
-            'is_starred'   => in_array($project->id, $starredIds),
-            'is_liked'     => in_array($project->id, $likedIds),
-            'is_forked'    => in_array($project->id, $forkedIds),
-            'is_featured'  => $project->id === $featuredId,
-            'forked_from'  => $forkedFrom,
-            'schema_id'    => $project->schema?->id,
+            'is_starred'      => in_array($project->id, $starredIds),
+            'is_liked'        => in_array($project->id, $likedIds),
+            'is_forked'       => in_array($project->id, $forkedIds),
+            'is_featured'     => $project->id === $featuredId,
+            'forked_from'     => $forkedFrom,
+            'schema_id'       => $project->schema?->id,
+            'thumbnail_nodes' => $thumbnailNodes,  // BUG 3 FIX
         ];
+    }
+
+    /**
+     * BUG 5 FIX — On public (non-guarded) routes $request->user() always returns null
+     * even when a valid Bearer token is present because Sanctum only resolves the user
+     * when the auth:sanctum middleware is active. Calling $request->user('sanctum')
+     * explicitly invokes the Sanctum guard and returns the authenticated user (or null
+     * for guests), so interaction flags (is_starred, is_liked, is_forked) are correct
+     * after a browser refresh.
+     */
+    private function optionalUser($request)
+    {
+        return $request->user('sanctum');
     }
 
     /** Collect the auth-user's interaction IDs for formatting. Returns empty arrays for guests. */
@@ -86,7 +112,7 @@ class ExploreController extends Controller
 
     public function index(Request $request)
     {
-        $user   = $request->user();
+        $user   = $this->optionalUser($request); // BUG 5 FIX
         $search = $request->query('search');
         $sortBy = $request->query('sort', 'recent'); // recent | popular | stars | forks | trending
 
@@ -201,6 +227,16 @@ class ExploreController extends Controller
                 $orig = $project->forkOrigin->originalProject;
                 $forkedFrom = $orig ? ['id' => $orig->id, 'name' => $orig->name, 'owner_name' => $orig->owner?->name] : null;
             }
+            // thumbnail_nodes — same as formatCard so My Schemas tab gets unique thumbnails
+            $thumbnailNodes = [];
+            if (is_array($schemaJson) && !empty($schemaJson['nodes'])) {
+                $rawNodes = array_slice($schemaJson['nodes'], 0, 12);
+                $thumbnailNodes = array_values(array_map(fn ($n) => [
+                    'name' => $n['data']['name'] ?? 'table',
+                    'x'    => (float) ($n['position']['x'] ?? 0),
+                    'y'    => (float) ($n['position']['y'] ?? 0),
+                ], $rawNodes));
+            }
             return [
                 'id'          => $project->id,
                 'name'        => $project->name,
@@ -209,16 +245,20 @@ class ExploreController extends Controller
                 'created_at'  => $project->created_at,
                 'updated_at'  => $project->updated_at,
                 'stats' => [
-                    'stars'    => $project->stars_count,
-                    'likes'    => $project->likes_count,
-                    'forks'    => $project->forks_count,
-                    'comments' => $project->comments_count,
+                    'stars'    => $project->stars_count    ?? 0,
+                    'likes'    => $project->likes_count    ?? 0,
+                    'forks'    => $project->forks_count    ?? 0,
+                    'comments' => $project->comments_count ?? 0,
                     'tables'   => is_array($schemaJson) ? count($schemaJson['nodes'] ?? []) : 0,
                     'edges'    => is_array($schemaJson) ? count($schemaJson['edges'] ?? []) : 0,
                 ],
-                'is_featured'  => $project->id === $featuredId,
-                'forked_from'  => $forkedFrom,
-                'schema_id'    => $project->schema?->id,
+                'is_starred'     => in_array($project->id, $starredIds),
+                'is_liked'       => in_array($project->id, $likedIds),
+                'is_forked'      => in_array($project->id, $forkedIds),
+                'is_featured'    => $project->id === $featuredId,
+                'forked_from'    => $forkedFrom,
+                'schema_id'      => $project->schema?->id,
+                'thumbnail_nodes'=> $thumbnailNodes,
             ];
         });
 
@@ -234,33 +274,77 @@ class ExploreController extends Controller
     }
 
     // ── GET /api/explore/featured — Current featured schema (public) ───────────
+    // BUG 7 FIX: If no admin has manually set a featured schema for the current
+    // ISO week, the system automatically picks the public schema with the highest
+    // combined (stars + likes + comments) score from the last 30 days.
+    // Returns null when no qualifying schema exists, hiding the banner entirely.
 
     public function featured(Request $request)
     {
+        $user    = $this->optionalUser($request);
+        $weekStart = now()->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString();
+
+        // ── 1. Check for a manually-set pick for the current week ──────────────
         $featured = FeaturedSchema::with(['project.owner', 'project.schema.currentVersion', 'featuredByUser'])
-            ->orderBy('week_of', 'desc')
+            ->where('week_of', $weekStart)
             ->first();
 
-        if (!$featured || !$featured->project) {
+        if ($featured && $featured->project) {
+            $project = $featured->project;
+            $project->load(['schema.currentVersion', 'forkOrigin.originalProject.owner']);
+            [$starredIds, $likedIds, $forkedIds] = $this->userInteractionIds($user?->id);
+
+            $data = $this->formatCard(
+                $project->loadCount(['stars', 'likes', 'forks', 'comments']),
+                $starredIds, $likedIds, $forkedIds,
+                $featured->project_id
+            );
+
+            return response()->json(array_merge($data, [
+                'featured_note'    => $featured->note,
+                'featured_week_of' => $featured->week_of,
+                'featured_by'      => $featured->featuredByUser?->name,
+                'auto_selected'    => false,
+            ]));
+        }
+
+        // ── 2. Auto-select: best public schema from the last 30 days ──────────
+        // "Best" = highest combined (stars_count + likes_count + comments_count).
+        // Skip projects that have already been featured in any previous week.
+        $alreadyFeaturedIds = FeaturedSchema::pluck('project_id')->toArray();
+
+        $autoProject = Project::where('visibility', 'public')
+            ->with(['owner', 'schema.currentVersion', 'forkOrigin.originalProject.owner'])
+            ->withCount(['stars', 'likes', 'forks', 'comments'])
+            ->where('created_at', '>=', now()->subDays(30))
+            ->when(!empty($alreadyFeaturedIds), fn ($q) => $q->whereNotIn('id', $alreadyFeaturedIds))
+            ->orderByRaw('(stars_count + likes_count + comments_count) DESC')
+            ->first();
+
+        // Only feature if the schema has at least one community interaction
+        if (!$autoProject || ($autoProject->stars_count + $autoProject->likes_count + $autoProject->comments_count) < 1) {
             return response()->json(null);
         }
 
-        $project    = $featured->project;
-        $schemaJson = $project->schema?->currentVersion?->schema_json;
-        $user       = $request->user();
+        // Persist the auto-pick for this week (featured_by = null = system pick)
+        FeaturedSchema::updateOrCreate(
+            ['week_of' => $weekStart],
+            ['project_id' => $autoProject->id, 'featured_by' => null, 'note' => 'Automatically selected by Schema Genius']
+        );
 
         [$starredIds, $likedIds, $forkedIds] = $this->userInteractionIds($user?->id);
 
         $data = $this->formatCard(
-            $project->loadCount(['stars', 'likes', 'forks', 'comments']),
+            $autoProject,
             $starredIds, $likedIds, $forkedIds,
-            $featured->project_id
+            $autoProject->id
         );
 
         return response()->json(array_merge($data, [
-            'featured_note'    => $featured->note,
-            'featured_week_of' => $featured->week_of,
-            'featured_by'      => $featured->featuredByUser?->name,
+            'featured_note'    => 'Automatically selected by Schema Genius',
+            'featured_week_of' => $weekStart,
+            'featured_by'      => null,
+            'auto_selected'    => true,
         ]));
     }
 
@@ -273,7 +357,7 @@ class ExploreController extends Controller
             ->withCount(['stars', 'likes', 'forks', 'comments'])
             ->findOrFail($id);
 
-        $user = $request->user();
+        $user = $this->optionalUser($request); // BUG 5 FIX
         [$starredIds, $likedIds, $forkedIds] = $this->userInteractionIds($user?->id);
         $featuredId = FeaturedSchema::orderBy('week_of', 'desc')->value('project_id');
 
