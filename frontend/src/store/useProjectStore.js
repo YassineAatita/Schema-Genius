@@ -24,6 +24,14 @@ const useProjectStore = create((set) => ({
     return res.data
   },
 
+  updateProject: async (id, data) => {
+    const res = await projectService.update(id, data)
+    set((state) => ({
+      projects: state.projects.map((p) => p.id === id ? { ...p, ...res.data } : p),
+    }))
+    return res.data
+  },
+
   deleteProject: async (id) => {
     await projectService.delete(id)
     set((state) => ({

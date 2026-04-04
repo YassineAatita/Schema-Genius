@@ -32,6 +32,10 @@ export default function DesignerPage() {
   const { user } = useAuthStore()
 
   const [project,          setProject]          = useState(null)
+  const [editingName,    setEditingName]    = useState(false)
+  const [editNameValue,  setEditNameValue]  = useState('')
+  const [nameSaving,     setNameSaving]     = useState(false)
+  const nameInputRef     = useRef(null)
   const [selectedNode,   setSelectedNode]   = useState(null)
   const [selectedEdge,   setSelectedEdge]   = useState(null)
   const [saving,         setSaving]         = useState(false)
@@ -164,6 +168,31 @@ export default function DesignerPage() {
     document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [])
+
+  // ── Inline project-name editing ──────────────────────────────────
+  const startEditName = useCallback(() => {
+    if (!isOwner) return
+    setEditNameValue(project?.name || '')
+    setEditingName(true)
+    // Focus the input on next tick after it renders
+    setTimeout(() => nameInputRef.current?.select(), 0)
+  }, [isOwner, project])
+
+  const saveEditName = useCallback(async () => {
+    const trimmed = editNameValue.trim()
+    if (!trimmed || trimmed === project?.name) { setEditingName(false); return }
+    setNameSaving(true)
+    try {
+      await api.put(`/projects/${projectId}`, { name: trimmed })
+      setProject(prev => ({ ...prev, name: trimmed }))
+    } catch { /* keep existing name on failure */ }
+    finally { setNameSaving(false); setEditingName(false) }
+  }, [editNameValue, project, projectId])
+
+  const handleNameKeyDown = useCallback((e) => {
+    if (e.key === 'Enter')  { e.preventDefault(); saveEditName() }
+    if (e.key === 'Escape') { setEditingName(false) }
+  }, [saveEditName])
 
   // ── Reverb presence channel ────────────────────────────────────────────────
   useEffect(() => {
@@ -536,9 +565,40 @@ export default function DesignerPage() {
               </svg>
             </div>
             <div>
-              <p className="font-semibold text-sm leading-tight text-gray-800 dark:text-gray-100">
-                {project?.name || 'Loading...'}
-              </p>
+              {editingName ? (
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  value={editNameValue}
+                  onChange={e => setEditNameValue(e.target.value)}
+                  onBlur={saveEditName}
+                  onKeyDown={handleNameKeyDown}
+                  disabled={nameSaving}
+                  maxLength={100}
+                  className="font-semibold text-sm leading-tight text-gray-800 dark:text-gray-100
+                             bg-white dark:bg-[#1e2235] border border-blue-400 rounded-lg
+                             px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500/40
+                             w-40 disabled:opacity-60"
+                />
+              ) : (
+                <div className="flex items-center gap-1 group/name">
+                  <p className="font-semibold text-sm leading-tight text-gray-800 dark:text-gray-100 truncate max-w-[160px]">
+                    {project?.name || 'Loading...'}
+                  </p>
+                  {isOwner && project && (
+                    <button
+                      onClick={startEditName}
+                      title="Rename project"
+                      className="opacity-0 group-hover/name:opacity-100 p-0.5 rounded
+                                 text-gray-400 hover:text-blue-500 transition-all flex-shrink-0">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              )}
               <p className="text-xs leading-tight text-gray-400 dark:text-gray-500">
                 {nodes.length} table{nodes.length !== 1 ? 's' : ''} · {edges.length} relationship{edges.length !== 1 ? 's' : ''}
               </p>

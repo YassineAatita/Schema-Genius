@@ -25,7 +25,7 @@ const USER_TYPES = [
 export default function DashboardPage() {
   const navigate = useNavigate()
   const { user, setUser, logout } = useAuthStore()
-  const { projects, loading, fetchProjects, deleteProject } = useProjectStore()
+  const { projects, loading, fetchProjects, deleteProject, updateProject } = useProjectStore()
 
   // ── View state — BUG 8 FIX: persist to sessionStorage so browser refresh stays on the same tab ──
   const [view, setViewRaw] = useState(() => sessionStorage.getItem('dashboard_view') || 'dashboard')
@@ -35,6 +35,7 @@ export default function DashboardPage() {
   const [showModal,     setShowModal]     = useState(false)
   const [search,        setSearch]        = useState('')
   const [pendingDelete, setPendingDelete] = useState(null)
+  const [editingProject,setEditingProject]= useState(null)   // project object being edited
   const [invitations,       setInvitations]       = useState([])
   const [friendRequestsBell,setFriendRequestsBell]= useState([])
   const [notifications,     setNotifications]     = useState([])
@@ -267,6 +268,10 @@ export default function DashboardPage() {
   // ── Projects ──────────────────────────────────────────────────
   const handleDelete  = (id, name) => setPendingDelete({ id, name })
   const confirmDelete = async () => { await deleteProject(pendingDelete.id); setPendingDelete(null) }
+  const handleEditSave = async (id, name, description) => {
+    await updateProject(id, { name, description })
+    setEditingProject(null)
+  }
   const filtered = projects.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
   const owned    = projects.filter(p => p.is_owner).length
   const shared   = projects.filter(p => !p.is_owner).length
@@ -690,6 +695,7 @@ export default function DashboardPage() {
                     <ProjectCard key={project.id} project={project}
                       onOpen={() => navigate(`/projects/${project.id}/designer`)}
                       onDelete={() => handleDelete(project.id, project.name)}
+                      onEdit={() => setEditingProject(project)}
                       activeCount={projectActiveUsers[project.id] || 0}
                     />
                   ))}
@@ -1044,6 +1050,13 @@ export default function DashboardPage() {
 
       {/* ── Modals ── */}
       {showModal && <CreateProjectModal onClose={() => setShowModal(false)} />}
+      {editingProject && (
+        <EditProjectModal
+          project={editingProject}
+          onClose={() => setEditingProject(null)}
+          onSave={handleEditSave}
+        />
+      )}
       <ConfirmModal
         open={!!pendingDelete} variant="danger" title="Delete project?"
         message={`"${pendingDelete?.name}" and all its schema data will be permanently deleted. This cannot be undone.`}
@@ -1189,7 +1202,7 @@ const PROJECT_GRADIENTS = [
   'from-cyan-500 to-blue-500',
   'from-fuchsia-500 to-pink-600',
 ]
-function ProjectCard({ project, onOpen, onDelete, activeCount = 0 }) {
+function ProjectCard({ project, onOpen, onDelete, onEdit, activeCount = 0 }) {
   const date     = new Date(project.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
   const gradient = PROJECT_GRADIENTS[project.id % PROJECT_GRADIENTS.length]
   const initial  = (project.name || 'P')[0].toUpperCase()
@@ -1245,15 +1258,125 @@ function ProjectCard({ project, onOpen, onDelete, activeCount = 0 }) {
               </svg>
             </button>
             {project.is_owner && (
-              <button onClick={onDelete}
-                className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-xl transition-all">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                </svg>
-              </button>
+              <>
+                <button onClick={onEdit} title="Edit project"
+                  className="p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+                <button onClick={onDelete}
+                  className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-xl transition-all">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                </button>
+              </>
             )}
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Edit project modal ────────────────────────────────────────────
+function EditProjectModal({ project, onClose, onSave }) {
+  const [name,        setName]        = useState(project.name || '')
+  const [description, setDescription] = useState(project.description || '')
+  const [saving,      setSaving]      = useState(false)
+  const [error,       setError]       = useState('')
+
+  const handleSubmit = async () => {
+    const trimmed = name.trim()
+    if (!trimmed) { setError('Project name is required'); return }
+    setSaving(true); setError('')
+    try {
+      await onSave(project.id, trimmed, description.trim())
+    } catch {
+      setError('Failed to save changes. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && e.target.tagName !== 'TEXTAREA') handleSubmit()
+    if (e.key === 'Escape') onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-50 px-4"
+         style={{ background:'rgba(0,0,0,0.35)', backdropFilter:'blur(4px)' }}
+         onKeyDown={handleKeyDown}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="px-6 pt-6 pb-4 border-b border-gray-100 flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Edit Project</h2>
+            <p className="text-sm text-gray-400 mt-0.5">Update the name or description</p>
+          </div>
+          <button onClick={onClose}
+            className="text-gray-300 hover:text-gray-500 p-1.5 rounded-xl hover:bg-gray-100 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          {error && (
+            <div className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+              {error}
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
+              Project Name <span className="text-red-400">*</span>
+            </label>
+            <input
+              autoFocus
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              maxLength={100}
+              placeholder="e.g. E-Commerce Platform"
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm
+                         focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400
+                         placeholder:text-gray-300 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
+              Description <span className="text-gray-400 font-normal normal-case">(optional)</span>
+            </label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="What does this schema model?"
+              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm resize-none
+                         focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400
+                         placeholder:text-gray-300 transition-all"
+            />
+          </div>
+        </div>
+        <div className="px-6 pb-6 flex gap-2 justify-end">
+          <button onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700
+                       border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">
+            Cancel
+          </button>
+          <button onClick={handleSubmit} disabled={saving}
+            className="px-5 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white
+                       rounded-xl transition-all shadow-sm shadow-blue-500/20 disabled:opacity-60
+                       flex items-center gap-2">
+            {saving && (
+              <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin"/>
+            )}
+            Save changes
+          </button>
         </div>
       </div>
     </div>
