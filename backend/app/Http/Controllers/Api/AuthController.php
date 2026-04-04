@@ -14,6 +14,10 @@ class AuthController extends Controller
     // POST /api/auth/register
     public function register(Request $request)
     {
+        // Normalise email to lowercase before validation so the unique check
+        // and the stored value are always case-insensitive.
+        $request->merge(['email' => strtolower(trim($request->input('email', '')))]);
+
         $validated = $request->validate([
             'name'      => 'required|string|max:255',
             'email'     => 'required|email|unique:users,email',
@@ -25,7 +29,7 @@ class AuthController extends Controller
 
         $user = User::create([
             'name'      => $validated['name'],
-            'email'     => $validated['email'],
+            'email'     => $validated['email'],  // already lowercased above
             'password'  => Hash::make($validated['password']),
             'user_type' => $validated['user_type'] ?? 'developer',
             'headline'  => $validated['headline'] ?? null,
@@ -47,6 +51,9 @@ class AuthController extends Controller
     // POST /api/auth/login
     public function login(Request $request)
     {
+        // Normalise email to lowercase so login is case-insensitive.
+        $request->merge(['email' => strtolower(trim($request->input('email', '')))]);
+
         $request->validate([
             'email'    => 'required|email',
             'password' => 'required|string',
