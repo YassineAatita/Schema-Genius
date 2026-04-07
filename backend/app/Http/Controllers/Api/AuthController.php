@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -30,7 +29,7 @@ class AuthController extends Controller
         $user = User::create([
             'name'      => $validated['name'],
             'email'     => $validated['email'],  // already lowercased above
-            'password'  => Hash::make($validated['password']),
+            'password'  => $validated['password'],  // 'hashed' cast in User model handles Hash::make()
             'user_type' => $validated['user_type'] ?? 'developer',
             'headline'  => $validated['headline'] ?? null,
             'bio'       => $validated['bio'] ?? null,
