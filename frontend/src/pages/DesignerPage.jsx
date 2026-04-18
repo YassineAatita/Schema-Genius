@@ -57,8 +57,9 @@ export default function DesignerPage() {
   const [showVisionAi,      setShowVisionAi]      = useState(false)
   const [visionLoading,     setVisionLoading]     = useState(false)
   const [visionError,       setVisionError]       = useState('')
-  const pendingAiSchema  = useRef(null)
-  const moreMenuRef      = useRef(null)
+  const pendingAiSchema    = useRef(null)
+  const pendingGenerationId = useRef(null)   // tracks DB id of the last AI generation
+  const moreMenuRef        = useRef(null)
   const generateMenuRef  = useRef(null)
   const canvasRef        = useRef(null)
 
@@ -356,12 +357,14 @@ export default function DesignerPage() {
     setAiLoading(true)
     setAiError('')
     try {
-      const res = await api.post('/ai/generate', { prompt: aiPrompt.trim() })
+      const res = await api.post('/ai/generate', { prompt: aiPrompt.trim(), project_id: projectId })
       const schema = res.data
       if (!schema.nodes?.length) {
         setAiError('The AI returned an empty schema. Try a more specific description.')
         return
       }
+      // Remember the DB generation id so we can mark it applied if the user accepts
+      pendingGenerationId.current = schema.generation_id ?? null
       // If canvas already has tables, ask for confirmation before replacing
       if (nodes.length > 0) {
         pendingAiSchema.current = schema
@@ -369,6 +372,10 @@ export default function DesignerPage() {
         setShowAiConfirm(true)
       } else {
         aiGenerate(schema.nodes, schema.edges || [])
+        if (pendingGenerationId.current) {
+          api.patch(`/ai/generations/${pendingGenerationId.current}/apply`).catch(() => {})
+          pendingGenerationId.current = null
+        }
         setShowAiModal(false)
         setAiPrompt('')
       }
@@ -383,6 +390,11 @@ export default function DesignerPage() {
   const confirmAiReplace = () => {
     if (pendingAiSchema.current) {
       aiGenerate(pendingAiSchema.current.nodes, pendingAiSchema.current.edges || [])
+      // Mark the pending generation as applied (fire-and-forget)
+      if (pendingGenerationId.current) {
+        api.patch(`/ai/generations/${pendingGenerationId.current}/apply`).catch(() => {})
+        pendingGenerationId.current = null
+      }
       pendingAiSchema.current = null
       setAiPrompt('')
     }
@@ -470,18 +482,24 @@ export default function DesignerPage() {
     setVisionLoading(true)
     setVisionError('')
     try {
-      const res = await api.post('/ai/generate-from-image', { image: imageDataUrl, prompt })
+      const res = await api.post('/ai/generate-from-image', { image: imageDataUrl, prompt, project_id: projectId })
       const schema = res.data
       if (!schema.nodes?.length) {
         setVisionError('No tables detected. Try a clearer image or add a description.')
         return
       }
+      // Remember the DB generation id
+      pendingGenerationId.current = schema.generation_id ?? null
       if (nodes.length > 0) {
         pendingAiSchema.current = schema
         setShowVisionAi(false)
         setShowAiConfirm(true)
       } else {
         aiGenerate(schema.nodes, schema.edges || [])
+        if (pendingGenerationId.current) {
+          api.patch(`/ai/generations/${pendingGenerationId.current}/apply`).catch(() => {})
+          pendingGenerationId.current = null
+        }
         setShowVisionAi(false)
       }
     } catch (err) {

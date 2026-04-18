@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import DesignerPage from './pages/DesignerPage'
+import AdminPage from './pages/AdminPage'
 
 // Protects routes that require login.
 // Also ensures `user` is populated after a hard page refresh — the token
@@ -28,6 +29,26 @@ function PrivateRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/login" replace />
 }
 
+// Protects the /admin route — must be authenticated AND have the admin role.
+// Handles the hard-refresh case where user is null until /auth/me returns.
+function AdminRoute({ children }) {
+  const { isAuthenticated, user, setUser, logout } = useAuthStore()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (isAuthenticated && !user) {
+      api.get('/auth/me')
+        .then(res => setUser(res.data))
+        .catch(() => { logout(); navigate('/login', { replace: true }) })
+    }
+  }, [isAuthenticated])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (!user) return null  // still loading user from /auth/me — render nothing briefly
+  if (!user.is_admin) return <Navigate to="/dashboard" replace />
+  return children
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -44,6 +65,11 @@ export default function App() {
         <Route path="/projects/:projectId/designer" element={
           <PrivateRoute><DesignerPage /></PrivateRoute>
         } />
+        {/* Admin panel — admin role required */}
+        <Route path="/admin" element={
+          <AdminRoute><AdminPage /></AdminRoute>
+        } />
+
         {/* /profile and /friends redirect to dashboard (tabs inside dashboard) */}
         <Route path="/profile" element={<Navigate to="/dashboard" replace />} />
         <Route path="/friends" element={<Navigate to="/dashboard" replace />} />

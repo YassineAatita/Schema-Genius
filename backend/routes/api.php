@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\FollowController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\CollectionController;
 use App\Http\Controllers\Api\FeaturedSchemaController;
+use App\Http\Controllers\Api\AdminController;
 
 
 // ── Public routes ────────────────────────────────────────────────
@@ -74,8 +75,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/schemas/{id}/export/sql', [SchemaController::class, 'exportSql']);
 
     // AI Schema Generation
-    Route::post('/ai/generate',            [AiController::class, 'generate']);
-    Route::post('/ai/generate-from-image', [AiController::class, 'generateFromImage']);
+    Route::post('/ai/generate',                      [AiController::class, 'generate']);
+    Route::post('/ai/generate-from-image',           [AiController::class, 'generateFromImage']);
+    Route::patch('/ai/generations/{id}/apply',       [AiController::class, 'markApplied']);
 
     // Profile
     Route::get('/profile',          [ProfileController::class, 'show']);
@@ -169,6 +171,29 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin — Featured schema management (role-gated inside controller)
     Route::post('/admin/featured',         [FeaturedSchemaController::class, 'store']);
     Route::get('/admin/featured/history',  [FeaturedSchemaController::class, 'history']);
+
+    // Admin — Dashboard data (role-gated inside AdminController)
+    Route::get('/admin/overview',                    [AdminController::class, 'overview']);
+    Route::get('/admin/users',                       [AdminController::class, 'users']);
+    Route::put('/admin/users/{id}/toggle-active',    [AdminController::class, 'toggleActive']);
+    Route::put('/admin/users/{id}/role',             [AdminController::class, 'changeRole']);
+    Route::delete('/admin/users/{id}',               [AdminController::class, 'destroy']);
+
+    // Admin — Project management
+    Route::get('/admin/projects',                        [AdminController::class, 'projects']);
+    Route::put('/admin/projects/{id}/force-private',     [AdminController::class, 'forcePrivate']);
+    Route::post('/admin/projects/{id}/feature',          [AdminController::class, 'featureProject']);
+    Route::delete('/admin/projects/{id}',                [AdminController::class, 'destroyProject']);
+
+    // Admin — AI usage monitoring
+    Route::get('/admin/ai/stats',    [AdminController::class, 'aiStats']);
+    Route::get('/admin/ai/users',    [AdminController::class, 'aiUsers']);
+    Route::get('/admin/ai/prompts',  [AdminController::class, 'aiPrompts']);
+
+    // Admin — Community moderation
+    Route::get('/admin/community/comments',              [AdminController::class, 'communityComments']);
+    Route::delete('/admin/community/comments/{id}',      [AdminController::class, 'destroyComment']);
+    Route::get('/admin/community/top-projects',          [AdminController::class, 'topProjects']);
 });
 
 // Test route — to be removed later

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiGeneration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -10,7 +11,10 @@ class AiController extends Controller
 {
     public function generate(Request $request)
     {
-        $request->validate(['prompt' => 'required|string|max:1500']);
+        $request->validate([
+            'prompt'     => 'required|string|max:1500',
+            'project_id' => 'nullable|exists:projects,id',
+        ]);
 
         $systemPrompt = <<<'PROMPT'
 You are a database schema designer. When given a description, return ONLY valid JSON — no explanation, no markdown, no code blocks.
@@ -97,15 +101,34 @@ PROMPT;
             ], 422);
         }
 
-        return response()->json($schema);
+        // Persist the generation so admin AI-usage monitoring has real data.
+        // Wrapped in try/catch so a DB hiccup never breaks the generate response.
+        $generationId = null;
+        try {
+            if ($request->user() && $request->input('project_id')) {
+                $gen = AiGeneration::create([
+                    'project_id'    => $request->input('project_id'),
+                    'user_id'       => $request->user()->id,
+                    'prompt'        => $request->input('prompt'),
+                    'response_json' => $schema,
+                    'applied'       => false,
+                ]);
+                $generationId = $gen->id;
+            }
+        } catch (\Throwable $e) {
+            // Non-fatal — monitoring data loss is acceptable over blocking the user
+        }
+
+        return response()->json(array_merge($schema, ['generation_id' => $generationId]));
     }
 
     // POST /api/ai/generate-from-image
     public function generateFromImage(Request $request)
     {
         $request->validate([
-            'image'  => 'required|string',   // base64 data URL
-            'prompt' => 'nullable|string|max:500',
+            'image'      => 'required|string',   // base64 data URL
+            'prompt'     => 'nullable|string|max:500',
+            'project_id' => 'nullable|exists:projects,id',
         ]);
 
         $dataUrl = $request->image;
@@ -208,7 +231,24 @@ PROMPT;
             ], 422);
         }
 
-        return response()->json($schema);
+        // Persist the generation record for admin monitoring
+        $generationId = null;
+        try {
+            if ($request->user() && $request->input('project_id')) {
+                $gen = AiGeneration::create([
+                    'project_id'    => $request->input('project_id'),
+                    'user_id'       => $request->user()->id,
+                    'prompt'        => $request->input('prompt') ?? '[image upload]',
+                    'response_json' => $schema,
+                    'applied'       => false,
+                ]);
+                $generationId = $gen->id;
+            }
+        } catch (\Throwable $e) {
+            // Non-fatal
+        }
+
+        return response()->json(array_merge($schema, ['generation_id' => $generationId]));
     }
 
     // POST /api/ai/enhance-bio
@@ -246,5 +286,20 @@ PROMPT;
         $enhanced = trim($response->json('choices.0.message.content') ?? '');
 
         return response()->json(['bio' => $enhanced]);
+    }
+
+    // PATCH /api/ai/generations/{id}/apply — mark a generation as applied to canvas
+    public function markApplied(Request $request, $id)
+    {
+        // Scope to the current user so users can't mark each other's generations
+        $generation = AiGeneration::where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if ($generation) {
+            $generation->update(['applied' => true]);
+        }
+
+        return response()->json(['ok' => true]);
     }
 }

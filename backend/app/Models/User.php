@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use App\Models\AiGeneration;
 
 class User extends Authenticatable
 {
@@ -28,6 +29,15 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    // Expose is_admin on every serialised User so the frontend can gate admin UI
+    // without a separate API call. Uses Spatie's hasRole() under the hood.
+    protected $appends = ['is_admin'];
+
+    public function getIsAdminAttribute(): bool
+    {
+        return $this->hasRole('admin');
+    }
 
     protected function casts(): array
     {
@@ -135,5 +145,11 @@ class User extends Authenticatable
     public function collections()
     {
         return $this->hasMany(Collection::class);
+    }
+
+    // AI generations this user has requested
+    public function aiGenerations()
+    {
+        return $this->hasMany(AiGeneration::class);
     }
 }
