@@ -19,17 +19,44 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
+  // Email verification banner state
+  const [unverifiedEmail, setUnverifiedEmail]   = useState(null)
+  const [resendStatus,    setResendStatus]       = useState('idle')   // idle | sending | sent | error
+  const [resendMessage,   setResendMessage]      = useState('')
+
   const { register, handleSubmit, formState: { errors } } =
     useForm({ resolver: zodResolver(schema) })
+
+  async function handleResend() {
+    if (!unverifiedEmail || resendStatus === 'sending' || resendStatus === 'sent') return
+    setResendStatus('sending')
+    setResendMessage('')
+    try {
+      const res = await api.post('/auth/email/resend', { email: unverifiedEmail })
+      setResendStatus('sent')
+      setResendMessage(res.data?.message ?? 'New link sent — check your inbox')
+    } catch (err) {
+      setResendStatus('error')
+      const msg = err.response?.data?.message || 'Failed to resend. Please try again shortly.'
+      setResendMessage(msg)
+    }
+  }
 
   const onSubmit = async (data) => {
     setLoading(true)
     setServerError('')
+    setUnverifiedEmail(null)
+    setResendStatus('idle')
     try {
       const response = await api.post('/auth/login', data)
       setAuth(response.data.user, response.data.token)
       navigate('/dashboard')
     } catch (err) {
+      // Special case: email not verified yet
+      if (err.response?.status === 403 && err.response?.data?.error === 'email_not_verified') {
+        setUnverifiedEmail(err.response.data.email ?? data.email)
+        return
+      }
       const msg = err.response?.data?.message
         || err.response?.data?.errors?.email?.[0]
         || 'Login failed. Please try again.'
@@ -69,6 +96,45 @@ export default function LoginPage() {
 
           {/* Card */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur">
+
+            {/* ── Email not verified banner ── */}
+            {unverifiedEmail && (
+              <div className="mb-5 p-4 bg-amber-500/10 border border-amber-500/25 rounded-xl">
+                <div className="flex items-start gap-3 mb-3">
+                  <svg className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                  </svg>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-300 mb-0.5">Email not verified</p>
+                    <p className="text-xs text-amber-400/80">
+                      Please check your inbox and click the verification link for{' '}
+                      <span className="font-medium text-amber-300">{unverifiedEmail}</span>
+                    </p>
+                  </div>
+                </div>
+                {resendStatus === 'sent' ? (
+                  <div className="flex items-center gap-2 text-xs text-green-400 font-medium">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
+                    </svg>
+                    {resendMessage || 'New link sent — check your inbox'}
+                  </div>
+                ) : resendStatus === 'error' ? (
+                  <p className="text-xs text-amber-400">{resendMessage || 'Failed to resend. Please try again.'}</p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendStatus === 'sending'}
+                    className="text-xs font-medium text-amber-400 hover:text-amber-300
+                               underline underline-offset-2 disabled:opacity-60 transition-colors"
+                  >
+                    {resendStatus === 'sending' ? 'Sending…' : 'Resend verification email'}
+                  </button>
+                )}
+              </div>
+            )}
 
             {serverError && (
               <div className="mb-5 p-3 bg-red-500/10 border border-red-500/20

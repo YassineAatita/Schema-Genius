@@ -26,6 +26,15 @@ use App\Http\Controllers\Api\AdminController;
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login',    [AuthController::class, 'login']);
+
+    // Email verification — clicked directly from inbox, browser GETs this URL
+    // Must be named 'verification.verify' — Laravel's VerifyEmail notification
+    // uses URL::temporarySignedRoute('verification.verify', ...) to build the link.
+    Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+        ->name('verification.verify');
+
+    // Resend verification email — public so the user doesn't need a token yet
+    Route::post('/email/resend', [AuthController::class, 'resendVerification']);
 });
 
 // Bio enhancement is public — called during registration before the user has a token

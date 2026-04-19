@@ -5,6 +5,8 @@ import api from './services/api'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
+import EmailVerifiedPage from './pages/EmailVerifiedPage'
 import DashboardPage from './pages/DashboardPage'
 import DesignerPage from './pages/DesignerPage'
 import AdminPage from './pages/AdminPage'
@@ -57,6 +59,8 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/email-verified" element={<EmailVerifiedPage />} />
 
         {/* Protected routes */}
         <Route path="/dashboard" element={

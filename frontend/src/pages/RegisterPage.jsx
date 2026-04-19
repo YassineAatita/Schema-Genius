@@ -82,6 +82,8 @@ const inputCls = `w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-x
 /* ═══════════════════════════════════════════════════════════════ */
 export default function RegisterPage() {
   const navigate = useNavigate()
+  // setAuth is no longer called on register — user must verify email first
+  // eslint-disable-next-line no-unused-vars
   const { setAuth } = useAuthStore()
 
   const [step, setStep] = useState(1)
@@ -184,23 +186,15 @@ export default function RegisterPage() {
         bio: bio || undefined,
       })
 
-      const { user, token } = res.data
-      setAuth(user, token)
-
-      // Upload avatar separately if provided
-      if (avatar) {
-        const form = new FormData()
-        form.append('avatar', avatar)
-        try {
-          await api.post('/profile/avatar', form, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          })
-        } catch {
-          /* non-fatal */
-        }
+      // Backend no longer returns a token — user must verify email first.
+      // Avatar upload is skipped here; user can set it from their profile after login.
+      if (res.data.requires_verification) {
+        navigate('/verify-email', { state: { email: res.data.email } })
+        return
       }
 
-      navigate('/dashboard')
+      // Fallback (should not happen with email verification enabled)
+      navigate('/login')
     } catch (err) {
       const msg = err.response?.data?.message || 'Registration failed. Please try again.'
       setServerError(msg)

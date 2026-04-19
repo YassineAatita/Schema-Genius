@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -19,31 +20,66 @@ class AuthController extends Controller
 
         $validated = $request->validate([
             'name'      => 'required|string|max:255',
-            'email'     => 'required|email|unique:users,email',
+            // Allow re-registration if the existing account is unverified (e.g. the
+            // previous attempt failed to send the email).  A verified account keeps
+            // the unique constraint so duplicate live accounts are still prevented.
+            'email'     => [
+                'required', 'email',
+                \Illuminate\Validation\Rule::unique('users', 'email')->where(
+                    fn ($q) => $q->whereNotNull('email_verified_at')
+                ),
+            ],
             'password'  => 'required|string|min:8|confirmed',
             'user_type' => 'nullable|in:student,developer,designer,fullstack,other',
             'headline'  => 'nullable|string|max:120',
             'bio'       => 'nullable|string|max:1000',
         ]);
 
-        $user = User::create([
-            'name'      => $validated['name'],
-            'email'     => $validated['email'],  // already lowercased above
-            'password'  => $validated['password'],  // 'hashed' cast in User model handles Hash::make()
-            'user_type' => $validated['user_type'] ?? 'developer',
-            'headline'  => $validated['headline'] ?? null,
-            'bio'       => $validated['bio'] ?? null,
-            'is_active' => true,
-        ]);
+        // If a previous unverified account exists for this email, reuse it
+        // (update details + resend) rather than creating a duplicate row.
+        $user = User::where('email', $validated['email'])
+                    ->whereNull('email_verified_at')
+                    ->first();
 
-        // Assign default role
-        $user->assignRole('developer');
+        if ($user) {
+            $user->update([
+                'name'      => $validated['name'],
+                'password'  => $validated['password'],
+                'user_type' => $validated['user_type'] ?? 'developer',
+                'headline'  => $validated['headline'] ?? null,
+                'bio'       => $validated['bio'] ?? null,
+            ]);
+        } else {
+            $user = User::create([
+                'name'      => $validated['name'],
+                'email'     => $validated['email'],
+                'password'  => $validated['password'],
+                'user_type' => $validated['user_type'] ?? 'developer',
+                'headline'  => $validated['headline'] ?? null,
+                'bio'       => $validated['bio'] ?? null,
+                'is_active' => true,
+            ]);
+            $user->assignRole('developer');
+        }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // Send verification email — wrapped in try/catch so a mail transport
+        // failure (e.g. Mailgun sandbox not yet activated) never breaks the
+        // registration response. The frontend still shows the "check your email"
+        // page; the user can hit Resend once mail is working.
+        $mailError = null;
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $e) {
+            $mailError = $e->getMessage();
+            \Illuminate\Support\Facades\Log::warning('Verification email failed to send for user ' . $user->id . ': ' . $mailError);
+        }
 
         return response()->json([
-            'user'  => $user,
-            'token' => $token,
+            'requires_verification' => true,
+            'email'                 => $user->email,
+            'message'               => 'Account created! Please check your email and click the verification link before logging in.',
+            // Only exposed in local/debug so devs know mail is misconfigured
+            'mail_error'            => config('app.debug') ? $mailError : null,
         ], 201);
     }
 
@@ -74,6 +110,16 @@ class AuthController extends Controller
             ], 403);
         }
 
+        // Block unverified accounts
+        if (!$user->hasVerifiedEmail()) {
+            Auth::logout();
+            return response()->json([
+                'error'   => 'email_not_verified',
+                'email'   => $user->email,
+                'message' => 'Please verify your email before logging in.',
+            ], 403);
+        }
+
         // Delete old tokens and create a fresh one
         $user->tokens()->delete();
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -81,6 +127,70 @@ class AuthController extends Controller
         return response()->json([
             'user'  => $user,
             'token' => $token,
+        ]);
+    }
+
+    // GET /api/auth/email/verify/{id}/{hash}
+    // Called directly by the browser when the user clicks the email link.
+    // Validates the signed URL, marks the email verified, then redirects to the frontend.
+    public function verifyEmail(Request $request, $id, $hash)
+    {
+        $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+
+        $user = User::find($id);
+
+        // Unknown user
+        if (!$user) {
+            return redirect($frontendUrl . '/email-verified?error=invalid');
+        }
+
+        // Hash mismatch — link was tampered with
+        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+            return redirect($frontendUrl . '/email-verified?error=invalid');
+        }
+
+        // Signature expired or tampered
+        if (!$request->hasValidSignature()) {
+            return redirect($frontendUrl . '/email-verified?error=expired');
+        }
+
+        // Already verified — just redirect to success
+        if ($user->hasVerifiedEmail()) {
+            return redirect($frontendUrl . '/email-verified?already=1');
+        }
+
+        $user->markEmailAsVerified();
+        event(new Verified($user));
+
+        return redirect($frontendUrl . '/email-verified?success=1');
+    }
+
+    // POST /api/auth/email/resend
+    // Public endpoint — takes an email address, resends if the account exists and is unverified.
+    // Always returns 200 to avoid leaking whether an email is registered.
+    public function resendVerification(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $user = User::where('email', strtolower(trim($request->email)))->first();
+
+        if ($user && !$user->hasVerifiedEmail()) {
+            try {
+                $user->sendEmailVerificationNotification();
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Resend verification email failed for user ' . $user->id . ': ' . $e->getMessage());
+
+                // Return a clear error so the frontend can tell the user mail is
+                // temporarily unavailable, rather than showing a generic 500.
+                return response()->json([
+                    'message'    => 'We could not send the email right now. Please try again in a few minutes.',
+                    'mail_error' => config('app.debug') ? $e->getMessage() : null,
+                ], 503);
+            }
+        }
+
+        return response()->json([
+            'message' => 'If that address is registered and unverified, a new link has been sent.',
         ]);
     }
 
