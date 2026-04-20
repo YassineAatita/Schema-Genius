@@ -63,6 +63,12 @@ class User extends Authenticatable implements MustVerifyEmail
         $this->notify(new \App\Notifications\VerifyEmailNotification());
     }
 
+    // Use our branded password reset email instead of Laravel's default
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new \App\Notifications\ResetPasswordNotification($token));
+    }
+
     // A user owns many projects
     public function projects()
     {

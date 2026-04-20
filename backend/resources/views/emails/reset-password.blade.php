@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Verify your Schema Genius account</title>
+  <title>Reset your Schema Genius password</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -24,6 +24,9 @@
     .brand-bar {
       background-color: #1a1f2e;
       padding: 18px 40px;
+    }
+    .brand-bar a {
+      text-decoration: none;
     }
     .brand-name {
       font-size: 16px;
@@ -144,25 +147,25 @@
 
     <!-- Hero -->
     <div class="hero">
-      <span class="hero-label">Email Verification</span>
-      <h1>Verify your email address</h1>
-      <p>One quick step before you start designing schemas.</p>
+      <span class="hero-label">Password Reset</span>
+      <h1>Reset your password</h1>
+      <p>We received a request to reset the password for your account.</p>
     </div>
 
     <!-- Body -->
     <div class="body">
       <p>
-        Thanks for signing up. To activate your account, please verify your email
-        address by clicking the button below. This keeps your account secure and
-        ensures you can receive important notifications.
+        Click the button below to choose a new password. This link is valid for
+        <strong>60 minutes</strong>. If you did not request a password reset,
+        you can safely ignore this email — your password will not be changed.
       </p>
 
       <div class="btn-wrap">
-        <a href="{{ $url }}" class="btn">Verify Email Address</a>
+        <a href="{{ $url }}" class="btn">Reset Password</a>
       </div>
 
       <p class="expiry-note">
-        This link expires in 60 minutes. After that you will need to register again.
+        This link expires in 60 minutes. After that you will need to request a new one.
       </p>
 
       <div class="divider"></div>
@@ -173,15 +176,15 @@
       </div>
 
       <div class="ignore-note">
-        If you did not create a Schema Genius account, you can safely ignore this email.
-        No account will be activated without clicking the link above.
+        If you did not request a password reset, no action is required. Your account and
+        password remain unchanged.
       </div>
     </div>
 
     <!-- Footer -->
     <div class="footer">
       <p>
-        You received this email because an account was registered with this address.<br />
+        You received this email because a password reset was requested for your account.<br />
         &copy; {{ date('Y') }} Schema Genius &mdash; Visual Database Schema Designer
       </p>
     </div>
