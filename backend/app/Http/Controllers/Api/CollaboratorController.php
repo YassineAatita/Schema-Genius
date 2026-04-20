@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Notification;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\NotificationMailer;
 use Illuminate\Http\Request;
 
 class CollaboratorController extends Controller
@@ -55,6 +57,32 @@ class CollaboratorController extends Controller
             'role'       => $request->role,
             'status'     => 'pending',
             'invited_at' => now(),
+        ]);
+
+        // Notify the invitee about the collaboration invitation
+        try {
+            Notification::create([
+                'user_id' => $invitee->id,
+                'type'    => 'collaboration_invited',
+                'title'   => 'Collaboration invitation',
+                'message' => "{$request->user()->name} invited you to collaborate on \"{$project->name}\".",
+                'data'    => [
+                    'project_id'   => $project->id,
+                    'project_name' => $project->name,
+                    'actor_id'     => $request->user()->id,
+                    'actor_name'   => $request->user()->name,
+                    'role'         => $request->role,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            // Notification failure must not fail the invitation
+        }
+
+        NotificationMailer::send($invitee->id, 'collaboration_invited', [
+            'actor_name'   => $request->user()->name,
+            'project_name' => $project->name,
+            'project_id'   => $project->id,
+            'role'         => $request->role,
         ]);
 
         return response()->json([

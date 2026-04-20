@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\Project;
 use App\Models\SchemaComment;
+use App\Services\NotificationMailer;
 use Illuminate\Http\Request;
 
 class CommentController extends Controller
@@ -81,6 +82,12 @@ class CommentController extends Controller
             } catch (\Throwable $e) {
                 // Notification failure must not fail the comment action
             }
+
+            NotificationMailer::send($project->owner_id, 'new_comment', [
+                'actor_name'   => $user->name,
+                'project_name' => $project->name,
+                'project_id'   => $project->id,
+            ]);
         }
 
         return response()->json($this->formatComment($comment), 201);

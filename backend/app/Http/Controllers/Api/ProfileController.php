@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\FeaturedSchema;
 use App\Models\Project;
+use App\Models\UserNotificationPreference;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -193,5 +194,47 @@ class ProfileController extends Controller
                 ],
             ],
         ]);
+    }
+
+    // GET /api/profile/notification-preferences
+    public function getNotificationPreferences(Request $request)
+    {
+        $prefs = UserNotificationPreference::firstOrCreate(
+            ['user_id' => $request->user()->id],
+            [
+                'starred_schema'          => false,
+                'liked_schema'            => false,
+                'forked_schema'           => false,
+                'commented_schema'        => false,
+                'friend_request_received' => false,
+                'friend_request_accepted' => false,
+                'collaboration_invited'   => false,
+                'schema_of_the_week'      => false,
+            ]
+        );
+
+        return response()->json($prefs);
+    }
+
+    // PUT /api/profile/notification-preferences
+    public function updateNotificationPreferences(Request $request)
+    {
+        $validated = $request->validate([
+            'starred_schema'          => 'sometimes|boolean',
+            'liked_schema'            => 'sometimes|boolean',
+            'forked_schema'           => 'sometimes|boolean',
+            'commented_schema'        => 'sometimes|boolean',
+            'friend_request_received' => 'sometimes|boolean',
+            'friend_request_accepted' => 'sometimes|boolean',
+            'collaboration_invited'   => 'sometimes|boolean',
+            'schema_of_the_week'      => 'sometimes|boolean',
+        ]);
+
+        $prefs = UserNotificationPreference::updateOrCreate(
+            ['user_id' => $request->user()->id],
+            $validated
+        );
+
+        return response()->json($prefs);
     }
 }

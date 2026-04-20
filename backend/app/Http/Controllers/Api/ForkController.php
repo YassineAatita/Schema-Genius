@@ -9,6 +9,7 @@ use App\Models\ProjectCollaborator;
 use App\Models\ProjectFork;
 use App\Models\Schema;
 use App\Models\SchemaVersion;
+use App\Services\NotificationMailer;
 use Illuminate\Http\Request;
 
 class ForkController extends Controller
@@ -96,6 +97,12 @@ class ForkController extends Controller
         } catch (\Throwable $e) {
             // Notification failure must not fail the fork action
         }
+
+        NotificationMailer::send($original->owner_id, 'project_forked', [
+            'actor_name'   => $user->name,
+            'project_name' => $original->name,
+            'project_id'   => $original->id,
+        ]);
 
         return response()->json([
             'message' => 'Project forked successfully.',

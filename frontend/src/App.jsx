@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import useAuthStore from './store/useAuthStore'
 import api from './services/api'
+import useInactivityLogout from './hooks/useInactivityLogout'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -54,9 +55,37 @@ function AdminRoute({ children }) {
   return children
 }
 
+// ── FIX 2: 25-minute inactivity auto-logout ──────────────────────────────────
+// Renders nothing; just arms the inactivity timer when authenticated.
+function InactivityMonitor() {
+  useInactivityLogout()
+  return null
+}
+
+// ── FIX 3: single-session enforcement ────────────────────────────────────────
+// Polls /auth/me every 60 s while authenticated.  If the token was revoked
+// (another browser logged in — the backend deletes all tokens on login),
+// the 401 interceptor in api.js will detect it, store 'session_conflict' in
+// sessionStorage, and redirect to /login with the appropriate message.
+function SessionMonitor() {
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    const id = setInterval(() => {
+      api.get('/auth/me').catch(() => {})  // 401 interceptor handles the redirect
+    }, 60_000)
+    return () => clearInterval(id)
+  }, [isAuthenticated])
+
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <InactivityMonitor />
+      <SessionMonitor />
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />

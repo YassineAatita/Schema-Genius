@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\Project;
 use App\Models\ProjectLike;
+use App\Services\NotificationMailer;
 use Illuminate\Http\Request;
 
 class LikeController extends Controller
@@ -45,6 +46,12 @@ class LikeController extends Controller
         } catch (\Throwable $e) {
             // Notification failure must not fail the like action
         }
+
+        NotificationMailer::send($project->owner_id, 'project_liked', [
+            'actor_name'   => $user->name,
+            'project_name' => $project->name,
+            'project_id'   => $project->id,
+        ]);
 
         $count = ProjectLike::where('project_id', $project->id)->count();
         return response()->json(['liked' => true, 'likes' => $count], 201);

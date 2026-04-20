@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AiGeneration;
 use App\Models\FeaturedSchema;
+use App\Models\Notification;
 use App\Models\Project;
 use App\Models\ProjectFork;
 use App\Models\ProjectLike;
@@ -12,6 +13,7 @@ use App\Models\ProjectStar;
 use App\Models\Schema;
 use App\Models\SchemaComment;
 use App\Models\User;
+use App\Services\NotificationMailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -270,6 +272,27 @@ class AdminController extends Controller
                 'note'        => $validated['note'] ?? null,
             ]
         );
+
+        // Notify and email the schema owner about being Schema of the Week
+        try {
+            Notification::create([
+                'user_id' => $project->owner_id,
+                'type'    => 'schema_of_the_week',
+                'title'   => 'Your schema is featured this week!',
+                'message' => "Congratulations! \"{$project->name}\" has been selected as the Schema of the Week.",
+                'data'    => [
+                    'project_id'   => $project->id,
+                    'project_name' => $project->name,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            // Notification failure must not fail the feature action
+        }
+
+        NotificationMailer::send($project->owner_id, 'schema_of_the_week', [
+            'project_name' => $project->name,
+            'project_id'   => $project->id,
+        ]);
 
         return response()->json([
             'message'  => 'Project featured as Schema of the Week.',

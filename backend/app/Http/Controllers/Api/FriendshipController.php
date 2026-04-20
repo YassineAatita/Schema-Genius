@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Friendship;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\NotificationMailer;
 use Illuminate\Http\Request;
 
 class FriendshipController extends Controller
@@ -194,6 +195,10 @@ class FriendshipController extends Controller
             ]);
         } catch (\Throwable $e) {}
 
+        NotificationMailer::send($target, 'friend_request_received', [
+            'actor_name' => $auth->name,
+        ]);
+
         return response()->json([
             'friendship_id'     => $f->id,
             'id'                => $receiver->id,
@@ -235,6 +240,10 @@ class FriendshipController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {}
+
+        NotificationMailer::send($f->requester_id, 'friend_request_accepted', [
+            'actor_name' => $auth->name,
+        ]);
 
         return response()->json(['message' => 'Friend request accepted!']);
     }

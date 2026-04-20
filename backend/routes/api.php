@@ -91,9 +91,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/ai/generations/{id}/apply',       [AiController::class, 'markApplied']);
 
     // Profile
-    Route::get('/profile',          [ProfileController::class, 'show']);
-    Route::put('/profile',          [ProfileController::class, 'update']);
-    Route::post('/profile/avatar',  [ProfileController::class, 'uploadAvatar']);
+    Route::get('/profile',                              [ProfileController::class, 'show']);
+    Route::put('/profile',                              [ProfileController::class, 'update']);
+    Route::post('/profile/avatar',                      [ProfileController::class, 'uploadAvatar']);
+    Route::get('/profile/notification-preferences',     [ProfileController::class, 'getNotificationPreferences']);
+    Route::put('/profile/notification-preferences',     [ProfileController::class, 'updateNotificationPreferences']);
 
     // Collaborators
     Route::get('/projects/{id}/collaborators',            [CollaboratorController::class, 'index']);

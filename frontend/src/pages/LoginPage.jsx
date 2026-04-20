@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -18,6 +18,17 @@ export default function LoginPage() {
   const [serverError, setServerError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  // Logout-reason banner (inactivity / session_conflict)
+  const [logoutBanner, setLogoutBanner] = useState(null)
+
+  useEffect(() => {
+    const reason = sessionStorage.getItem('logout_reason')
+    if (reason) {
+      sessionStorage.removeItem('logout_reason')
+      setLogoutBanner(reason)
+    }
+  }, [])
 
   // Email verification banner state
   const [unverifiedEmail, setUnverifiedEmail]   = useState(null)
@@ -50,6 +61,8 @@ export default function LoginPage() {
     try {
       const response = await api.post('/auth/login', data)
       setAuth(response.data.user, response.data.token)
+      // FIX 1 — always land on the dashboard tab regardless of previous session
+      sessionStorage.removeItem('dashboard_view')
       navigate('/dashboard')
     } catch (err) {
       // Special case: email not verified yet
@@ -96,6 +109,41 @@ export default function LoginPage() {
 
           {/* Card */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur">
+
+            {/* ── Inactivity / session-conflict banner ── */}
+            {logoutBanner && (
+              <div className={`mb-5 p-4 rounded-xl border flex items-start gap-3
+                ${logoutBanner === 'session_conflict'
+                  ? 'bg-amber-500/10 border-amber-500/25'
+                  : 'bg-blue-500/10 border-blue-500/25'}`}>
+                <svg className={`w-5 h-5 flex-shrink-0 mt-0.5
+                  ${logoutBanner === 'session_conflict' ? 'text-amber-400' : 'text-blue-400'}`}
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                  <p className={`text-sm font-semibold mb-0.5
+                    ${logoutBanner === 'session_conflict' ? 'text-amber-300' : 'text-blue-300'}`}>
+                    {logoutBanner === 'session_conflict'
+                      ? 'Signed in from another browser'
+                      : 'Session expired'}
+                  </p>
+                  <p className={`text-xs
+                    ${logoutBanner === 'session_conflict' ? 'text-amber-400/80' : 'text-blue-400/80'}`}>
+                    {logoutBanner === 'session_conflict'
+                      ? 'Your account was signed in from another browser. Please sign in again to continue.'
+                      : 'You were logged out due to inactivity. Please sign in again.'}
+                  </p>
+                </div>
+                <button onClick={() => setLogoutBanner(null)}
+                  className="ml-auto text-gray-600 hover:text-gray-400 transition-colors flex-shrink-0">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            )}
 
             {/* ── Email not verified banner ── */}
             {unverifiedEmail && (

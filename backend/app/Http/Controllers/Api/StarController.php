@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Models\Project;
 use App\Models\ProjectStar;
+use App\Services\NotificationMailer;
 use Illuminate\Http\Request;
 
 class StarController extends Controller
@@ -42,6 +43,12 @@ class StarController extends Controller
         } catch (\Throwable $e) {
             // Notification failure must not fail the star action
         }
+
+        NotificationMailer::send($project->owner_id, 'project_starred', [
+            'actor_name'   => $user->name,
+            'project_name' => $project->name,
+            'project_id'   => $project->id,
+        ]);
 
         $count = ProjectStar::where('project_id', $project->id)->count();
         return response()->json(['starred' => true, 'stars' => $count], 201);

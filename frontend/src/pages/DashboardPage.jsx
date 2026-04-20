@@ -5,6 +5,7 @@ import useProjectStore from '../store/useProjectStore'
 import api from '../services/api'
 import ConfirmModal from '../components/ui/ConfirmModal'
 import ExploreView from '../components/explore/ExploreView'
+import ProfileView from '../components/profile/ProfileView'
 import '../services/websocket'   // ensure window.Echo is initialised
 
 function getGreeting() {
@@ -13,14 +14,6 @@ function getGreeting() {
   if (h < 17) return 'Good afternoon'
   return 'Good evening'
 }
-
-const USER_TYPES = [
-  { value: 'student',   label: 'Student',    emoji: '🎓' },
-  { value: 'developer', label: 'Developer',  emoji: '💻' },
-  { value: 'designer',  label: 'Designer',   emoji: '🎨' },
-  { value: 'fullstack', label: 'Full-Stack', emoji: '⚡' },
-  { value: 'other',     label: 'Other',      emoji: '🌐' },
-]
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -61,20 +54,6 @@ export default function DashboardPage() {
   const [friendToast,        setFriendToast]        = useState(null)
   const friendSearchTimer = useRef(null)
 
-  // ── Profile state ─────────────────────────────────────────────
-  const fileRef                                   = useRef()
-  const [editing,       setEditing]               = useState(false)
-  const [saving,        setSaving]                = useState(false)
-  const [aiLoading,     setAiLoading]             = useState(false)
-  const [avatarLoading, setAvatarLoading]         = useState(false)
-  const [profileSuccess,setProfileSuccess]        = useState('')
-  const [profileError,  setProfileError]          = useState('')
-  const [pName,         setPName]                 = useState('')
-  const [pUserType,     setPUserType]             = useState('developer')
-  const [pHeadline,     setPHeadline]             = useState('')
-  const [pBio,          setPBio]                  = useState('')
-  const [avatarPreview, setAvatarPreview]         = useState(null)
-
   // ── Bootstrap ─────────────────────────────────────────────────
   useEffect(() => {
     api.get('/auth/me')
@@ -85,15 +64,6 @@ export default function DashboardPage() {
     fetchNotifications()
     api.get('/friends/requests').then(r => setFriendReqCount(r.data.length)).catch(() => {})
   }, [])
-
-  // Sync profile fields when user changes
-  useEffect(() => {
-    setPName(user?.name || '')
-    setPUserType(user?.user_type || 'developer')
-    setPHeadline(user?.headline || '')
-    setPBio(user?.bio || '')
-    setAvatarPreview(user?.avatar_url || null)
-  }, [user])
 
   useEffect(() => {
     const handler = (e) => {
@@ -173,6 +143,18 @@ export default function DashboardPage() {
     if (view === 'friends') loadFriendsData()
   }, [view])
 
+  // ── Bell polling — keep invitations & notifications live ─────────────────
+  // fetchInvitations covers friend-request changes (new requests, accepted/declined).
+  // fetchNotifications covers the Notifications tab in the bell.
+  // 20 s is fast enough to feel live without hammering the server.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchInvitations()
+      fetchNotifications()
+    }, 20000)
+    return () => clearInterval(interval)
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Active-user badges (polling) ──────────────────────────────
   // Do NOT join presence channels here — that would make the dashboard user
   // a presence member, causing other users' dashboards to incorrectly count
@@ -229,6 +211,9 @@ export default function DashboardPage() {
     try {
       await api.post(`/friends/${fid}/accept`)
       setFriendRequests(prev => prev.filter(r => r.friendship_id !== fid))
+      // BUG 2 FIX — also remove from the bell's invitations panel so it
+      // disappears immediately without needing a page refresh
+      setFriendRequestsBell(prev => prev.filter(r => r.friendship_id !== fid))
       setFriendsList(prev => [{ friendship_id: fid, id: target.id, name: target.name, email: target.email, avatar_url: target.avatar_url, headline: target.headline }, ...prev])
       setFriendReqCount(c => Math.max(0, c - 1))
       updateFriendStatus(target.id, 'friends', fid)
@@ -242,6 +227,8 @@ export default function DashboardPage() {
     try {
       await api.post(`/friends/${fid}/decline`)
       setFriendRequests(prev => prev.filter(r => r.friendship_id !== fid))
+      // BUG 2 FIX — keep bell in sync when declining from the Friends section too
+      setFriendRequestsBell(prev => prev.filter(r => r.friendship_id !== fid))
       setFriendReqCount(c => Math.max(0, c - 1))
       updateFriendStatus(target.id, 'none', null)
       showFriendToast('Request removed.')
@@ -275,65 +262,6 @@ export default function DashboardPage() {
   const filtered = projects.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
   const owned    = projects.filter(p => p.is_owner).length
   const shared   = projects.filter(p => !p.is_owner).length
-
-  // ── Profile helpers ───────────────────────────────────────────
-  function flash(msg, type = 'success') {
-    if (type === 'success') setProfileSuccess(msg)
-    else setProfileError(msg)
-    setTimeout(() => { setProfileSuccess(''); setProfileError('') }, 3000)
-  }
-
-  const ALLOWED_TYPES = ['image/jpeg','image/png','image/jpg','image/gif','image/webp']
-
-  async function onAvatarChange(e) {
-    const file = e.target.files[0]
-    if (!file) return
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      flash('Only JPEG, PNG, GIF, or WebP images are allowed', 'error'); e.target.value = ''; return
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      flash(`Image must be under 2MB (yours is ${(file.size/1024/1024).toFixed(1)}MB)`, 'error'); e.target.value = ''; return
-    }
-    setAvatarPreview(URL.createObjectURL(file))
-    setAvatarLoading(true)
-    try {
-      const form = new FormData()
-      form.append('avatar', file)
-      await api.post('/profile/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } })
-      const me = await api.get('/auth/me')
-      setUser(me.data)
-      flash('Profile photo updated!')
-    } catch { flash('Upload failed. Please try again.', 'error') }
-    finally { setAvatarLoading(false); e.target.value = '' }
-  }
-
-  async function enhanceBio() {
-    if (!pBio.trim()) return
-    setAiLoading(true)
-    try { const res = await api.post('/ai/enhance-bio', { bio: pBio, user_type: pUserType }); setPBio(res.data.bio) }
-    catch { flash('AI enhancement failed', 'error') }
-    finally { setAiLoading(false) }
-  }
-
-  async function saveProfile() {
-    setSaving(true)
-    try {
-      await api.put('/profile', { name: pName, user_type: pUserType, headline: pHeadline, bio: pBio })
-      const me = await api.get('/auth/me')
-      setUser(me.data)
-      setEditing(false)
-      flash('Profile saved!')
-    } catch (err) { flash(err.response?.data?.message || 'Save failed', 'error') }
-    finally { setSaving(false) }
-  }
-
-  function cancelEdit() {
-    setPName(user?.name || ''); setPUserType(user?.user_type || 'developer')
-    setPHeadline(user?.headline || ''); setPBio(user?.bio || '')
-    setAvatarPreview(user?.avatar_url || null); setEditing(false)
-  }
-
-  const typeInfo = USER_TYPES.find(t => t.value === (user?.user_type || pUserType)) || USER_TYPES[1]
 
   // ─────────────────────────────────────────────────────────────
   return (
@@ -867,192 +795,7 @@ export default function DashboardPage() {
 
           {/* ════════ PROFILE VIEW ════════ */}
           {view === 'profile' && (
-            <div className="max-w-2xl mx-auto">
-
-              {/* Toast messages */}
-              {profileSuccess && (
-                <div className="mb-5 p-3 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm text-center flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
-                  </svg>
-                  {profileSuccess}
-                </div>
-              )}
-              {profileError && (
-                <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl text-red-500 text-sm text-center">
-                  {profileError}
-                </div>
-              )}
-
-              {/* Profile card */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-
-                {/* Cover */}
-                <div className="h-28 bg-gradient-to-br from-blue-500 via-violet-500 to-purple-600 relative">
-                  <div className="absolute inset-0 opacity-20"
-                       style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '40px 40px' }}/>
-                </div>
-
-                <div className="px-8 pb-7">
-                  {/* Avatar row */}
-                  <div className="flex items-end justify-between -mt-12 mb-5">
-                    <div className="relative group">
-                      <div className="w-20 h-20 rounded-full border-4 border-white shadow-md overflow-hidden
-                                      bg-gray-100 flex items-center justify-center">
-                        {avatarPreview
-                          ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover"
-                                 onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }}/>
-                          : null}
-                        <span className="text-3xl font-bold text-gray-400 w-full h-full flex items-center justify-center"
-                              style={{ display: avatarPreview ? 'none' : 'flex' }}>
-                          {(user?.name || 'U')[0].toUpperCase()}
-                        </span>
-                        {avatarLoading && (
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
-                            <svg className="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <button onClick={() => fileRef.current.click()}
-                        className="absolute -bottom-1 -right-1 w-7 h-7 bg-blue-600 rounded-full shadow-md
-                                   flex items-center justify-center hover:bg-blue-500 transition-colors
-                                   opacity-0 group-hover:opacity-100 border-2 border-white">
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
-                        </svg>
-                      </button>
-                      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
-                             className="hidden" onChange={onAvatarChange}/>
-                    </div>
-
-                    <div className="text-right">
-                      <p className="text-[11px] text-gray-400 mb-2">JPG, PNG, GIF, WebP · max 2MB</p>
-                      {editing ? (
-                        <div className="flex gap-2">
-                          <button onClick={cancelEdit}
-                            className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-500
-                                       hover:bg-gray-50 transition-all">Cancel</button>
-                          <button onClick={saveProfile} disabled={saving}
-                            className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs text-white
-                                       font-semibold transition-all disabled:opacity-50 flex items-center gap-1.5">
-                            {saving && <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                            </svg>}
-                            {saving ? 'Saving…' : 'Save changes'}
-                          </button>
-                        </div>
-                      ) : (
-                        <button onClick={() => setEditing(true)}
-                          className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-500
-                                     hover:border-blue-300 hover:text-blue-600 transition-all flex items-center gap-1.5 ml-auto">
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
-                          </svg>
-                          Edit profile
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Name */}
-                  {editing ? (
-                    <input value={pName} onChange={e => setPName(e.target.value)}
-                      placeholder="Your name"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-xl font-bold
-                                 text-gray-900 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30
-                                 focus:border-blue-400 bg-gray-50 transition-all"/>
-                  ) : (
-                    <h2 className="text-xl font-bold text-gray-900 mb-1">{user?.name}</h2>
-                  )}
-
-                  {/* User type chips */}
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {editing ? USER_TYPES.map(t => (
-                      <button key={t.value} type="button" onClick={() => setPUserType(t.value)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                          border transition-all ${pUserType === t.value
-                            ? 'border-blue-400 bg-blue-50 text-blue-600'
-                            : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600'}`}>
-                        {t.emoji} {t.label}
-                      </button>
-                    )) : (
-                      <span className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-200
-                                       rounded-full text-xs font-semibold text-blue-600">
-                        {typeInfo.emoji} {typeInfo.label}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Headline */}
-                  {editing ? (
-                    <div className="mb-4">
-                      <input value={pHeadline} onChange={e => setPHeadline(e.target.value)}
-                        maxLength={120} placeholder="Short headline (e.g. Backend dev at Stripe)"
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm
-                                   focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400
-                                   bg-gray-50 transition-all text-gray-700"/>
-                      <p className="text-xs text-gray-400 text-right mt-1">{pHeadline.length}/120</p>
-                    </div>
-                  ) : (
-                    user?.headline
-                      ? <p className="text-sm text-gray-500 mb-4">{user.headline}</p>
-                      : <p className="text-sm text-gray-400 italic mb-4">No headline yet</p>
-                  )}
-
-                  <div className="border-t border-gray-100 my-4"/>
-
-                  {/* Bio */}
-                  <div className="mb-5">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">About</p>
-                    {editing ? (
-                      <div>
-                        <textarea value={pBio} onChange={e => setPBio(e.target.value)}
-                          rows={4} maxLength={1000} placeholder="Tell others about yourself..."
-                          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm resize-none
-                                     focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400
-                                     bg-gray-50 transition-all text-gray-700"/>
-                        <div className="flex items-center justify-between mt-1.5">
-                          <button type="button" onClick={enhanceBio} disabled={!pBio.trim() || aiLoading}
-                            className="flex items-center gap-1.5 text-xs text-violet-500 hover:text-violet-600
-                                       disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium">
-                            {aiLoading
-                              ? <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                                </svg>
-                              : '✨'}
-                            {aiLoading ? 'Enhancing…' : 'Enhance with AI'}
-                          </button>
-                          <span className="text-xs text-gray-400">{pBio.length}/1000</span>
-                        </div>
-                      </div>
-                    ) : (
-                      user?.bio
-                        ? <p className="text-sm text-gray-600 leading-relaxed">{user.bio}</p>
-                        : <p className="text-sm text-gray-400 italic">No bio yet. Click "Edit profile" to add one.</p>
-                    )}
-                  </div>
-
-                  {/* Email */}
-                  <div className="border-t border-gray-100 pt-4">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Email</p>
-                    <p className="text-sm text-gray-500 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                      </svg>
-                      {user?.email}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ProfileView user={user} setUser={setUser} projects={projects} />
           )}
 
           {/* ════════ EXPLORE VIEW ════════ */}

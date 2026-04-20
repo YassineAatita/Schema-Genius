@@ -16,6 +16,7 @@ const useAuthStore = create((set) => ({
 
   logout: () => {
     localStorage.removeItem('token')
+    sessionStorage.removeItem('dashboard_view')
     set({ user: null, token: null, isAuthenticated: false })
   },
 

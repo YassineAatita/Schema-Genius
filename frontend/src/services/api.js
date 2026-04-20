@@ -18,13 +18,22 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// If server returns 401 (unauthorized), log the user out automatically
+// If server returns 401 (unauthorized), log the user out automatically.
+// If the user HAD a token (thought they were authenticated) when the 401
+// arrived, it means the session was terminated externally — most likely
+// because the account was signed in from another browser.  Store a reason
+// so LoginPage can surface the right message.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const hadToken = !!localStorage.getItem('token')
       localStorage.removeItem('token')
-      window.location.href = '/login'
+      sessionStorage.removeItem('dashboard_view')
+      if (hadToken) {
+        sessionStorage.setItem('logout_reason', 'session_conflict')
+      }
+      window.location.replace('/login')
     }
     return Promise.reject(error)
   }
