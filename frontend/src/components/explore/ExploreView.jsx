@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import api from '../../services/api'
 import useAuthStore from '../../store/useAuthStore'
 import useProjectStore from '../../store/useProjectStore'
@@ -378,9 +379,11 @@ function SchemaCard({ card: initialCard, onStar, onLike, onFork, onOpen, isOwn, 
           </div>
 
           {!isOwn && card.owner && (
-            <div className="flex items-center gap-1.5 mb-3">
-              <Avatar url={card.owner.avatar_url} name={card.owner.name}/>
-              <span className="text-[11px] text-gray-500 truncate">{card.owner.name}</span>
+            <div className="flex items-center gap-1.5 mb-3" onClick={e => e.stopPropagation()}>
+              <Link to={`/u/${card.owner.id}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+                <Avatar url={card.owner.avatar_url} name={card.owner.name}/>
+                <span className="text-[11px] text-gray-500 truncate hover:text-blue-500 transition-colors">{card.owner.name}</span>
+              </Link>
             </div>
           )}
 
@@ -782,8 +785,11 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, use
           <div className="flex items-center gap-3 flex-wrap mt-2 text-xs text-gray-400">
             {card.owner && (
               <div className="flex items-center gap-1.5">
-                <Avatar url={card.owner.avatar_url} name={card.owner.name}/>
-                <span className="font-medium text-gray-600">{card.owner.name}</span>
+                <Link to={`/u/${card.owner.id}`} onClick={e => e.stopPropagation()}
+                      className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+                  <Avatar url={card.owner.avatar_url} name={card.owner.name}/>
+                  <span className="font-medium text-gray-600 hover:text-blue-600 transition-colors">{card.owner.name}</span>
+                </Link>
                 {/* BUG 5 FIX — Follow/Unfollow button next to owner name */}
                 {user && !viewerIsOwner && (
                   <button onClick={doFollow} disabled={followLoading}
@@ -995,8 +1001,10 @@ function FeaturedBanner({ featured, onOpen }) {
           <div className="flex items-center gap-2 mt-1.5">
             {featured.owner && (
               <>
-                <Avatar url={featured.owner.avatar_url} name={featured.owner.name}/>
-                <span className="text-xs text-gray-600 font-medium">{featured.owner.name}</span>
+                <Link to={`/u/${featured.owner.id}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+                  <Avatar url={featured.owner.avatar_url} name={featured.owner.name}/>
+                  <span className="text-xs text-gray-600 font-medium hover:text-blue-600 transition-colors">{featured.owner.name}</span>
+                </Link>
                 <span className="text-gray-300">·</span>
               </>
             )}

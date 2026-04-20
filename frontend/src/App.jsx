@@ -12,6 +12,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import DashboardPage from './pages/DashboardPage'
 import DesignerPage from './pages/DesignerPage'
 import AdminPage from './pages/AdminPage'
+import PublicProfilePage from './pages/PublicProfilePage'
 
 // Protects routes that require login.
 // Also ensures `user` is populated after a hard page refresh — the token
@@ -72,6 +73,9 @@ export default function App() {
         } />
         <Route path="/projects/:projectId/designer" element={
           <PrivateRoute><DesignerPage /></PrivateRoute>
+        } />
+        <Route path="/u/:userId" element={
+          <PrivateRoute><PublicProfilePage /></PrivateRoute>
         } />
         {/* Admin panel — admin role required */}
         <Route path="/admin" element={
