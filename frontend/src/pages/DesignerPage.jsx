@@ -90,10 +90,16 @@ export default function DesignerPage() {
   const canEdit  = isOwner || myRole === 'editor'   // owner or accepted editor
   const isViewer = !isOwner && myRole === 'viewer'   // accepted viewer — read-only
 
-  // Run validation whenever nodes change
-  const validationIssues = useMemo(() => validateSchema(nodes), [nodes])
+  // Run validation whenever nodes or edges change
+  const validationIssues = useMemo(() => validateSchema(nodes, edges), [nodes, edges])
   const errorCount   = validationIssues.filter(i => i.type === 'error').length
   const warningCount = validationIssues.filter(i => i.type === 'warning').length
+
+  // AI suggestions state
+  const [aiSuggestions,     setAiSuggestions]     = useState([])
+  const [aiSuggestLoading,  setAiSuggestLoading]  = useState(false)
+  const [aiSuggestError,    setAiSuggestError]     = useState('')
+  const [ignoredSuggestions,setIgnoredSuggestions] = useState(new Set())
 
   // Load project + schema
   useEffect(() => {
@@ -343,6 +349,82 @@ export default function DesignerPage() {
     setShowHistory(false)
     setShowValidation(v => !v)
   }
+
+  const handleFetchSuggestions = useCallback(async () => {
+    if (nodes.length === 0) {
+      setAiSuggestError('Add some tables first before requesting AI suggestions.')
+      return
+    }
+    setAiSuggestLoading(true)
+    setAiSuggestError('')
+    try {
+      const res = await api.post('/ai/suggest', {
+        schema: { nodes, edges },
+        project_id: projectId,
+      })
+      setAiSuggestions(res.data.suggestions || [])
+      setIgnoredSuggestions(new Set())
+    } catch (err) {
+      setAiSuggestError(err.response?.data?.error || 'AI service unavailable. Try again.')
+    } finally {
+      setAiSuggestLoading(false)
+    }
+  }, [nodes, edges, projectId])
+
+  const handleApplySuggestion = useCallback((suggestion) => {
+    const { updateNodeData } = useSchemaStore.getState()
+    const { action, nodeId } = suggestion
+    if (!action) return
+
+    if (action.type === 'add_index' && nodeId && action.columnName) {
+      const node = useSchemaStore.getState().nodes.find(n => n.id === nodeId)
+      if (node) {
+        const newColumns = node.data.columns.map(col =>
+          col.name?.toLowerCase() === action.columnName.toLowerCase()
+            ? { ...col, index: true }
+            : col
+        )
+        updateNodeData(nodeId, { columns: newColumns })
+      }
+    } else if (action.type === 'set_not_null' && nodeId && action.columnName) {
+      const node = useSchemaStore.getState().nodes.find(n => n.id === nodeId)
+      if (node) {
+        const newColumns = node.data.columns.map(col =>
+          col.name?.toLowerCase() === action.columnName.toLowerCase()
+            ? { ...col, nullable: false }
+            : col
+        )
+        updateNodeData(nodeId, { columns: newColumns })
+      }
+    } else if (action.type === 'add_timestamps' && nodeId) {
+      const node = useSchemaStore.getState().nodes.find(n => n.id === nodeId)
+      if (node) {
+        const existingNames = new Set(node.data.columns.map(c => c.name?.toLowerCase()))
+        const toAdd = []
+        if (!existingNames.has('created_at')) {
+          toAdd.push({ id: `col_${Date.now()}_ca`, name: 'created_at', type: 'TIMESTAMP', nullable: false, pk: false, unique: false, autoIncrement: false, default: 'CURRENT_TIMESTAMP', fk: false })
+        }
+        if (!existingNames.has('updated_at')) {
+          toAdd.push({ id: `col_${Date.now()}_ua`, name: 'updated_at', type: 'TIMESTAMP', nullable: true, pk: false, unique: false, autoIncrement: false, default: null, fk: false })
+        }
+        if (toAdd.length > 0) {
+          updateNodeData(nodeId, { columns: [...node.data.columns, ...toAdd] })
+        }
+      }
+    } else if (action.type === 'rename_column' && nodeId && action.columnName && action.newName) {
+      const node = useSchemaStore.getState().nodes.find(n => n.id === nodeId)
+      if (node) {
+        const newColumns = node.data.columns.map(col =>
+          col.name?.toLowerCase() === action.columnName.toLowerCase()
+            ? { ...col, name: action.newName }
+            : col
+        )
+        updateNodeData(nodeId, { columns: newColumns })
+      }
+    }
+    // Mark as ignored/applied so it disappears
+    setIgnoredSuggestions(prev => new Set([...prev, suggestion.id]))
+  }, [])
 
   const handleFocusNode = (nodeId) => {
     const node = nodes.find(n => n.id === nodeId)
@@ -780,6 +862,12 @@ export default function DesignerPage() {
                 issues={validationIssues}
                 onClose={() => setShowValidation(false)}
                 onFocusNode={handleFocusNode}
+                suggestions={aiSuggestions.filter(s => !ignoredSuggestions.has(s.id))}
+                suggestLoading={aiSuggestLoading}
+                suggestError={aiSuggestError}
+                onFetchSuggestions={handleFetchSuggestions}
+                onApplySuggestion={handleApplySuggestion}
+                onIgnoreSuggestion={(id) => setIgnoredSuggestions(prev => new Set([...prev, id]))}
               />
             )}
             {!showHistory && !showValidation && selectedNode && (
@@ -1376,7 +1464,27 @@ function VisionAiModal({ loading, error, onGenerate, onClose }) {
 }
 
 // ── Validation Panel ──────────────────────────────────────────────
-function ValidationPanel({ issues, onClose, onFocusNode }) {
+const IMPACT_COLOR = {
+  high:   { bg: 'bg-rose-50 dark:bg-rose-950/40',   border: 'border-rose-200 dark:border-rose-800',   text: 'text-rose-700 dark:text-rose-300',   badge: 'bg-rose-100 dark:bg-rose-900 text-rose-600 dark:text-rose-300' },
+  medium: { bg: 'bg-amber-50 dark:bg-amber-950/40', border: 'border-amber-200 dark:border-amber-800', text: 'text-amber-700 dark:text-amber-300', badge: 'bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-300' },
+  low:    { bg: 'bg-blue-50 dark:bg-blue-950/40',   border: 'border-blue-200 dark:border-blue-800',   text: 'text-blue-700 dark:text-blue-300',   badge: 'bg-blue-100 dark:bg-blue-900 text-blue-500 dark:text-blue-300' },
+}
+
+const CATEGORY_ICON = {
+  index:        { emoji: '⚡', label: 'Index' },
+  nullability:  { emoji: '🔒', label: 'Nullable' },
+  timestamps:   { emoji: '🕐', label: 'Timestamps' },
+  relationship: { emoji: '🔗', label: 'Relation' },
+  naming:       { emoji: '✏️', label: 'Naming' },
+  junction:     { emoji: '🔀', label: 'Junction' },
+}
+
+function ValidationPanel({
+  issues, onClose, onFocusNode,
+  suggestions, suggestLoading, suggestError,
+  onFetchSuggestions, onApplySuggestion, onIgnoreSuggestion,
+}) {
+  const [tab, setTab] = useState('issues')
   const errors   = issues.filter(i => i.type === 'error')
   const warnings = issues.filter(i => i.type === 'warning')
 
@@ -1387,67 +1495,230 @@ function ValidationPanel({ issues, onClose, onFocusNode }) {
                     transition-colors duration-200">
 
       {/* Header */}
-      <div className="px-4 py-3 border-b flex items-center justify-between
+      <div className="px-4 pt-3 pb-0 border-b
                       bg-gray-50 dark:bg-[#0f1117]
                       border-gray-100 dark:border-[#252a3e]">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-rose-500"/>
-          <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100">Schema Validation</h3>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-rose-500"/>
+            <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100">Schema Analysis</h3>
+          </div>
+          <button onClick={onClose}
+            className="p-1 rounded transition-colors
+                       text-gray-400 dark:text-gray-500
+                       hover:text-gray-600 dark:hover:text-gray-300
+                       hover:bg-gray-100 dark:hover:bg-[#252a3e]">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
         </div>
-        <button onClick={onClose}
-          className="p-1 rounded transition-colors
-                     text-gray-400 dark:text-gray-500
-                     hover:text-gray-600 dark:hover:text-gray-300
-                     hover:bg-gray-100 dark:hover:bg-[#252a3e]">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
+
+        {/* Tabs */}
+        <div className="flex gap-1">
+          <button
+            onClick={() => setTab('issues')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors border-b-2
+              ${tab === 'issues'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-[#141620]'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+          >
+            Issues
+            {issues.length > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold
+                ${errors.length > 0 ? 'bg-red-500 text-white' : 'bg-amber-400 text-white'}`}>
+                {issues.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setTab('ai')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors border-b-2
+              ${tab === 'ai'
+                ? 'border-violet-500 text-violet-600 dark:text-violet-400 bg-white dark:bg-[#141620]'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            AI Suggestions
+            {suggestions.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-500 text-white">
+                {suggestions.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-
-        {/* All clear */}
-        {issues.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4
-                            bg-green-100 dark:bg-green-950">
-              <svg className="w-7 h-7 text-green-500 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
+      {/* ── Issues tab ── */}
+      {tab === 'issues' && (
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {issues.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4
+                              bg-green-100 dark:bg-green-950">
+                <svg className="w-7 h-7 text-green-500 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              </div>
+              <p className="font-semibold mb-1 text-gray-800 dark:text-gray-100">Schema looks good!</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">No errors or warnings found.</p>
             </div>
-            <p className="font-semibold mb-1 text-gray-800 dark:text-gray-100">Schema looks good!</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">No errors or warnings found.</p>
-          </div>
-        )}
+          )}
 
-        {/* Summary pills */}
-        {issues.length > 0 && (
-          <div className="flex gap-2">
-            {errors.length > 0 && (
-              <span className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full
-                               bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"/>
-                {errors.length} error{errors.length !== 1 ? 's' : ''}
-              </span>
-            )}
-            {warnings.length > 0 && (
-              <span className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full
-                               bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"/>
-                {warnings.length} warning{warnings.length !== 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-        )}
+          {issues.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {errors.length > 0 && (
+                <span className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full
+                                 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"/>
+                  {errors.length} error{errors.length !== 1 ? 's' : ''}
+                </span>
+              )}
+              {warnings.length > 0 && (
+                <span className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full
+                                 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"/>
+                  {warnings.length} warning{warnings.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          )}
 
-        {errors.length > 0 && (
-          <IssueGroup title="Errors" color="red" issues={errors} onFocusNode={onFocusNode}/>
-        )}
-        {warnings.length > 0 && (
-          <IssueGroup title="Warnings" color="amber" issues={warnings} onFocusNode={onFocusNode}/>
-        )}
-      </div>
+          {errors.length > 0 && (
+            <IssueGroup title="Errors" color="red" issues={errors} onFocusNode={onFocusNode}/>
+          )}
+          {warnings.length > 0 && (
+            <IssueGroup title="Warnings" color="amber" issues={warnings} onFocusNode={onFocusNode}/>
+          )}
+        </div>
+      )}
+
+      {/* ── AI Suggestions tab ── */}
+      {tab === 'ai' && (
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+
+          {/* Fetch button */}
+          <button
+            onClick={onFetchSuggestions}
+            disabled={suggestLoading}
+            className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl
+                        text-xs font-semibold transition-all border
+                        ${suggestLoading
+                          ? 'bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800 text-violet-400 cursor-wait'
+                          : 'bg-gradient-to-r from-violet-600 to-purple-600 border-transparent text-white hover:from-violet-700 hover:to-purple-700 shadow-sm'}`}
+          >
+            {suggestLoading ? (
+              <>
+                <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                Analysing schema…
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                {suggestions.length > 0 ? 'Re-analyse Schema' : 'Analyse with AI'}
+              </>
+            )}
+          </button>
+
+          {/* Error */}
+          {suggestError && (
+            <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl p-3">
+              <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              </svg>
+              <p className="text-xs text-red-700 dark:text-red-300 leading-snug">{suggestError}</p>
+            </div>
+          )}
+
+          {/* Empty state — never fetched */}
+          {!suggestLoading && !suggestError && suggestions.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3
+                              bg-violet-100 dark:bg-violet-950">
+                <svg className="w-6 h-6 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+              </div>
+              <p className="font-semibold text-sm mb-1 text-gray-800 dark:text-gray-100">AI-Powered Suggestions</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 leading-relaxed max-w-[200px]">
+                Click "Analyse with AI" to get smart recommendations for indexes, timestamps, naming, and more.
+              </p>
+            </div>
+          )}
+
+          {/* Suggestion cards */}
+          {suggestions.map((s) => {
+            const impact  = IMPACT_COLOR[s.impact] || IMPACT_COLOR.low
+            const catMeta = CATEGORY_ICON[s.category] || { emoji: '💡', label: s.category }
+            const canAutoApply = ['add_index','set_not_null','add_timestamps','rename_column'].includes(s.action?.type)
+
+            return (
+              <div key={s.id}
+                className={`rounded-xl border p-3 space-y-2 ${impact.bg} ${impact.border}`}
+              >
+                {/* Top row: category badge + impact */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${impact.badge}`}>
+                    {catMeta.emoji} {catMeta.label}
+                  </span>
+                  <span className={`text-[10px] font-semibold uppercase tracking-wide ${impact.text} opacity-70`}>
+                    {s.impact} impact
+                  </span>
+                </div>
+
+                {/* Title */}
+                <p className={`text-xs font-semibold leading-snug ${impact.text}`}>{s.title}</p>
+
+                {/* Description */}
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{s.description}</p>
+
+                {/* Table badge */}
+                {s.tableName && (
+                  <code className="text-[10px] font-mono px-1.5 py-0.5 rounded
+                                   bg-white/60 dark:bg-black/30 text-gray-600 dark:text-gray-300 border
+                                   border-gray-200 dark:border-gray-700">
+                    {s.tableName}
+                  </code>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-1.5 pt-0.5">
+                  {canAutoApply && (
+                    <button
+                      onClick={() => onApplySuggestion(s)}
+                      className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg
+                                 bg-white dark:bg-black/30 border border-green-300 dark:border-green-700
+                                 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/40
+                                 transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/>
+                      </svg>
+                      Apply
+                    </button>
+                  )}
+                  <button
+                    onClick={() => onIgnoreSuggestion(s.id)}
+                    className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg
+                               bg-white dark:bg-black/20 border border-gray-200 dark:border-gray-700
+                               text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800
+                               transition-colors"
+                  >
+                    Ignore
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -1476,7 +1747,6 @@ function IssueGroup({ title, color, issues, onFocusNode }) {
                   d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
               </svg>
             </div>
-
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold font-mono mb-0.5 truncate
                             text-gray-500 dark:text-gray-400">
@@ -1487,7 +1757,6 @@ function IssueGroup({ title, color, issues, onFocusNode }) {
                 {issue.message}
               </p>
             </div>
-
             <button
               onClick={() => onFocusNode(issue.nodeId)}
               title="Open table editor"

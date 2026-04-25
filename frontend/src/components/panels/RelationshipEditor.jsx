@@ -120,13 +120,13 @@ const RELATIONSHIP_TYPES = [
     example: 'User → Profile',
   },
   {
-    value: '1:M',
+    value: '1:N',
     label: 'One to Many',
     description: 'One row in A links to many rows in B',
     example: 'User → Orders',
   },
   {
-    value: 'M:1',
+    value: 'N:1',
     label: 'Many to One',
     description: 'Many rows in A link to one row in B',
     example: 'Orders → User',
@@ -176,7 +176,7 @@ const DIAGRAM_COLORS = {
 export default function RelationshipEditor({ edge, onClose }) {
   const { nodes, updateEdge, deleteEdge } = useSchemaStore()
 
-  const [selectedType,  setSelectedType]  = useState('1:M')
+  const [selectedType,  setSelectedType]  = useState('1:N')
   const [lineStyle,     setLineStyle]     = useState('smoothstep')
   const [diagramType,   setDiagramType]   = useState('association')
   const [sourceLabel,   setSourceLabel]   = useState('')
@@ -188,7 +188,7 @@ export default function RelationshipEditor({ edge, onClose }) {
   const targetNode = nodes.find(n => n.id === edge.target)
 
   useEffect(() => {
-    setSelectedType(edge.data?.relationshipType || '1:M')
+    setSelectedType(edge.data?.relationshipType || '1:N')
     setLineStyle(
       edge.data?.lineStyle ||
       (KNOWN_LINE_STYLES.includes(edge.type) ? edge.type : 'smoothstep')
@@ -233,7 +233,7 @@ export default function RelationshipEditor({ edge, onClose }) {
     (KNOWN_LINE_STYLES.includes(edge.type) ? edge.type : 'smoothstep')
 
   const hasChanges =
-    selectedType !== (edge.data?.relationshipType || '1:M') ||
+    selectedType !== (edge.data?.relationshipType || '1:N') ||
     lineStyle    !== currentLineStyle ||
     diagramType  !== (edge.data?.diagramType || 'association') ||
     sourceLabel  !== (edge.data?.sourceLabel || '') ||

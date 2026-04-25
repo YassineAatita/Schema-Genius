@@ -25,13 +25,17 @@ const edgeTypes = { schema: CustomSchemaEdge }
 const KNOWN_LINE_STYLES = ['default', 'smoothstep', 'step', 'straight']
 
 // Normalise a raw store edge into display-ready form for the custom edge component
+const NORM_REL = { '1:M': '1:N', 'M:1': 'N:1' }
+
 function buildEdgeDisplay(edge) {
   const lineStyle = edge.data?.lineStyle
     || (KNOWN_LINE_STYLES.includes(edge.type) ? edge.type : 'default')
 
   const diagramType = edge.data?.diagramType || 'association'
 
-  const relType = edge.data?.relationshipType || edge.data?.type || '1:N'
+  // Normalise legacy "1:M" / "M:1" values to canonical "1:N" / "N:1"
+  const rawRel  = edge.data?.relationshipType || edge.data?.type || '1:N'
+  const relType = NORM_REL[rawRel] || rawRel
   const src     = edge.data?.sourceLabel?.trim() || ''
   const tgt     = edge.data?.targetLabel?.trim() || ''
   const label   = src || tgt ? `${src} [${relType}] ${tgt}` : relType
@@ -40,7 +44,7 @@ function buildEdgeDisplay(edge) {
     ...edge,
     type:  'schema',
     label,
-    data:  { ...edge.data, lineStyle, diagramType },
+    data:  { ...edge.data, lineStyle, diagramType, relationshipType: relType },
     style: { stroke: '#6B7280', strokeWidth: 2, ...edge.style },
   }
 }

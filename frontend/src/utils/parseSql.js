@@ -243,7 +243,7 @@ export function parseSqlToSchema(sql) {
         target: targetId,
         type:   'schema',
         data: {
-          relationshipType: '1:M',
+          relationshipType: '1:N',
           sourceLabel: '',
           targetLabel: '',
           lineStyle:   'smoothstep',

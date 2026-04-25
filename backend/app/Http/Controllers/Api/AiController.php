@@ -288,6 +288,88 @@ PROMPT;
         return response()->json(['bio' => $enhanced]);
     }
 
+    // POST /api/ai/suggest — analyse the current schema and return actionable suggestions
+    public function suggest(Request $request)
+    {
+        $request->validate([
+            'schema'     => 'required|array',
+            'project_id' => 'nullable|exists:projects,id',
+        ]);
+
+        $schemaJson = json_encode($request->input('schema'), JSON_PRETTY_PRINT);
+
+        $systemPrompt = <<<'PROMPT'
+You are a senior database architect. Given a database schema in JSON format, analyse it and return ONLY valid JSON — no explanation, no markdown, no code blocks.
+
+Return a JSON object with a single key "suggestions" — an array of suggestion objects.
+
+Each suggestion object must follow this exact structure:
+{
+  "id": "s_1",
+  "category": "index"|"nullability"|"timestamps"|"relationship"|"naming"|"junction",
+  "title": "Short title (max 60 chars)",
+  "description": "Clear explanation of WHY this matters (1-2 sentences)",
+  "impact": "high"|"medium"|"low",
+  "nodeId": "table_N",
+  "tableName": "snake_case_name",
+  "action": {
+    "type": "add_index"|"set_not_null"|"add_timestamps"|"change_relationship"|"rename_column"|"add_junction_table",
+    "columnName": "column_name_if_applicable",
+    "newName": "new_name_if_rename",
+    "relationshipType": "1:N"|"M:N"|"1:1",
+    "edgeId": "edge_id_if_applicable"
+  }
+}
+
+Rules:
+- Return between 0 and 8 suggestions maximum (most impactful only)
+- Focus on these categories:
+  * "index" — FK columns without an index (e.g. user_id, order_id columns that likely need indexing)
+  * "nullability" — columns that by convention should be NOT NULL but are nullable (e.g. name, title, email)
+  * "timestamps" — tables missing created_at / updated_at columns
+  * "relationship" — edge relationship types that look wrong (e.g. M:N without a junction table)
+  * "naming" — table or column names not in snake_case (mixing camelCase, PascalCase, etc.)
+  * "junction" — M:N relationships that need an explicit junction/pivot table
+- Only suggest things that are genuinely useful — do NOT suggest things already present
+- If the schema is well-designed, return { "suggestions": [] }
+- Return ONLY the JSON object, nothing else
+PROMPT;
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . config('services.groq.api_key'),
+            'Content-Type'  => 'application/json',
+        ])->timeout(30)->post('https://api.groq.com/openai/v1/chat/completions', [
+            'model'    => 'llama-3.3-70b-versatile',
+            'messages' => [
+                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'user',   'content' => "Analyse this schema and return suggestions:\n\n" . $schemaJson],
+            ],
+            'temperature' => 0.2,
+            'max_tokens'  => 2048,
+        ]);
+
+        if (!$response->successful()) {
+            return response()->json([
+                'error' => 'AI service error: ' . $response->status(),
+            ], 503);
+        }
+
+        $content = $response->json('choices.0.message.content') ?? '';
+        $content = preg_replace('/^```(?:json)?\s*/im', '', $content);
+        $content = preg_replace('/\s*```\s*$/im', '', $content);
+        $content = trim($content);
+
+        $result = json_decode($content, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !isset($result['suggestions'])) {
+            return response()->json([
+                'error' => 'AI returned an unexpected response. Please try again.',
+            ], 422);
+        }
+
+        return response()->json(['suggestions' => $result['suggestions']]);
+    }
+
     // PATCH /api/ai/generations/{id}/apply — mark a generation as applied to canvas
     public function markApplied(Request $request, $id)
     {
