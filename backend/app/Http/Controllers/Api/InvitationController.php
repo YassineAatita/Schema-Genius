@@ -18,6 +18,17 @@ class InvitationController extends Controller
             ->wherePivot('status', 'pending')
             ->with('owner:id,name,email')
             ->get()
+            // Exclude records the user created themselves (access requests).
+            // Those are identified by an 'access_requested' notification in the owner's inbox
+            // where data->actor_id == current user.  The user cannot accept their own requests.
+            ->filter(function ($p) use ($user) {
+                return !Notification::where('type', 'access_requested')
+                    ->where('user_id', $p->owner_id)
+                    ->whereJsonContains('data->actor_id', (int) $user->id)
+                    ->whereJsonContains('data->project_id', (int) $p->id)
+                    ->exists();
+            })
+            ->values()
             ->map(fn($p) => [
                 'project_id'   => $p->id,
                 'project_name' => $p->name,
@@ -42,6 +53,20 @@ class InvitationController extends Controller
 
         if (!$pivot) {
             return response()->json(['message' => 'Invitation not found.'], 404);
+        }
+
+        // Prevent self-acceptance: if this pending record came from an access request
+        // (visitor requested → owner must approve), block the user from accepting it themselves.
+        $isOwnRequest = Notification::where('type', 'access_requested')
+            ->where('user_id', $project->owner_id)
+            ->whereJsonContains('data->actor_id', (int) $user->id)
+            ->whereJsonContains('data->project_id', (int) $project->id)
+            ->exists();
+
+        if ($isOwnRequest) {
+            return response()->json([
+                'message' => 'This is a pending access request — the project owner must approve it.',
+            ], 403);
         }
 
         $project->collaborators()->updateExistingPivot($user->id, ['status' => 'accepted']);

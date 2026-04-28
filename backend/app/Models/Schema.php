@@ -13,6 +13,11 @@ class Schema extends Model
         'project_id',
         'name',
         'current_version_id',
+        'draft_json',
+    ];
+
+    protected $casts = [
+        'draft_json' => 'array',
     ];
 
     // The project this schema belongs to

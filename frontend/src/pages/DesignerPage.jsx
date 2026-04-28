@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Plus, Sparkles, Upload, CheckCircle, LayoutTemplate,
   Download, History, Image as ImageIcon,
-  Sun, Moon,
+  Sun, Moon, Save, Wifi, WifiOff,
 } from 'lucide-react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { toPng } from 'html-to-image'
@@ -101,15 +101,30 @@ export default function DesignerPage() {
   const [aiSuggestError,    setAiSuggestError]     = useState('')
   const [ignoredSuggestions,setIgnoredSuggestions] = useState(new Set())
 
-  // Load project + schema
+  // ── Auto-save + Save Version ───────────────────────────────────────────────
+  const [autoSaveState,  setAutoSaveState]  = useState('idle')  // 'idle'|'saving'|'saved'|'error'
+  const [autoSavedAt,    setAutoSavedAt]    = useState(null)
+  const [showSaveModal,  setShowSaveModal]  = useState(false)
+  const autoSaveTimerRef = useRef(null)
+
+  // ── WebSocket connection banner ────────────────────────────────────────────
+  // 'connected' | 'connecting' | 'disconnected' | 'failed' | 'unavailable' | 'reconnected'
+  const [wsConnStatus,    setWsConnStatus]    = useState('connected')
+  const reconnectedTimerRef = useRef(null)
+  // Keeps the last non-null banner config alive during fade-out transition
+  const lastBannerRef = useRef(null)
+
+  // Load project + schema — prefer draft_json (most recent auto-save) over last version
   useEffect(() => {
     api.get(`/projects/${projectId}`)
       .then(res => {
         setProject(res.data)
         const schema = res.data.schema
         if (schema) {
-          const json = schema.current_version?.schema_json
-          loadSchema(schema.id, projectId, json || { nodes: [], edges: [] })
+          const json = schema.draft_json          // auto-saved draft (newest)
+            ?? schema.current_version?.schema_json  // last named version
+            ?? { nodes: [], edges: [] }
+          loadSchema(schema.id, projectId, json)
         }
       })
       .catch(() => navigate('/dashboard'))
@@ -126,6 +141,91 @@ export default function DesignerPage() {
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [isDirty])
+
+  // ── Auto-save: silent background save every 30 s when dirty ───────────────
+  useEffect(() => {
+    const runAutoSave = async () => {
+      const state = useSchemaStore.getState()
+      if (!state.schemaId || !state.isDirty || !canEdit) return
+      setAutoSaveState('saving')
+      try {
+        await api.patch(`/schemas/${state.schemaId}/autosave`, {
+          schema_json: { nodes: state.nodes, edges: state.edges, meta: {} },
+        })
+        setAutoSaveState('saved')
+        setAutoSavedAt(new Date())
+        // Auto-save only clears the indicator; it does NOT call markSaved() so
+        // isDirty stays true until the user explicitly saves a version.
+        setTimeout(() => setAutoSaveState('idle'), 4000)
+      } catch {
+        setAutoSaveState('error')
+        setTimeout(() => setAutoSaveState('idle'), 5000)
+      }
+    }
+
+    autoSaveTimerRef.current = setInterval(runAutoSave, 30_000)
+    return () => clearInterval(autoSaveTimerRef.current)
+  }, [canEdit])  // re-arm when edit permission changes
+
+  // ── WebSocket connection state listener ───────────────────────────────────
+  // Primary: browser online/offline events (fire reliably on all network drops).
+  // Secondary: Echo/pusher-js state_change (fires on reconnect in some setups).
+  // Whichever source fires first wins — duplicate signals are ignored.
+  useEffect(() => {
+    // True once the user has experienced at least one network loss this session.
+    // Prevents the green "Reconnected" banner from appearing on the initial connect.
+    let hadNetworkLoss = false
+
+    // ── Check current state on mount ──────────────────────────────────────
+    if (!navigator.onLine) {
+      hadNetworkLoss = true
+      setWsConnStatus('disconnected')
+    }
+
+    // ── Browser offline event ─────────────────────────────────────────────
+    const handleOffline = () => {
+      hadNetworkLoss = true
+      clearTimeout(reconnectedTimerRef.current)
+      setWsConnStatus('disconnected')
+    }
+
+    // ── Browser online event ──────────────────────────────────────────────
+    const handleOnline = () => {
+      if (!hadNetworkLoss) return   // shouldn't happen, but guard anyway
+      setWsConnStatus('reconnected')
+      clearTimeout(reconnectedTimerRef.current)
+      reconnectedTimerRef.current = setTimeout(() => setWsConnStatus('connected'), 3000)
+    }
+
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('online',  handleOnline)
+
+    // ── Supplementary: Echo/pusher-js state_change ────────────────────────
+    // Kept as a secondary source — useful in environments where pusher-js
+    // detects reconnection independently (e.g., server restarts).
+    const connection = window.Echo?.connector?.pusher?.connection
+    const echoHandler = ({ previous, current }) => {
+      if (previous === 'connected' && current !== 'connected') {
+        // Network drop detected via pusher before browser event (rare)
+        hadNetworkLoss = true
+        clearTimeout(reconnectedTimerRef.current)
+        setWsConnStatus('disconnected')
+      } else if (current === 'connected' && hadNetworkLoss) {
+        // Pusher reconnected — only show banner if browser online hasn't already
+        setWsConnStatus('reconnected')
+        clearTimeout(reconnectedTimerRef.current)
+        reconnectedTimerRef.current = setTimeout(() => setWsConnStatus('connected'), 3000)
+      }
+    }
+    connection?.bind('state_change', echoHandler)
+
+    return () => {
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('online',  handleOnline)
+      connection?.unbind('state_change', echoHandler)
+      clearTimeout(reconnectedTimerRef.current)
+    }
+  }, [])
 
   // Keep selected edge in sync when edges update in store
   useEffect(() => {
@@ -493,7 +593,8 @@ export default function DesignerPage() {
     }
   }
 
-  const handleSave = async () => {
+  // Called by SaveVersionModal with an optional label string
+  const handleSaveVersion = async (label = null) => {
     const state = useSchemaStore.getState()
     if (!state.schemaId) return
     setSaving(true)
@@ -501,8 +602,12 @@ export default function DesignerPage() {
     try {
       await api.put(`/schemas/${state.schemaId}`, {
         schema_json: { nodes: state.nodes, edges: state.edges, meta: {} },
-        label: null,
+        label: label || null,
       })
+      // Also clear the draft_json now that a proper version exists
+      api.patch(`/schemas/${state.schemaId}/autosave`, {
+        schema_json: { nodes: state.nodes, edges: state.edges, meta: {} },
+      }).catch(() => {})
       markSaved()
       setSaveMsg('saved')
       setTimeout(() => setSaveMsg(''), 3000)
@@ -520,6 +625,12 @@ export default function DesignerPage() {
     loadSchema(schemaId, pid, schemaJson || { nodes: [], edges: [] })
     setShowHistory(false)
     setSaveMsg('')
+    // Clear draft_json so next load uses the restored version, not a stale draft
+    if (schemaId) {
+      api.patch(`/schemas/${schemaId}/autosave`, {
+        schema_json: schemaJson || { nodes: [], edges: [] },
+      }).catch(() => {})
+    }
   }
 
   const handleExportSQL = async (dialect = 'mysql') => {
@@ -629,12 +740,43 @@ export default function DesignerPage() {
       ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'
       : 'border-green-200 text-green-600 bg-green-50 hover:bg-green-100'
 
+  // ── WS banner config ────────────────────────────────────────────────────────
+  const wsBanner = wsConnStatus === 'reconnected' ? {
+    bg: 'bg-emerald-500', text: 'text-white', icon: <Wifi className="w-3.5 h-3.5"/>,
+    msg: 'Reconnected — you\'re back online',
+  } : wsConnStatus === 'connecting' ? {
+    bg: 'bg-amber-400', text: 'text-amber-900', icon: (
+      <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+    ),
+    msg: 'Reconnecting…',
+  } : ['disconnected', 'failed', 'unavailable'].includes(wsConnStatus) ? {
+    bg: 'bg-red-500', text: 'text-white', icon: <WifiOff className="w-3.5 h-3.5"/>,
+    msg: 'Connection lost — changes are saved locally. Reconnecting…',
+  } : null
+  // Keep last non-null banner alive so content doesn't vanish mid-fade-out
+  if (wsBanner) lastBannerRef.current = wsBanner
+
   return (
   <CanvasThemeContext.Provider value={canvasDark}>
     <div
       data-canvas-theme={canvasDark ? 'dark' : 'light'}
       className="h-screen flex flex-col overflow-hidden relative transition-colors duration-200
                  bg-gray-50 dark:bg-[#0f1117]">
+
+      {/* ── WebSocket reconnect banner — always in DOM, transitions height+opacity ── */}
+      <div className={`overflow-hidden flex-shrink-0 transition-all duration-300 ease-in-out
+                       ${wsBanner ? 'max-h-10 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+        {lastBannerRef.current && (
+          <div className={`flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-semibold
+                           ${lastBannerRef.current.bg} ${lastBannerRef.current.text}`}>
+            {lastBannerRef.current.icon}
+            {lastBannerRef.current.msg}
+          </div>
+        )}
+      </div>
 
       {/* ── Toolbar ── */}
       <div className="px-4 py-2.5 flex items-center justify-between flex-shrink-0 z-10 shadow-sm
@@ -709,6 +851,34 @@ export default function DesignerPage() {
                              px-2 py-0.5 rounded-full flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"/>
               Unsaved changes
+            </span>
+          )}
+          {/* Auto-save status micro-indicator */}
+          {canEdit && autoSaveState !== 'idle' && (
+            <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 transition-all
+              ${autoSaveState === 'saving'
+                ? 'text-blue-500 bg-blue-50 border border-blue-200'
+                : autoSaveState === 'saved'
+                  ? 'text-green-600 bg-green-50 border border-green-200'
+                  : 'text-red-500 bg-red-50 border border-red-200'}`}>
+              {autoSaveState === 'saving' ? (
+                <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+              ) : autoSaveState === 'saved' ? (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/>
+                </svg>
+              ) : (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              )}
+              {autoSaveState === 'saving' ? 'Auto-saving…'
+                : autoSaveState === 'saved' ? `Auto-saved${autoSavedAt ? ' · ' + autoSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}`
+                : 'Auto-save failed'}
             </span>
           )}
           {isViewer && (
@@ -799,15 +969,16 @@ export default function DesignerPage() {
             </button>
           )}
 
-          {/* Save */}
+          {/* Save Version */}
           {canEdit && (
-            <button onClick={handleSave} disabled={saving || (!isDirty && saveMsg !== 'error')}
+            <button
+              onClick={() => setShowSaveModal(true)}
+              disabled={saving}
               className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-all
                 ${saveMsg === 'saved' ? 'bg-green-500 text-white'
                   : saveMsg === 'error' ? 'bg-red-500 hover:bg-red-600 text-white cursor-pointer'
                   : saving ? 'bg-blue-400 text-white cursor-wait'
-                  : isDirty ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'}`}>
               {saving ? (
                 <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -818,12 +989,9 @@ export default function DesignerPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
                 </svg>
               ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-4 0V3m0 0L8 6m4-3l4 3"/>
-                </svg>
+                <Save className="w-4 h-4"/>
               )}
-              {saving ? 'Saving…' : saveMsg === 'saved' ? 'Saved!' : saveMsg === 'error' ? 'Retry' : 'Save'}
+              {saving ? 'Saving…' : saveMsg === 'saved' ? 'Saved!' : saveMsg === 'error' ? 'Retry Save' : 'Save Version'}
             </button>
           )}
         </div>
@@ -1106,11 +1274,11 @@ export default function DesignerPage() {
 
       <ConfirmModal
         open={showLeaveModal}
-        variant="warning"
-        title="Unsaved changes"
-        message="You have unsaved changes that will be lost if you leave. Are you sure you want to go back to the dashboard?"
+        variant="info"
+        title="Leave without a saved version?"
+        message="Your work is auto-saved and safe — you won't lose any data. However, you haven't created a named version yet, so you won't be able to compare or restore this exact state from Version History later."
         confirmText="Leave anyway"
-        cancelText="Stay"
+        cancelText="Stay here"
         onConfirm={() => navigate('/dashboard')}
         onCancel={() => setShowLeaveModal(false)}
       />
@@ -1159,6 +1327,7 @@ export default function DesignerPage() {
         <ShareModal
           projectId={projectId}
           project={project}
+          onProjectUpdate={(updates) => setProject(prev => ({ ...prev, ...updates }))}
           onClose={() => setShowShareModal(false)}
         />
       )}
@@ -1168,6 +1337,16 @@ export default function DesignerPage() {
         <TemplatesModal
           onUseTemplate={handleUseTemplate}
           onClose={() => setShowTemplatesModal(false)}
+        />
+      )}
+
+      {/* ── Save Version Modal ── */}
+      {showSaveModal && (
+        <SaveVersionModal
+          saving={saving}
+          saveMsg={saveMsg}
+          onSave={(label) => { setShowSaveModal(false); handleSaveVersion(label) }}
+          onClose={() => setShowSaveModal(false)}
         />
       )}
     </div>
@@ -1922,8 +2101,8 @@ function AiModal({ prompt, onPromptChange, loading, error, onGenerate, onClose }
 }
 
 // ── Share Modal ───────────────────────────────────────────────────
-function ShareModal({ projectId, project, onClose }) {
-  const [tab,           setTab]           = useState('friends')  // 'friends' | 'email'
+function ShareModal({ projectId, project, onProjectUpdate, onClose }) {
+  const [tab,           setTab]           = useState('friends')  // 'friends' | 'email' | 'link'
   const [collaborators, setCollaborators] = useState([])
   const [collabLoading, setCollabLoading] = useState(true)
   const [friends,       setFriends]       = useState([])
@@ -1933,6 +2112,30 @@ function ShareModal({ projectId, project, onClose }) {
   const [inviting,      setInviting]      = useState(false)  // false | userId | 'email'
   const [inviteError,   setInviteError]   = useState('')
   const [inviteSuccess, setInviteSuccess] = useState('')
+  const [linkCopied,    setLinkCopied]    = useState(false)
+  const [visibility,    setVisibility]    = useState(project?.visibility || 'private')
+  const [visUpdating,   setVisUpdating]   = useState(false)
+
+  const shareUrl = `${window.location.origin}/s/${projectId}`
+
+  const copyShareLink = () => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 2000)
+    })
+  }
+
+  const handleVisibilityToggle = async () => {
+    const newVis = visibility === 'public' ? 'private' : 'public'
+    setVisUpdating(true)
+    try {
+      await api.put(`/projects/${projectId}`, { visibility: newVis })
+      setVisibility(newVis)
+      // Sync back to parent so reopening the modal reads the correct visibility
+      if (onProjectUpdate) onProjectUpdate({ visibility: newVis })
+    } catch { /* keep current on error */ }
+    finally { setVisUpdating(false) }
+  }
 
   useEffect(() => {
     // Load collaborators + friends in parallel
@@ -1985,6 +2188,20 @@ function ShareModal({ projectId, project, onClose }) {
   const handleRoleChange = async (userId, role) => {
     await api.put(`/projects/${projectId}/collaborators/${userId}`, { role }).catch(() => {})
     setCollaborators(prev => prev.map(c => c.id === userId ? { ...c, role } : c))
+  }
+
+  // Approve / decline a visitor's access request directly from the collaborators panel
+  const handleApproveAccess = async (userId) => {
+    try {
+      await api.post(`/projects/${projectId}/access-requests/${userId}/approve`)
+      setCollaborators(prev => prev.map(c => c.id === userId ? { ...c, status: 'accepted', source: 'invitation' } : c))
+    } catch {}
+  }
+  const handleDeclineAccess = async (userId) => {
+    try {
+      await api.post(`/projects/${projectId}/access-requests/${userId}/decline`)
+      setCollaborators(prev => prev.filter(c => c.id !== userId))
+    } catch {}
   }
 
   return (
@@ -2044,24 +2261,37 @@ function ShareModal({ projectId, project, onClose }) {
             </svg>
             Invite by Email
           </button>
+          <button onClick={() => setTab('link')}
+            className={`flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors
+              ${tab === 'link'
+                ? 'text-violet-600 border-b-2 border-violet-500 bg-violet-50/50'
+                : 'text-gray-400 hover:text-gray-600'}`}>
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.1-1.1m-3.928-3.928a4 4 0 015.656 0l4 4a4 4 0 01-5.656 5.656l-1.1-1.1"/>
+            </svg>
+            Public Link
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           <div className="p-5 space-y-4">
 
-            {/* Role selector — shared between tabs */}
-            <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
-              <div>
-                <p className="text-xs font-semibold text-gray-700">Role for new invites</p>
-                <p className="text-[11px] text-gray-400">Editors can modify, viewers can only view</p>
+            {/* Role selector — only relevant for friend/email invite tabs, not the public link tab */}
+            {tab !== 'link' && (
+              <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+                <div>
+                  <p className="text-xs font-semibold text-gray-700">Role for new invites</p>
+                  <p className="text-[11px] text-gray-400">Editors can modify, viewers can only view</p>
+                </div>
+                <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
+                  className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white outline-none
+                             text-gray-700 cursor-pointer focus:ring-2 focus:ring-emerald-400">
+                  <option value="editor">Editor</option>
+                  <option value="viewer">Viewer</option>
+                </select>
               </div>
-              <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white outline-none
-                           text-gray-700 cursor-pointer focus:ring-2 focus:ring-emerald-400">
-                <option value="editor">Editor</option>
-                <option value="viewer">Viewer</option>
-              </select>
-            </div>
+            )}
 
             {/* Feedback */}
             {inviteSuccess && (
@@ -2084,6 +2314,50 @@ function ShareModal({ projectId, project, onClose }) {
             {/* ── Friends Tab ── */}
             {tab === 'friends' && (
               <div className="space-y-2">
+
+                {/* Pending access requests — shown to owner so they can approve/decline */}
+                {!collabLoading && collaborators.filter(c => c.status === 'pending' && c.source === 'request').length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold text-violet-600 uppercase tracking-wide px-1 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block"/>
+                      Pending access requests
+                    </p>
+                    {collaborators
+                      .filter(c => c.status === 'pending' && c.source === 'request')
+                      .map(c => (
+                        <div key={c.id}
+                          className="flex items-center gap-3 p-3 rounded-xl border border-violet-100 bg-violet-50">
+                          <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center
+                                          font-bold text-white text-sm overflow-hidden
+                                          ${c.avatar_url ? '' : 'bg-violet-500'}`}>
+                            {c.avatar_url
+                              ? <img src={c.avatar_url} alt={c.name} className="w-full h-full object-cover"/>
+                              : (c.name || '?')[0].toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
+                            <p className="text-xs text-gray-400 truncate">{c.email}</p>
+                          </div>
+                          <div className="flex gap-1.5 flex-shrink-0">
+                            <button
+                              onClick={() => handleApproveAccess(c.id)}
+                              className="text-[11px] font-semibold px-2.5 py-1 rounded-lg
+                                         bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => handleDeclineAccess(c.id)}
+                              className="text-[11px] font-semibold px-2.5 py-1 rounded-lg
+                                         bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors">
+                              Decline
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    <div className="border-t border-gray-100 pt-1 mt-1"/>
+                  </div>
+                )}
+
                 {friendsLoading ? (
                   <div className="flex items-center justify-center py-8 gap-2 text-gray-400 text-sm">
                     <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"/>
@@ -2148,6 +2422,87 @@ function ShareModal({ projectId, project, onClose }) {
                       )
                     })}
                   </>
+                )}
+              </div>
+            )}
+
+            {/* ── Public Link Tab ── */}
+            {tab === 'link' && (
+              <div className="space-y-4">
+                {/* Visibility toggle */}
+                <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-700">Project visibility</p>
+                    <p className="text-[11px] text-gray-400">
+                      {visibility === 'public'
+                        ? 'Anyone with the link can view this schema'
+                        : 'Only you and collaborators can view'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleVisibilityToggle}
+                    disabled={visUpdating}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0
+                      ${visUpdating ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
+                      ${visibility === 'public' ? 'bg-violet-600' : 'bg-gray-300'}`}>
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow
+                                      transition-transform ${visibility === 'public' ? 'translate-x-[18px]' : 'translate-x-0.5'}`}/>
+                  </button>
+                </div>
+
+                {/* Shareable link section */}
+                {visibility === 'public' ? (
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">
+                      Shareable link
+                    </label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        readOnly
+                        value={shareUrl}
+                        className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-600
+                                   bg-gray-50 font-mono overflow-hidden text-ellipsis focus:outline-none"
+                      />
+                      <button
+                        onClick={copyShareLink}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold
+                                    whitespace-nowrap transition-all flex-shrink-0
+                          ${linkCopied
+                            ? 'bg-green-500 text-white'
+                            : 'bg-violet-600 hover:bg-violet-700 text-white shadow-sm'}`}>
+                        {linkCopied ? (
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            Copy link
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-gray-400">
+                      Anyone can view this schema without logging in. They can sign in to fork and edit their own copy.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-5 text-center">
+                    <svg className="w-8 h-8 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    <p className="text-sm font-medium text-gray-500">Project is private</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Toggle the switch above to make this project public and generate a shareable link.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
@@ -2398,6 +2753,118 @@ function TemplatesModal({ onUseTemplate, onClose }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Save Version Modal ─────────────────────────────────────────────
+// Lets the user optionally name a snapshot before committing it to version history.
+function SaveVersionModal({ saving, saveMsg, onSave, onClose }) {
+  const [label, setLabel] = useState('')
+
+  useEffect(() => {
+    const fn = (e) => {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'Enter' && !saving) { e.preventDefault(); onSave(label.trim() || null) }
+    }
+    window.addEventListener('keydown', fn)
+    return () => window.removeEventListener('keydown', fn)
+  }, [label, saving, onClose, onSave])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+              </svg>
+            </div>
+            <div>
+              <h2 className="font-bold text-gray-900 text-sm">Save Version</h2>
+              <p className="text-xs text-gray-500">Create a named snapshot in version history</p>
+            </div>
+          </div>
+          <button onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5">
+          <label className="text-xs font-semibold text-gray-600 block mb-1.5">
+            Version label <span className="font-normal text-gray-400">(optional)</span>
+          </label>
+          <input
+            autoFocus
+            type="text"
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+            placeholder="e.g. Add orders table, v2 schema…"
+            maxLength={100}
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                       placeholder:text-gray-300"
+          />
+          <p className="text-[11px] text-gray-400 mt-2">
+            Leave blank to save without a label. All saves appear in Version History.
+          </p>
+
+          {saveMsg === 'error' && (
+            <div className="mt-3 flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+              </svg>
+              <p className="text-xs text-red-700">Save failed. Please try again.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50">
+          <button onClick={onClose}
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200
+                       hover:border-gray-300 rounded-xl transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(label.trim() || null)}
+            disabled={saving}
+            className={`flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-xl transition-all
+              ${saving
+                ? 'bg-blue-400 text-white cursor-wait'
+                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'}`}>
+            {saving ? (
+              <>
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                Saving…
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                </svg>
+                Save Version
+              </>
+            )}
+          </button>
+        </div>
+
       </div>
     </div>
   )

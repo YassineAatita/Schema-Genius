@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -13,8 +13,9 @@ const schema = z.object({
 })
 
 export default function LoginPage() {
-  const navigate = useNavigate()
-  const { setAuth } = useAuthStore()
+  const navigate      = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { setAuth }   = useAuthStore()
   const [serverError, setServerError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -61,9 +62,12 @@ export default function LoginPage() {
     try {
       const response = await api.post('/auth/login', data)
       setAuth(response.data.user, response.data.token)
-      // FIX 1 — always land on the dashboard tab regardless of previous session
       sessionStorage.removeItem('dashboard_view')
-      navigate('/dashboard')
+      // Respect ?next= for redirecting back after login (e.g. from shared schema links).
+      // Only allow internal paths (starts with /) to prevent open-redirect.
+      const next = searchParams.get('next')
+      const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard'
+      navigate(safeNext, { replace: true })
     } catch (err) {
       // Special case: email not verified yet
       if (err.response?.status === 403 && err.response?.data?.error === 'email_not_verified') {

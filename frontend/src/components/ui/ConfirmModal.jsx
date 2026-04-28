@@ -5,7 +5,7 @@ import { useEffect } from 'react'
  *
  * Props:
  *   open        — boolean
- *   variant     — 'warning' | 'danger'  (default: 'warning')
+ *   variant     — 'info' | 'warning' | 'danger'  (default: 'warning')
  *   title       — string
  *   message     — string
  *   confirmText — string  (default: 'Confirm')
@@ -33,12 +33,15 @@ export default function ConfirmModal({
 
   if (!open) return null
 
+  const isInfo    = variant === 'info'
   const isDanger  = variant === 'danger'
-  const iconBg    = isDanger ? 'bg-red-100'    : 'bg-amber-100'
-  const iconColor = isDanger ? 'text-red-500'  : 'text-amber-500'
+  const iconBg    = isDanger ? 'bg-red-100' : isInfo ? 'bg-blue-100' : 'bg-amber-100'
+  const iconColor = isDanger ? 'text-red-500' : isInfo ? 'text-blue-500' : 'text-amber-500'
   const btnColor  = isDanger
     ? 'bg-red-600 hover:bg-red-500 shadow-red-900/20'
-    : 'bg-amber-500 hover:bg-amber-400 shadow-amber-900/20'
+    : isInfo
+      ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'
+      : 'bg-amber-500 hover:bg-amber-400 shadow-amber-900/20'
 
   return (
     /* Backdrop */
@@ -62,6 +65,11 @@ export default function ConfirmModal({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5
                    4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          ) : isInfo ? (
+            <svg className={`w-6 h-6 ${iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
           ) : (
             <svg className={`w-6 h-6 ${iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">

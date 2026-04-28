@@ -14,6 +14,7 @@ import DashboardPage from './pages/DashboardPage'
 import DesignerPage from './pages/DesignerPage'
 import AdminPage from './pages/AdminPage'
 import PublicProfilePage from './pages/PublicProfilePage'
+import SharedSchemaPage from './pages/SharedSchemaPage'
 
 // Protects routes that require login.
 // Also ensures `user` is populated after a hard page refresh — the token
@@ -89,6 +90,7 @@ export default function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/s/:projectId" element={<SharedSchemaPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />

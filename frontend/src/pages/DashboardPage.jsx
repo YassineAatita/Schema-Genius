@@ -142,6 +142,25 @@ export default function DashboardPage() {
     setNotifications([])
   }
 
+  // Approve / decline an access request straight from the notification bell
+  const handleApproveRequest = async (notification) => {
+    const { project_id, actor_id } = notification.data || {}
+    if (!project_id || !actor_id) return
+    try {
+      await api.post(`/projects/${project_id}/access-requests/${actor_id}/approve`)
+      // Remove this notification from the list immediately
+      setNotifications(prev => prev.filter(n => n.id !== notification.id))
+    } catch {}
+  }
+  const handleDeclineRequest = async (notification) => {
+    const { project_id, actor_id } = notification.data || {}
+    if (!project_id || !actor_id) return
+    try {
+      await api.post(`/projects/${project_id}/access-requests/${actor_id}/decline`)
+      setNotifications(prev => prev.filter(n => n.id !== notification.id))
+    } catch {}
+  }
+
   const unreadCount    = notifications.filter(n => !n.read).length
   const totalBellCount = invitations.length + friendRequestsBell.length + unreadCount
 
@@ -305,6 +324,8 @@ export default function DashboardPage() {
         handleBellFriendDecline={handleBellFriendDecline}
         markAllRead={markAllRead}
         clearNotifications={clearNotifications}
+        handleApproveRequest={handleApproveRequest}
+        handleDeclineRequest={handleDeclineRequest}
       />
 
       {/* ════════════════ SECTION SUB-HEADER ════════════════ */}
@@ -638,6 +659,7 @@ function TopNav({
   handleAccept, handleDecline,
   handleBellFriendAccept, handleBellFriendDecline,
   markAllRead, clearNotifications,
+  handleApproveRequest, handleDeclineRequest,
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
@@ -813,6 +835,9 @@ function TopNav({
                                     n.type === 'new_follower'             ? 'bg-teal-100'    :
                                     n.type === 'friend_request_received'  ? 'bg-pink-100'    :
                                     n.type === 'friend_request_accepted'  ? 'bg-emerald-100' :
+                                    n.type === 'access_requested'         ? 'bg-violet-100'  :
+                                    n.type === 'access_request_approved'  ? 'bg-emerald-100' :
+                                    n.type === 'access_request_declined'  ? 'bg-red-100'     :
                                     'bg-gray-100'}`}>
                                   {n.type === 'invitation_accepted'      ? '✓'  :
                                    n.type === 'project_starred'          ? '★'  :
@@ -822,6 +847,9 @@ function TopNav({
                                    n.type === 'new_follower'             ? '👤' :
                                    n.type === 'friend_request_received'  ? '🤝' :
                                    n.type === 'friend_request_accepted'  ? '✓'  :
+                                   n.type === 'access_requested'         ? '🔑' :
+                                   n.type === 'access_request_approved'  ? '✓'  :
+                                   n.type === 'access_request_declined'  ? '✕'  :
                                    '🔔'}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -830,6 +858,23 @@ function TopNav({
                                   <p className="text-[10px] text-gray-400 mt-1">
                                     {new Date(n.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
                                   </p>
+                                  {/* Accept / Decline buttons for access requests */}
+                                  {n.type === 'access_requested' && (
+                                    <div className="flex gap-2 mt-2">
+                                      <button
+                                        onClick={() => handleApproveRequest(n)}
+                                        className="flex-1 py-1 text-[11px] font-semibold rounded-lg
+                                                   bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                                        Accept
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeclineRequest(n)}
+                                        className="flex-1 py-1 text-[11px] font-semibold rounded-lg
+                                                   bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors">
+                                        Decline
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                                 {!n.read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1 flex-shrink-0"/>}
                               </div>

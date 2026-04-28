@@ -42,6 +42,10 @@ Route::prefix('auth')->group(function () {
 // Bio enhancement is public — called during registration before the user has a token
 Route::post('/ai/enhance-bio', [AiController::class, 'enhanceBio']);
 
+// Public shareable read-only schema view — must be declared BEFORE the auth group
+// to prevent GET /schemas/{id} (inside auth:sanctum) from swallowing this URL.
+Route::get('/schemas/shared/{projectId}', [SchemaController::class, 'shared']);
+
 // Serve avatar images directly — bypasses storage symlink issues on Windows dev
 Route::get('/avatars/{filename}', function (string $filename) {
     // Prevent path traversal
@@ -75,8 +79,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('projects', ProjectController::class);
 
     // Schemas
-    Route::get('/schemas/{id}',  [SchemaController::class, 'show']);
-    Route::put('/schemas/{id}',  [SchemaController::class, 'update']);
+    Route::get('/schemas/{id}',           [SchemaController::class, 'show']);
+    Route::put('/schemas/{id}',           [SchemaController::class, 'update']);
+    Route::patch('/schemas/{id}/autosave',[SchemaController::class, 'autosave']);
 
     // Version history
     Route::get('/schemas/{id}/versions',                                [SchemaController::class, 'versions']);
@@ -99,10 +104,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile/notification-preferences',     [ProfileController::class, 'updateNotificationPreferences']);
 
     // Collaborators
-    Route::get('/projects/{id}/collaborators',            [CollaboratorController::class, 'index']);
-    Route::post('/projects/{id}/collaborators',           [CollaboratorController::class, 'store']);
-    Route::put('/projects/{id}/collaborators/{userId}',   [CollaboratorController::class, 'update']);
-    Route::delete('/projects/{id}/collaborators/{userId}',[CollaboratorController::class, 'destroy']);
+    Route::get('/projects/{id}/collaborators',              [CollaboratorController::class, 'index']);
+    Route::post('/projects/{id}/collaborators',             [CollaboratorController::class, 'store']);
+    Route::put('/projects/{id}/collaborators/{userId}',     [CollaboratorController::class, 'update']);
+    Route::delete('/projects/{id}/collaborators/{userId}',  [CollaboratorController::class, 'destroy']);
+    // Access checks + requests (callable by any authenticated user, not owner-only)
+    Route::get('/projects/{id}/my-access',                              [CollaboratorController::class, 'myAccess']);
+    Route::post('/projects/{id}/request-access',                        [CollaboratorController::class, 'requestAccess']);
+    // Owner approve / decline a pending access request
+    Route::post('/projects/{id}/access-requests/{userId}/approve',      [CollaboratorController::class, 'approveRequest']);
+    Route::post('/projects/{id}/access-requests/{userId}/decline',      [CollaboratorController::class, 'declineRequest']);
 
     // Invitations
     Route::get('/invitations',                            [InvitationController::class, 'index']);
@@ -129,9 +140,9 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/users/{id}', [ProfileController::class, 'publicProfile']);
 
 // ── Explore — public endpoints (guests allowed) ───────────────────────────────
-Route::get('/explore',               [ExploreController::class, 'index']);    // Discover all public schemas
-Route::get('/explore/featured',      [ExploreController::class, 'featured']); // Current featured schema
-Route::get('/explore/projects/{id}', [ExploreController::class, 'show']);     // Single public project detail
+Route::get('/explore',                      [ExploreController::class, 'index']);    // Discover all public schemas
+Route::get('/explore/featured',             [ExploreController::class, 'featured']); // Current featured schema
+Route::get('/explore/projects/{id}',        [ExploreController::class, 'show']);     // Single public project detail
 
 // Comments are readable by guests
 Route::get('/projects/{id}/comments', [CommentController::class, 'index']);

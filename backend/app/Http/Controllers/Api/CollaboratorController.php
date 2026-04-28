@@ -18,13 +18,28 @@ class CollaboratorController extends Controller
         $this->ownerOnly($request->user(), $project);
 
         return response()->json(
-            $project->collaborators->map(fn($c) => [
-                'id'     => $c->id,
-                'name'   => $c->name,
-                'email'  => $c->email,
-                'role'   => $c->pivot->role,
-                'status' => $c->pivot->status,
-            ])
+            $project->collaborators->map(function ($c) use ($project) {
+                // For pending records, distinguish owner-sent invitations from
+                // visitor-initiated access requests via the notification log.
+                $source = 'invitation';
+                if ($c->pivot->status === 'pending') {
+                    $isRequest = Notification::where('type', 'access_requested')
+                        ->where('user_id', $project->owner_id)
+                        ->whereJsonContains('data->actor_id', (int) $c->id)
+                        ->whereJsonContains('data->project_id', (int) $project->id)
+                        ->exists();
+                    if ($isRequest) $source = 'request';
+                }
+                return [
+                    'id'         => $c->id,
+                    'name'       => $c->name,
+                    'email'      => $c->email,
+                    'avatar_url' => $c->avatar_url,
+                    'role'       => $c->pivot->role,
+                    'status'     => $c->pivot->status,
+                    'source'     => $source,   // 'invitation' | 'request'
+                ];
+            })
         );
     }
 
@@ -117,6 +132,178 @@ class CollaboratorController extends Controller
         $project->collaborators()->detach($userId);
 
         return response()->json(['message' => 'Collaborator removed.']);
+    }
+
+    // GET /api/projects/{id}/my-access
+    // Returns the current authenticated user's collaborator status on this project.
+    // Callable by any authenticated user (not owner-only).
+    public function myAccess(Request $request, $projectId)
+    {
+        $project = Project::findOrFail($projectId);
+        $user    = $request->user();
+
+        // Owner always has full access
+        if ($project->owner_id === $user->id) {
+            return response()->json(['status' => 'owner']);
+        }
+
+        $collab = $project->collaborators()
+            ->where('users.id', $user->id)
+            ->first();
+
+        if (!$collab) {
+            return response()->json(['status' => 'none']);
+        }
+
+        // Return status + role (pending|accepted, editor|viewer)
+        return response()->json([
+            'status' => $collab->pivot->status,   // 'pending' | 'accepted'
+            'role'   => $collab->pivot->role,      // 'editor'  | 'viewer'
+        ]);
+    }
+
+    // POST /api/projects/{id}/request-access
+    // Lets any authenticated user request editor access to a public project.
+    // Creates a pending collaborator record and notifies the project owner.
+    public function requestAccess(Request $request, $projectId)
+    {
+        $project   = Project::findOrFail($projectId);
+        $requester = $request->user();
+
+        // Owner can't request access to their own project
+        if ($project->owner_id === $requester->id) {
+            return response()->json(['error' => 'You own this project.'], 422);
+        }
+
+        // Already a collaborator?
+        $existing = $project->collaborators()
+            ->where('users.id', $requester->id)
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'error'  => 'You already have access.',
+                'status' => $existing->pivot->status,
+                'role'   => $existing->pivot->role,
+            ], 422);
+        }
+
+        // Add as a pending editor
+        $project->collaborators()->attach($requester->id, [
+            'role'       => 'editor',
+            'status'     => 'pending',
+            'invited_at' => now(),
+        ]);
+
+        // Notify the project owner via the standard notification model
+        $owner = $project->owner;
+        try {
+            Notification::create([
+                'user_id' => $owner->id,
+                'type'    => 'access_requested',
+                'title'   => 'Editor access requested',
+                'message' => "{$requester->name} is requesting editor access to \"{$project->name}\".",
+                'data'    => [
+                    'project_id'   => $project->id,
+                    'project_name' => $project->name,
+                    'actor_id'     => $requester->id,
+                    'actor_name'   => $requester->name,
+                    'role'         => 'editor',
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            // Notification failure must not abort the request
+        }
+
+        return response()->json(['message' => 'Access request sent. The owner has been notified.']);
+    }
+
+    // POST /api/projects/{id}/access-requests/{userId}/approve
+    // Owner approves a pending access request — sets status to accepted, notifies requester.
+    public function approveRequest(Request $request, $projectId, $userId)
+    {
+        $project   = Project::findOrFail($projectId);
+        $requester = User::findOrFail($userId);
+        $this->ownerOnly($request->user(), $project);
+
+        $collab = $project->collaborators()
+            ->where('users.id', $requester->id)
+            ->wherePivot('status', 'pending')
+            ->first();
+
+        if (!$collab) {
+            return response()->json(['message' => 'No pending request found.'], 404);
+        }
+
+        $project->collaborators()->updateExistingPivot($requester->id, ['status' => 'accepted']);
+
+        // Notify the requester
+        try {
+            Notification::create([
+                'user_id' => $requester->id,
+                'type'    => 'access_request_approved',
+                'title'   => 'Access request approved',
+                'message' => "{$request->user()->name} approved your request to edit \"{$project->name}\".",
+                'data'    => [
+                    'project_id'   => $project->id,
+                    'project_name' => $project->name,
+                    'actor_id'     => $request->user()->id,
+                    'actor_name'   => $request->user()->name,
+                ],
+            ]);
+        } catch (\Throwable $e) {}
+
+        // Remove the access_requested notification so the bell clears automatically
+        Notification::where('user_id', $project->owner_id)
+            ->where('type', 'access_requested')
+            ->whereJsonContains('data->actor_id', (int) $requester->id)
+            ->whereJsonContains('data->project_id', (int) $project->id)
+            ->delete();
+
+        return response()->json(['message' => 'Request approved. The user now has editor access.']);
+    }
+
+    // POST /api/projects/{id}/access-requests/{userId}/decline
+    // Owner declines a pending access request — removes the pivot record, notifies requester.
+    public function declineRequest(Request $request, $projectId, $userId)
+    {
+        $project   = Project::findOrFail($projectId);
+        $requester = User::findOrFail($userId);
+        $this->ownerOnly($request->user(), $project);
+
+        $collab = $project->collaborators()
+            ->where('users.id', $requester->id)
+            ->wherePivot('status', 'pending')
+            ->first();
+
+        if (!$collab) {
+            return response()->json(['message' => 'No pending request found.'], 404);
+        }
+
+        $project->collaborators()->detach($requester->id);
+
+        // Notify the requester
+        try {
+            Notification::create([
+                'user_id' => $requester->id,
+                'type'    => 'access_request_declined',
+                'title'   => 'Access request declined',
+                'message' => "Your request to edit \"{$project->name}\" was declined.",
+                'data'    => [
+                    'project_id'   => $project->id,
+                    'project_name' => $project->name,
+                ],
+            ]);
+        } catch (\Throwable $e) {}
+
+        // Remove the access_requested notification so the bell clears automatically
+        Notification::where('user_id', $project->owner_id)
+            ->where('type', 'access_requested')
+            ->whereJsonContains('data->actor_id', (int) $requester->id)
+            ->whereJsonContains('data->project_id', (int) $project->id)
+            ->delete();
+
+        return response()->json(['message' => 'Request declined.']);
     }
 
     private function ownerOnly($user, $project)
