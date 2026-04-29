@@ -15,6 +15,10 @@ class SchemaController extends Controller
     public function show($id)
     {
         $schema = Schema::with('currentVersion')->findOrFail($id);
+
+        // Authorization: only owner or an accepted collaborator may read this schema
+        $this->authorizeSchemaAccess($schema);
+
         return response()->json($schema);
     }
 
@@ -197,6 +201,9 @@ class SchemaController extends Controller
     {
         $schema = Schema::with('currentVersion')->findOrFail($id);
 
+        // Authorization: only owner or an accepted collaborator may export
+        $this->authorizeSchemaAccess($schema);
+
         if (!$schema->currentVersion) {
             return response()->json([
                 'message' => 'No saved version found. Please save your schema first.'
@@ -221,4 +228,26 @@ class SchemaController extends Controller
             ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
     }
 
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Abort with 403 unless the authenticated user is the project owner
+     * or an accepted collaborator on the project that owns this schema.
+     * Used by show() and exportSql() to prevent IDOR.
+     */
+    private function authorizeSchemaAccess(Schema $schema): void
+    {
+        $user    = auth()->user();
+        $project = $schema->project;
+
+        $isOwner        = $project->owner_id === $user->id;
+        $isCollaborator = $project->collaborators()
+            ->where('users.id', $user->id)
+            ->wherePivot('status', 'accepted')
+            ->exists();
+
+        if (!$isOwner && !$isCollaborator) {
+            abort(response()->json(['error' => 'You do not have access to this schema.'], 403));
+        }
+    }
 }

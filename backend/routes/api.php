@@ -24,10 +24,16 @@ use App\Http\Controllers\Api\AdminController;
 
 // ── Public routes ────────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
-    Route::post('/register',        [AuthController::class, 'register']);
-    Route::post('/login',           [AuthController::class, 'login']);
-    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-    Route::post('/reset-password',  [AuthController::class, 'resetPassword']);
+    // Rate limits (per IP for public endpoints):
+    //   register       — 5 attempts / minute   (prevents account-spam)
+    //   login          — 10 attempts / minute   (stops brute-force; lock-out after 10 wrong passwords)
+    //   forgot-password— 3 attempts / minute    (prevents email-flood via password-reset)
+    //   reset-password — 5 attempts / minute
+    //   email/resend   — 3 attempts / minute    (prevents verification-email flood)
+    Route::post('/register',        [AuthController::class, 'register'])->middleware('throttle:5,1');
+    Route::post('/login',           [AuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
+    Route::post('/reset-password',  [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 
     // Email verification — clicked directly from inbox, browser GETs this URL
     // Must be named 'verification.verify' — Laravel's VerifyEmail notification
@@ -36,11 +42,12 @@ Route::prefix('auth')->group(function () {
         ->name('verification.verify');
 
     // Resend verification email — public so the user doesn't need a token yet
-    Route::post('/email/resend', [AuthController::class, 'resendVerification']);
+    Route::post('/email/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:3,1');
 });
 
-// Bio enhancement is public — called during registration before the user has a token
-Route::post('/ai/enhance-bio', [AiController::class, 'enhanceBio']);
+// Bio enhancement is public (called during registration before the user has a token).
+// Rate-limited aggressively per IP to prevent unauthenticated Groq API drain.
+Route::post('/ai/enhance-bio', [AiController::class, 'enhanceBio'])->middleware('throttle:10,1');
 
 // Public shareable read-only schema view — must be declared BEFORE the auth group
 // to prevent GET /schemas/{id} (inside auth:sanctum) from swallowing this URL.
@@ -91,11 +98,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/schemas/{id}/export/sql', [SchemaController::class, 'exportSql']);
 
     // AI Schema Generation
-    Route::post('/ai/generate',                      [AiController::class, 'generate']);
-    Route::post('/ai/generate-from-image',           [AiController::class, 'generateFromImage']);
+    // Rate limits (per authenticated user ID):
+    //   generate / suggest / roast — 20 / minute (still generous for real use; prevents billing-drain loops)
+    //   generate-from-image        — 10 / minute (vision model is more expensive per call)
+    Route::post('/ai/generate',                      [AiController::class, 'generate'])->middleware('throttle:20,1');
+    Route::post('/ai/generate-from-image',           [AiController::class, 'generateFromImage'])->middleware('throttle:10,1');
     Route::patch('/ai/generations/{id}/apply',       [AiController::class, 'markApplied']);
-    Route::post('/ai/suggest',                       [AiController::class, 'suggest']);
-    Route::post('/ai/roast',                         [AiController::class, 'roast']);
+    Route::post('/ai/suggest',                       [AiController::class, 'suggest'])->middleware('throttle:20,1');
+    Route::post('/ai/roast',                         [AiController::class, 'roast'])->middleware('throttle:20,1');
 
     // Profile
     Route::get('/profile',                              [ProfileController::class, 'show']);

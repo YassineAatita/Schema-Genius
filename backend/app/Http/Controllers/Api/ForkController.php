@@ -137,15 +137,19 @@ class ForkController extends Controller
     // GET /api/projects/{id}/fork-tree — Full Schema DNA ancestry tree
     // Returns the root ancestor + all fork descendants as a flat list,
     // so the frontend can render the tree however it wants.
+    // Only traverses and exposes PUBLIC projects; private forks are hidden.
     public function tree($id)
     {
-        $project = Project::findOrFail($id);
+        // Only allow the tree to be requested for public projects.
+        // This prevents an attacker from discovering private project names/owners
+        // that appear in the fork lineage of a public schema.
+        $project = Project::where('visibility', 'public')->findOrFail($id);
 
-        // Walk up to find the root
-        $rootId    = $this->findRoot($project->id);
+        // Walk up to find the root (cycle-safe — visited set prevents infinite loops)
+        $rootId      = $this->findRoot($project->id);
         $rootProject = Project::with('owner')->find($rootId);
 
-        // Walk down to collect all descendants (BFS)
+        // Walk down to collect all public descendants
         $descendants = $this->collectDescendants($rootId);
 
         return response()->json([
@@ -159,15 +163,32 @@ class ForkController extends Controller
         ]);
     }
 
-    private function findRoot(int $projectId): int
+    /**
+     * Walk up the fork chain to find the original ancestor.
+     * Uses a visited set to prevent infinite loops on circular references.
+     */
+    private function findRoot(int $projectId, array $visited = []): int
     {
+        if (in_array($projectId, $visited)) {
+            // Circular reference detected — stop and treat current node as root
+            return $projectId;
+        }
+        $visited[]  = $projectId;
         $forkRecord = ProjectFork::where('forked_project_id', $projectId)->first();
         if (!$forkRecord) return $projectId; // already the root
-        return $this->findRoot($forkRecord->original_project_id);
+        return $this->findRoot($forkRecord->original_project_id, $visited);
     }
 
-    private function collectDescendants(int $projectId, int $depth = 0): array
+    /**
+     * Recursively collect all fork descendants.
+     * Only includes PUBLIC projects to avoid leaking private project names/owners.
+     * Depth is capped at 10 to prevent runaway queries.
+     */
+    private function collectDescendants(int $projectId, int $depth = 0, array $visited = []): array
     {
+        if (in_array($projectId, $visited)) return [];
+        $visited[] = $projectId;
+
         $forks = ProjectFork::where('original_project_id', $projectId)
             ->with(['forkedProject.owner', 'user'])
             ->get();
@@ -175,6 +196,9 @@ class ForkController extends Controller
         $result = [];
         foreach ($forks as $fork) {
             if (!$fork->forkedProject) continue;
+            // Skip private forks — do not expose their names or owners
+            if ($fork->forkedProject->visibility !== 'public') continue;
+
             $node = [
                 'id'          => $fork->forkedProject->id,
                 'name'        => $fork->forkedProject->name,
@@ -187,7 +211,10 @@ class ForkController extends Controller
             $result[] = $node;
             // Recursively collect children (cap depth at 10 to prevent runaway queries)
             if ($depth < 10) {
-                $result = array_merge($result, $this->collectDescendants($fork->forkedProject->id, $depth + 1));
+                $result = array_merge(
+                    $result,
+                    $this->collectDescendants($fork->forkedProject->id, $depth + 1, $visited)
+                );
             }
         }
         return $result;

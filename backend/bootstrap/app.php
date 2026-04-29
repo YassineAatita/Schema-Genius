@@ -13,6 +13,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         // No statefulApi() here — we use token auth, not cookie auth
+
+        // ── Security response headers ─────────────────────────────────────────
+        // Applied globally to every response (API + web).
+        // See App\Http\Middleware\SecurityHeaders for the full list of headers set.
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

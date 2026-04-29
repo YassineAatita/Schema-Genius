@@ -13,7 +13,28 @@ class AiController extends Controller
     {
         $request->validate([
             'prompt'     => 'required|string|max:1500',
-            'project_id' => 'nullable|exists:projects,id',
+            // project_id must belong to the requesting user (owner or editor)
+            // to prevent polluting another user's AI generation stats.
+            'project_id' => [
+                'nullable',
+                'integer',
+                'exists:projects,id',
+                function ($attribute, $value, $fail) use ($request) {
+                    if (!$value) return;
+                    $project = \App\Models\Project::find($value);
+                    if (!$project) return;
+                    $user      = $request->user();
+                    $isOwner   = $project->owner_id === $user->id;
+                    $isEditor  = $project->collaborators()
+                        ->where('users.id', $user->id)
+                        ->wherePivot('role', 'editor')
+                        ->wherePivot('status', 'accepted')
+                        ->exists();
+                    if (!$isOwner && !$isEditor) {
+                        $fail('You do not have access to the specified project.');
+                    }
+                },
+            ],
         ]);
 
         $systemPrompt = <<<'PROMPT'
@@ -128,10 +149,50 @@ PROMPT;
         $request->validate([
             'image'      => 'required|string',   // base64 data URL
             'prompt'     => 'nullable|string|max:500',
-            'project_id' => 'nullable|exists:projects,id',
+            // project_id must belong to the requesting user (owner or editor)
+            'project_id' => [
+                'nullable',
+                'integer',
+                'exists:projects,id',
+                function ($attribute, $value, $fail) use ($request) {
+                    if (!$value) return;
+                    $project = \App\Models\Project::find($value);
+                    if (!$project) return;
+                    $user     = $request->user();
+                    $isOwner  = $project->owner_id === $user->id;
+                    $isEditor = $project->collaborators()
+                        ->where('users.id', $user->id)
+                        ->wherePivot('role', 'editor')
+                        ->wherePivot('status', 'accepted')
+                        ->exists();
+                    if (!$isOwner && !$isEditor) {
+                        $fail('You do not have access to the specified project.');
+                    }
+                },
+            ],
         ]);
 
         $dataUrl = $request->image;
+
+        // Validate MIME type prefix — only allow known image formats
+        $allowedPrefixes = [
+            'data:image/jpeg;base64,',
+            'data:image/jpg;base64,',
+            'data:image/png;base64,',
+            'data:image/gif;base64,',
+            'data:image/webp;base64,',
+            'data:image/bmp;base64,',
+        ];
+        $mimeValid = false;
+        foreach ($allowedPrefixes as $prefix) {
+            if (str_starts_with($dataUrl, $prefix)) {
+                $mimeValid = true;
+                break;
+            }
+        }
+        if (!$mimeValid) {
+            return response()->json(['error' => 'Invalid image format. Please upload a JPEG, PNG, GIF, or WebP image.'], 422);
+        }
 
         // Accept data URLs or raw base64; enforce reasonable size (~4 MB base64 ≈ 3 MB image)
         if (strlen($dataUrl) > 5_000_000) {
@@ -292,8 +353,11 @@ PROMPT;
     public function suggest(Request $request)
     {
         $request->validate([
-            'schema'     => 'required|array',
-            'project_id' => 'nullable|exists:projects,id',
+            'schema'             => 'required|array',
+            // Cap nodes and edges to prevent sending enormous payloads to Groq
+            'schema.nodes'       => 'sometimes|array|max:150',
+            'schema.edges'       => 'sometimes|array|max:300',
+            'project_id'         => 'nullable|exists:projects,id',
         ]);
 
         $schemaJson = json_encode($request->input('schema'), JSON_PRETTY_PRINT);
@@ -374,7 +438,10 @@ PROMPT;
     public function roast(Request $request)
     {
         $request->validate([
-            'schema' => 'required|array',
+            'schema'       => 'required|array',
+            // Cap nodes and edges to prevent sending enormous payloads to Groq
+            'schema.nodes' => 'sometimes|array|max:150',
+            'schema.edges' => 'sometimes|array|max:300',
         ]);
 
         $schemaJson = json_encode($request->input('schema'), JSON_PRETTY_PRINT);

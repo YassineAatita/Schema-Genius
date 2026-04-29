@@ -133,6 +133,22 @@ Everything saves automatically, every change is versioned, and your whole team e
 | **Community moderation** | View and delete any comment; top-projects leaderboard |
 | **Featured schema** | Set and rotate the Explore spotlight with history log |
 
+### 🔒 Security Hardening
+| Protection | Details |
+|---|---|
+| **Rate limiting — auth** | Login `10/min`, register `5/min`, forgot-password `3/min`, reset `5/min`, resend-verification `3/min` — per IP |
+| **Rate limiting — AI** | Generate `20/min`, image `10/min`, suggest `20/min`, roast `20/min`, enhance-bio `10/min` — prevents Groq API drain |
+| **IDOR prevention** | `GET /schemas/{id}` and `GET /schemas/{id}/export/sql` verify ownership or accepted-collaborator status before responding |
+| **Schema payload cap** | AI suggest & roast reject schemas exceeding 150 nodes / 300 edges — stops billing-amplification attacks |
+| **Image MIME validation** | `generate-from-image` validates data-URL prefix before forwarding to Groq (JPEG, PNG, GIF, WebP only) |
+| **Project ownership check** | AI generate endpoints verify the caller owns / has editor access on the supplied `project_id` |
+| **Token expiration** | Sanctum tokens expire after 30 days (configurable via `SANCTUM_TOKEN_EXPIRATION`) |
+| **Fork tree visibility** | `GET /projects/{id}/fork-tree` requires the root project to be public; private forks are excluded from all traversal output |
+| **Email PII protection** | User search results never expose a stranger's email address — only visible once a friendship exists |
+| **Security response headers** | Every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` |
+| **CORS via env** | `CORS_ALLOWED_ORIGINS` env variable — no hardcoded `localhost` in production |
+| **Safe env defaults** | `.env.example` ships with `APP_DEBUG=false`; all security-sensitive variables documented with warnings |
+
 ---
 
 ## 📚 Schema Templates
@@ -274,6 +290,12 @@ DB_PASSWORD=
 
 # Frontend URL (for CORS + email links)
 FRONTEND_URL=http://localhost:5173
+# Token expiration in minutes (43200 = 30 days). Set to null to disable.
+SANCTUM_TOKEN_EXPIRATION=43200
+
+# CORS — in production set to your real domain(s), comma-separated.
+# Falls back to FRONTEND_URL when not set.
+# CORS_ALLOWED_ORIGINS=https://schema-genius.com,https://www.schema-genius.com
 
 # Email — use a Gmail App Password
 MAIL_MAILER=smtp
@@ -359,6 +381,7 @@ Schema-Genius/
 │   │   │   │   ├── FeaturedSchemaController
 │   │   │   │   └── AdminController
 │   │   │   └── Middleware/
+│   │   │       └── SecurityHeaders     X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy
 │   │   ├── Models/                     User, Project, Schema, SchemaVersion,
 │   │   │                               AiGeneration, Collaborator, ...
 │   │   ├── Notifications/              VerifyEmailNotification, ResetPasswordNotification
@@ -607,10 +630,10 @@ Schema Genius uses **Laravel Reverb** presence channels and client whispers for 
 - [x] Notification centre with read/clear
 - [x] User profiles (public + edit + avatar upload)
 - [x] Admin dashboard — users · projects · AI monitoring · moderation
+- [x] Security hardening — rate limiting on all auth + AI endpoints, IDOR fixes, token expiration, security headers, CORS via env, schema payload caps, image MIME validation, email PII protection, fork tree visibility enforcement
 
 ### 🔜 Up Next
 
-- [ ] **Security hardening** — rate limiting, CSRF hardening, content security policy headers, input sanitisation audit
 - [ ] **Deployment** — Dockerise both services, nginx reverse proxy, CI/CD pipeline, production `.env` guide
 - [ ] Keyboard shortcuts overlay panel
 - [ ] Organization accounts with shared project libraries

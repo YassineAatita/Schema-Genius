@@ -42,10 +42,16 @@ class FriendshipController extends Controller
             $status = 'request_received'; $fid = $f->id;
         }
 
+        // Only expose email to the requesting user themselves or to established/pending
+        // relationships.  Strangers searching by name must NOT receive a third party's
+        // email address — that would allow any logged-in user to scrape the entire
+        // user database's PII by searching the alphabet.
+        $includeEmail = in_array($status, ['friends', 'request_sent', 'request_received']);
+
         return [
             'id'                => $user->id,
             'name'              => $user->name,
-            'email'             => $user->email,
+            'email'             => $includeEmail ? $user->email : null,
             'avatar_url'        => $user->avatar_url,
             'headline'          => $user->headline ?? null,
             'friendship_status' => $status,
