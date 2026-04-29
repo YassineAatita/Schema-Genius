@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Plus, Sparkles, Upload, CheckCircle, LayoutTemplate,
   Download, History, Image as ImageIcon,
-  Sun, Moon, Save, Wifi, WifiOff,
+  Sun, Moon, Save, Wifi, WifiOff, Copy, Flame,
 } from 'lucide-react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { toPng } from 'html-to-image'
@@ -19,6 +19,7 @@ import HistoryPanel from '../components/panels/HistoryPanel'
 import { validateSchema } from '../utils/validateSchema'
 import { joinProjectChannel, leaveProjectChannel } from '../services/websocket'
 import { CanvasThemeContext } from '../contexts/CanvasThemeContext'
+import { SCHEMA_TEMPLATES } from '../data/schemaTemplates'
 
 // Deterministic cursor / avatar colors for remote collaborators
 const CURSOR_COLORS = ['#3B82F6','#EF4444','#10B981','#F59E0B','#8B5CF6','#EC4899','#06B6D4','#84CC16']
@@ -27,7 +28,7 @@ const getCursorColor = (id) => CURSOR_COLORS[(id || 0) % CURSOR_COLORS.length]
 export default function DesignerPage() {
   const { projectId } = useParams()
   const navigate      = useNavigate()
-  const { loadSchema, addTable, addTableAt, nodes, edges, isDirty, markSaved, aiGenerate,
+  const { loadSchema, addTable, addTableAt, nodes, edges, isDirty, markSaved, aiGenerate, aiMerge,
           undo, redo, past, future } = useSchemaStore()
   const { user } = useAuthStore()
 
@@ -62,6 +63,15 @@ export default function DesignerPage() {
   const moreMenuRef        = useRef(null)
   const generateMenuRef  = useRef(null)
   const canvasRef        = useRef(null)
+
+  // Copy SQL state
+  const [copySqlState,   setCopySqlState]   = useState('idle')  // 'idle'|'copying'|'copied'
+
+  // Roast my schema state
+  const [showRoastModal, setShowRoastModal] = useState(false)
+  const [roastLoading,   setRoastLoading]   = useState(false)
+  const [roastItems,     setRoastItems]     = useState([])
+  const [roastError,     setRoastError]     = useState('')
 
   // Canvas dark mode — persisted to localStorage
   const [canvasDark, setCanvasDark] = useState(
@@ -671,6 +681,54 @@ export default function DesignerPage() {
     }
   }
 
+  // ── Copy SQL ──────────────────────────────────────────────────────────────
+  // Re-uses the export endpoint but reads the response as plain text instead of
+  // downloading it, then writes to the clipboard.
+  const handleCopySql = async () => {
+    const { schemaId } = useSchemaStore.getState()
+    if (!schemaId) return
+    setCopySqlState('copying')
+    try {
+      const response = await api.get(`/schemas/${schemaId}/export/sql`, { responseType: 'text' })
+      await navigator.clipboard.writeText(response.data)
+      setCopySqlState('copied')
+      setTimeout(() => setCopySqlState('idle'), 2000)
+    } catch {
+      setCopySqlState('idle')
+    }
+  }
+
+  // ── Add AI schema to canvas (iterative / merge mode) ─────────────────────
+  const handleAddToCanvas = () => {
+    if (pendingAiSchema.current) {
+      aiMerge(pendingAiSchema.current.nodes, pendingAiSchema.current.edges || [])
+      if (pendingGenerationId.current) {
+        api.patch(`/ai/generations/${pendingGenerationId.current}/apply`).catch(() => {})
+        pendingGenerationId.current = null
+      }
+      pendingAiSchema.current = null
+      setAiPrompt('')
+    }
+    setShowAiConfirm(false)
+  }
+
+  // ── Roast my schema ───────────────────────────────────────────────────────
+  const handleRoast = useCallback(async () => {
+    if (nodes.length === 0) return
+    setRoastLoading(true)
+    setRoastError('')
+    setRoastItems([])
+    try {
+      const res = await api.post('/ai/roast', { schema: { nodes, edges } })
+      setRoastItems(res.data.roasts || [])
+    } catch (err) {
+      setRoastError(err.response?.data?.error || 'AI service unavailable. Please try again.')
+    } finally {
+      setRoastLoading(false)
+      setShowRoastModal(true)
+    }
+  }, [nodes, edges])
+
   const handleVisionGenerate = async (imageDataUrl, prompt) => {
     setVisionLoading(true)
     setVisionError('')
@@ -1203,6 +1261,34 @@ export default function DesignerPage() {
           )}
         </div>
 
+        {/* Copy SQL */}
+        <div className="relative group">
+          <button
+            onClick={handleCopySql}
+            disabled={copySqlState === 'copying'}
+            title="Copy SQL to clipboard"
+            className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors
+              ${copySqlState === 'copied'
+                ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950'
+                : copySqlState === 'copying'
+                  ? 'text-gray-300 dark:text-gray-600 bg-white dark:bg-[#141620] cursor-wait'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950'}`}>
+            {copySqlState === 'copied' ? (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/>
+              </svg>
+            ) : copySqlState === 'copying' ? (
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+            ) : (
+              <Copy className="w-4 h-4"/>
+            )}
+          </button>
+          <PillTooltip>{copySqlState === 'copied' ? 'Copied!' : 'Copy SQL'}</PillTooltip>
+        </div>
+
         {/* Version History */}
         <div className="relative group">
           <button
@@ -1227,6 +1313,30 @@ export default function DesignerPage() {
             <ImageIcon className="w-4 h-4"/>
           </button>
           <PillTooltip>Export PNG</PillTooltip>
+        </div>
+
+        {/* Roast 🔥 */}
+        <div className="relative group">
+          <button
+            onClick={handleRoast}
+            disabled={roastLoading || nodes.length === 0}
+            title="Roast my schema"
+            className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors
+              ${roastLoading
+                ? 'opacity-50 cursor-wait'
+                : nodes.length === 0
+                  ? 'opacity-25 cursor-not-allowed text-gray-400 dark:text-gray-600'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950'}`}>
+            {roastLoading ? (
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+            ) : (
+              <Flame className="w-4 h-4"/>
+            )}
+          </button>
+          <PillTooltip>Roast my schema</PillTooltip>
         </div>
 
         {/* Divider before theme toggle */}
@@ -1283,14 +1393,10 @@ export default function DesignerPage() {
         onCancel={() => setShowLeaveModal(false)}
       />
 
-      <ConfirmModal
+      <AiConfirmModal
         open={showAiConfirm}
-        variant="warning"
-        title="Replace existing schema?"
-        message="The AI will replace your current tables and relationships. This cannot be undone. Save your schema first if you want to keep it."
-        confirmText="Replace anyway"
-        cancelText="Cancel"
-        onConfirm={confirmAiReplace}
+        onReplace={confirmAiReplace}
+        onAddToCanvas={handleAddToCanvas}
         onCancel={() => setShowAiConfirm(false)}
       />
 
@@ -1340,6 +1446,15 @@ export default function DesignerPage() {
         />
       )}
 
+      {/* ── Roast Modal ── */}
+      {showRoastModal && (
+        <RoastModal
+          items={roastItems}
+          error={roastError}
+          onClose={() => { setShowRoastModal(false); setRoastItems([]); setRoastError('') }}
+        />
+      )}
+
       {/* ── Save Version Modal ── */}
       {showSaveModal && (
         <SaveVersionModal
@@ -1351,6 +1466,225 @@ export default function DesignerPage() {
       )}
     </div>
   </CanvasThemeContext.Provider>
+  )
+}
+
+// ── AI Confirm Modal — Replace / Add to canvas / Cancel ──────────
+function AiConfirmModal({ open, onReplace, onAddToCanvas, onCancel }) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
+
+        {/* Icon + heading */}
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-900 text-base">Apply AI schema?</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Your canvas already has tables</p>
+          </div>
+        </div>
+
+        <p className="text-sm text-gray-500 mb-5">
+          Choose how to apply the generated schema — you can keep what you have or start fresh.
+        </p>
+
+        {/* Options */}
+        <div className="flex flex-col gap-2.5 mb-5">
+
+          {/* Add to canvas */}
+          <button
+            onClick={onAddToCanvas}
+            className="flex items-center gap-3 p-3.5 rounded-xl border-2 border-emerald-200 bg-emerald-50
+                       hover:bg-emerald-100 hover:border-emerald-300 transition-all text-left group">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 group-hover:bg-emerald-200
+                            flex items-center justify-center flex-shrink-0 transition-colors">
+              <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M12 4v16m8-8H4"/>
+              </svg>
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-emerald-700">Add to canvas</div>
+              <div className="text-xs text-emerald-500 mt-0.5">New tables placed beside existing ones — nothing removed</div>
+            </div>
+          </button>
+
+          {/* Replace */}
+          <button
+            onClick={onReplace}
+            className="flex items-center gap-3 p-3.5 rounded-xl border-2 border-amber-200 bg-amber-50
+                       hover:bg-amber-100 hover:border-amber-300 transition-all text-left group">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 group-hover:bg-amber-200
+                            flex items-center justify-center flex-shrink-0 transition-colors">
+              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-amber-700">Replace everything</div>
+              <div className="text-xs text-amber-500 mt-0.5">Current tables and relationships will be removed</div>
+            </div>
+          </button>
+        </div>
+
+        <button
+          onClick={onCancel}
+          className="w-full text-center text-sm text-gray-400 hover:text-gray-700 transition-colors py-1">
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Roast Modal ───────────────────────────────────────────────────
+const ROAST_SEVERITY = {
+  critical: {
+    bg:     'bg-red-50',
+    border: 'border-red-200',
+    badge:  'bg-red-100 text-red-700',
+    dot:    'bg-red-500',
+    label:  'Critical',
+  },
+  bad: {
+    bg:     'bg-orange-50',
+    border: 'border-orange-200',
+    badge:  'bg-orange-100 text-orange-700',
+    dot:    'bg-orange-400',
+    label:  'Bad',
+  },
+  meh: {
+    bg:     'bg-amber-50',
+    border: 'border-amber-200',
+    badge:  'bg-amber-100 text-amber-700',
+    dot:    'bg-amber-400',
+    label:  'Meh',
+  },
+}
+
+function RoastModal({ items, error, onClose }) {
+  const criticalCount = items.filter(r => r.severity === 'critical').length
+  const badCount      = items.filter(r => r.severity === 'bad').length
+  const mehCount      = items.filter(r => r.severity === 'meh').length
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100
+                        bg-gradient-to-r from-orange-50 to-red-50 rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <Flame className="w-7 h-7 text-orange-500 flex-shrink-0"/>
+            <div>
+              <h2 className="font-bold text-gray-900 text-lg leading-tight">Schema Roast</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Brutally honest feedback from your AI DBA</p>
+            </div>
+          </div>
+          <button onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-white/80 transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+
+          {/* Error state */}
+          {error && (
+            <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              <svg className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+              </svg>
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          {/* All-clear state */}
+          {!error && items.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="text-5xl mb-4">🏆</div>
+              <p className="font-bold text-gray-900 text-lg mb-1">Your schema is clean.</p>
+              <p className="text-sm text-gray-400">Even the AI couldn't find anything to roast. Nicely done.</p>
+            </div>
+          )}
+
+          {/* Summary badges */}
+          {!error && items.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap pb-1">
+              {criticalCount > 0 && (
+                <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"/>
+                  {criticalCount} critical
+                </span>
+              )}
+              {badCount > 0 && (
+                <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 border border-orange-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block"/>
+                  {badCount} bad
+                </span>
+              )}
+              {mehCount > 0 && (
+                <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"/>
+                  {mehCount} meh
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Roast cards */}
+          {!error && items.map((roast) => {
+            const sev = ROAST_SEVERITY[roast.severity] ?? ROAST_SEVERITY.meh
+            return (
+              <div
+                key={roast.id}
+                className={`rounded-xl border p-4 ${sev.bg} ${sev.border}`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${sev.dot}`}/>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="font-semibold text-sm text-gray-900 leading-snug">{roast.title}</p>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide ${sev.badge}`}>
+                        {sev.label}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">{roast.description}</p>
+                    {roast.table && (
+                      <code className="mt-1.5 inline-block text-[11px] bg-white/70 border border-gray-200
+                                       text-gray-500 px-1.5 py-0.5 rounded font-mono">
+                        {roast.table}
+                      </code>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+          <p className="text-xs text-gray-400 italic">AI feedback — always verify before acting.</p>
+          <button onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-white bg-gray-800 hover:bg-gray-700
+                       rounded-xl transition-colors shadow-sm">
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -2620,91 +2954,16 @@ function ShareModal({ projectId, project, onProjectUpdate, onClose }) {
 }
 
 // ── Schema Templates ──────────────────────────────────────────────
-const col = (id, name, type, opts = {}) => ({
-  id, name, type,
-  nullable:      opts.nullable      ?? false,
-  pk:            opts.pk            ?? false,
-  unique:        opts.unique        ?? false,
-  autoIncrement: opts.autoIncrement ?? false,
-  default:       opts.default       ?? null,
-  fk:            opts.fk            ?? false,
-})
-const pkCol  = (id, name='id') => col(id, name, 'BIGINT', { pk: true, unique: true, autoIncrement: true })
-const fkCol  = (id, name)       => col(id, name, 'BIGINT', { fk: true })
-const fkNullCol = (id, name)    => col(id, name, 'BIGINT', { fk: true, nullable: true })
-
-const SCHEMA_TEMPLATES = [
-  {
-    id: 'blog', name: 'Blog Platform',
-    description: 'Users, posts, categories, comments, and tags with a post-tag pivot table.',
-    tableCount: 6, edgeCount: 6,
-    color: 'bg-purple-600',
-    icon: <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>,
-    nodes: [
-      { id:'bt_users',     type:'tableNode', position:{x:80,  y:80},  data:{name:'users',     columns:[pkCol('bu1'),col('bu2','name','VARCHAR'),col('bu3','email','VARCHAR',{unique:true}),col('bu4','password','VARCHAR')]}},
-      { id:'bt_categories',type:'tableNode', position:{x:80,  y:360}, data:{name:'categories',columns:[pkCol('bc1'),col('bc2','name','VARCHAR',{unique:true}),col('bc3','slug','VARCHAR',{unique:true})]}},
-      { id:'bt_posts',     type:'tableNode', position:{x:460, y:80},  data:{name:'posts',     columns:[pkCol('bp1'),fkCol('bp2','user_id'),fkNullCol('bp3','category_id'),col('bp4','title','VARCHAR'),col('bp5','body','TEXT'),col('bp6','published_at','DATETIME',{nullable:true})]}},
-      { id:'bt_comments',  type:'tableNode', position:{x:460, y:380}, data:{name:'comments',  columns:[pkCol('bm1'),fkCol('bm2','post_id'),fkCol('bm3','user_id'),col('bm4','body','TEXT')]}},
-      { id:'bt_tags',      type:'tableNode', position:{x:840, y:80},  data:{name:'tags',      columns:[pkCol('bt1'),col('bt2','name','VARCHAR',{unique:true})]}},
-      { id:'bt_post_tags', type:'tableNode', position:{x:840, y:360}, data:{name:'post_tags', columns:[pkCol('bpt1'),fkCol('bpt2','post_id'),fkCol('bpt3','tag_id')]}},
-    ],
-    edges: [
-      {id:'be1',source:'bt_users',    target:'bt_posts',    type:'smoothstep',data:{type:'1:N',sourceLabel:'writes',targetLabel:''}},
-      {id:'be2',source:'bt_categories',target:'bt_posts',   type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-      {id:'be3',source:'bt_posts',    target:'bt_comments', type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-      {id:'be4',source:'bt_users',    target:'bt_comments', type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-      {id:'be5',source:'bt_posts',    target:'bt_post_tags',type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-      {id:'be6',source:'bt_tags',     target:'bt_post_tags',type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-    ],
-  },
-  {
-    id: 'ecommerce', name: 'E-Commerce Store',
-    description: 'Products, categories, orders, order items, customers, and product reviews.',
-    tableCount: 6, edgeCount: 6,
-    color: 'bg-blue-600',
-    icon: <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>,
-    nodes: [
-      { id:'ec_users',      type:'tableNode', position:{x:80,  y:80},  data:{name:'users',      columns:[pkCol('eu1'),col('eu2','name','VARCHAR'),col('eu3','email','VARCHAR',{unique:true}),col('eu4','password','VARCHAR')]}},
-      { id:'ec_categories', type:'tableNode', position:{x:80,  y:360}, data:{name:'categories', columns:[pkCol('ec1'),col('ec2','name','VARCHAR',{unique:true}),col('ec3','description','TEXT',{nullable:true})]}},
-      { id:'ec_products',   type:'tableNode', position:{x:460, y:80},  data:{name:'products',   columns:[pkCol('ep1'),fkCol('ep2','category_id'),col('ep3','name','VARCHAR'),col('ep4','price','DECIMAL'),col('ep5','stock','INT',{default:'0'})]}},
-      { id:'ec_orders',     type:'tableNode', position:{x:460, y:380}, data:{name:'orders',     columns:[pkCol('eo1'),fkCol('eo2','user_id'),col('eo3','status','ENUM',{default:'pending'}),col('eo4','total_amount','DECIMAL')]}},
-      { id:'ec_order_items',type:'tableNode', position:{x:840, y:80},  data:{name:'order_items',columns:[pkCol('ei1'),fkCol('ei2','order_id'),fkCol('ei3','product_id'),col('ei4','quantity','INT'),col('ei5','unit_price','DECIMAL')]}},
-      { id:'ec_reviews',    type:'tableNode', position:{x:840, y:380}, data:{name:'reviews',    columns:[pkCol('er1'),fkCol('er2','product_id'),fkCol('er3','user_id'),col('er4','rating','INT'),col('er5','body','TEXT',{nullable:true})]}},
-    ],
-    edges: [
-      {id:'ee1',source:'ec_users',     target:'ec_orders',     type:'smoothstep',data:{type:'1:N',sourceLabel:'places',targetLabel:''}},
-      {id:'ee2',source:'ec_categories',target:'ec_products',   type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-      {id:'ee3',source:'ec_orders',    target:'ec_order_items',type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-      {id:'ee4',source:'ec_products',  target:'ec_order_items',type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-      {id:'ee5',source:'ec_products',  target:'ec_reviews',    type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-      {id:'ee6',source:'ec_users',     target:'ec_reviews',    type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-    ],
-  },
-  {
-    id: 'saas', name: 'SaaS Platform',
-    description: 'Organizations, members, subscriptions, and invoices for a multi-tenant app.',
-    tableCount: 5, edgeCount: 5,
-    color: 'bg-indigo-600',
-    icon: <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>,
-    nodes: [
-      { id:'ss_users', type:'tableNode', position:{x:80,  y:80},  data:{name:'users',         columns:[pkCol('su1'),col('su2','name','VARCHAR'),col('su3','email','VARCHAR',{unique:true}),col('su4','password','VARCHAR')]}},
-      { id:'ss_orgs',  type:'tableNode', position:{x:460, y:80},  data:{name:'organizations', columns:[pkCol('so1'),fkCol('so2','owner_id'),col('so3','name','VARCHAR'),col('so4','plan','ENUM',{default:'free'})]}},
-      { id:'ss_mbrs',  type:'tableNode', position:{x:80,  y:380}, data:{name:'org_members',   columns:[pkCol('sm1'),fkCol('sm2','org_id'),fkCol('sm3','user_id'),col('sm4','role','ENUM',{default:'member'})]}},
-      { id:'ss_subs',  type:'tableNode', position:{x:460, y:380}, data:{name:'subscriptions', columns:[pkCol('ss1'),fkCol('ss2','org_id'),col('ss3','plan','ENUM'),col('ss4','status','ENUM',{default:'active'}),col('ss5','expires_at','DATETIME',{nullable:true})]}},
-      { id:'ss_invs',  type:'tableNode', position:{x:840, y:230}, data:{name:'invoices',      columns:[pkCol('si1'),fkCol('si2','subscription_id'),col('si3','amount','DECIMAL'),col('si4','status','ENUM',{default:'unpaid'}),col('si5','issued_at','DATE')]}},
-    ],
-    edges: [
-      {id:'se1',source:'ss_users',target:'ss_orgs', type:'smoothstep',data:{type:'1:N',sourceLabel:'owns',targetLabel:''}},
-      {id:'se2',source:'ss_orgs', target:'ss_mbrs', type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-      {id:'se3',source:'ss_users',target:'ss_mbrs', type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-      {id:'se4',source:'ss_orgs', target:'ss_subs', type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-      {id:'se5',source:'ss_subs', target:'ss_invs', type:'smoothstep',data:{type:'1:N',sourceLabel:'',targetLabel:''}},
-    ],
-  },
-]
+// SCHEMA_TEMPLATES imported from ../data/schemaTemplates
 
 // ── Templates Modal ───────────────────────────────────────────────
 function TemplatesModal({ onUseTemplate, onClose }) {
+  const [search, setSearch] = useState('')
+  const filtered = SCHEMA_TEMPLATES.filter(t =>
+    !search || t.name.toLowerCase().includes(search.toLowerCase()) ||
+    t.description.toLowerCase().includes(search.toLowerCase())
+  )
+
   useEffect(() => {
     const fn = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', fn)
@@ -2715,43 +2974,69 @@ function TemplatesModal({ onUseTemplate, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl animate-modal overflow-hidden">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl animate-modal
+                      flex flex-col max-h-[88vh] overflow-hidden">
 
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50 flex-shrink-0">
           <div>
-            <h2 className="font-bold text-gray-900">Schema Templates</h2>
+            <h2 className="font-bold text-gray-900">
+              Schema Templates
+              <span className="ml-2 text-xs font-medium text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full">
+                {SCHEMA_TEMPLATES.length}
+              </span>
+            </h2>
             <p className="text-xs text-gray-500 mt-0.5">Start from a pre-built schema and customize it</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search templates…"
+              className="text-sm px-3 py-1.5 border border-gray-200 rounded-lg w-44
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                         placeholder:text-gray-300"
+            />
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {SCHEMA_TEMPLATES.map(t => (
-            <div key={t.id}
-              className="border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-md
-                         transition-all flex flex-col">
-              <div className={`w-10 h-10 ${t.color} rounded-xl flex items-center justify-center mb-3`}>
-                {t.icon}
-              </div>
-              <h3 className="font-semibold text-gray-900 text-sm mb-1">{t.name}</h3>
-              <p className="text-xs text-gray-500 leading-relaxed mb-4 flex-1">{t.description}</p>
-              <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
-                <span>{t.tableCount} tables</span>
-                <span>{t.edgeCount} relations</span>
-              </div>
-              <button
-                onClick={() => onUseTemplate(t)}
-                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs
-                           font-semibold rounded-lg transition-colors">
-                Use Template
-              </button>
+        {/* Scrollable grid */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-gray-400 text-sm">No templates match "{search}"</p>
             </div>
-          ))}
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {filtered.map(t => (
+                <div key={t.id}
+                  className="border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-md
+                             transition-all flex flex-col">
+                  <div className={`w-10 h-10 ${t.color} rounded-xl flex items-center justify-center mb-3 flex-shrink-0`}>
+                    {t.icon}
+                  </div>
+                  <h3 className="font-semibold text-gray-900 text-sm mb-1 leading-snug">{t.name}</h3>
+                  <p className="text-xs text-gray-500 leading-relaxed mb-4 flex-1">{t.description}</p>
+                  <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
+                    <span>{t.tableCount} tables</span>
+                    <span>{t.edgeCount} relations</span>
+                  </div>
+                  <button
+                    onClick={() => onUseTemplate(t)}
+                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs
+                               font-semibold rounded-lg transition-colors">
+                    Use Template
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

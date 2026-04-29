@@ -370,6 +370,82 @@ PROMPT;
         return response()->json(['suggestions' => $result['suggestions']]);
     }
 
+    // POST /api/ai/roast — brutally honest schema review from a senior DBA persona
+    public function roast(Request $request)
+    {
+        $request->validate([
+            'schema' => 'required|array',
+        ]);
+
+        $schemaJson = json_encode($request->input('schema'), JSON_PRETTY_PRINT);
+
+        $systemPrompt = <<<'PROMPT'
+You are a brutally honest senior database architect with a dry sense of humour. You have been given a database schema and your job is to roast it — find every genuine flaw, poor design decision, naming horror, missing constraint, or security risk, and call it out directly.
+
+Return ONLY valid JSON — no explanation, no markdown, no code blocks.
+
+Return a JSON object with a single key "roasts" — an array of roast objects.
+
+Each roast must follow this exact structure:
+{
+  "id": "r_1",
+  "severity": "critical",
+  "title": "Short punchy title (max 60 chars)",
+  "description": "Direct, honest explanation of the problem and why it matters. Be specific about which table or column. You can be slightly humorous but the critique must be technically accurate.",
+  "table": "table_name_or_null"
+}
+
+Valid severity values: "critical" | "bad" | "meh"
+
+Severity guide:
+- "critical" — will break in production, security risk, or data loss risk (e.g. no PKs, text passwords, no referential integrity)
+- "bad" — real design problem that will cause pain (e.g. missing indexes on FK columns, no timestamps, ambiguous or generic naming like "data" or "info")
+- "meh" — minor style or convention issue worth fixing (e.g. inconsistent naming, unnecessary nullable columns, missing NOT NULL constraints on obvious fields)
+
+Rules:
+- Return between 0 and 10 roast items (most impactful only — quality over quantity)
+- Be specific: name the exact table and column when relevant
+- Do NOT make up problems that do not exist in the schema
+- Do NOT roast the same issue twice in different wordings
+- If the schema is genuinely well-designed, return { "roasts": [] }
+- Return ONLY the JSON object, nothing else
+PROMPT;
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . config('services.groq.api_key'),
+            'Content-Type'  => 'application/json',
+        ])->timeout(30)->post('https://api.groq.com/openai/v1/chat/completions', [
+            'model'    => 'llama-3.3-70b-versatile',
+            'messages' => [
+                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'user',   'content' => "Roast this schema:\n\n" . $schemaJson],
+            ],
+            'temperature' => 0.5,
+            'max_tokens'  => 2048,
+        ]);
+
+        if (!$response->successful()) {
+            return response()->json([
+                'error' => 'AI service error: ' . $response->status(),
+            ], 503);
+        }
+
+        $content = $response->json('choices.0.message.content') ?? '';
+        $content = preg_replace('/^```(?:json)?\s*/im', '', $content);
+        $content = preg_replace('/\s*```\s*$/im', '', $content);
+        $content = trim($content);
+
+        $result = json_decode($content, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !isset($result['roasts'])) {
+            return response()->json([
+                'error' => 'AI returned an unexpected response. Please try again.',
+            ], 422);
+        }
+
+        return response()->json(['roasts' => $result['roasts']]);
+    }
+
     // PATCH /api/ai/generations/{id}/apply — mark a generation as applied to canvas
     public function markApplied(Request $request, $id)
     {

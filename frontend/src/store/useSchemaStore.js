@@ -228,6 +228,53 @@ const useSchemaStore = create((set, get) => ({
     set({ nodes, edges, isDirty: true })
   },
 
+  // Merge AI-generated schema into the existing canvas without removing anything.
+  // New tables are shifted right of the rightmost existing table so they don't overlap.
+  // All incoming IDs are remapped with a timestamp suffix to avoid collisions.
+  aiMerge: (newNodes, newEdges) => {
+    get()._pushHistory()
+    const existingNodes = get().nodes
+
+    // Find the rightmost x extent of existing tables (assume ~320 px wide each)
+    let offsetX = 80
+    if (existingNodes.length > 0) {
+      const maxRight = Math.max(...existingNodes.map(n => (n.position?.x ?? 0) + 320))
+      offsetX = maxRight + 80   // 80 px gap between old and new clusters
+    }
+
+    // Normalise new nodes so the leftmost one starts at offsetX
+    const minNewX = newNodes.length > 0
+      ? Math.min(...newNodes.map(n => n.position?.x ?? 0))
+      : 0
+
+    // Remap every new ID with a timestamp suffix to prevent any collision
+    const ts   = Date.now()
+    const idMap = {}
+    newNodes.forEach((n, i) => { idMap[n.id] = `${n.id}_m${ts}_${i}` })
+
+    const mergedNodes = newNodes.map(n => ({
+      ...n,
+      id:       idMap[n.id],
+      position: {
+        x: (n.position?.x ?? 0) - minNewX + offsetX,
+        y: n.position?.y ?? 80,
+      },
+    }))
+
+    const mergedEdges = newEdges.map((e, i) => ({
+      ...e,
+      id:     `${e.id}_m${ts}_${i}`,
+      source: idMap[e.source] ?? e.source,
+      target: idMap[e.target] ?? e.target,
+    }))
+
+    set((state) => ({
+      nodes:   [...state.nodes, ...mergedNodes],
+      edges:   [...state.edges, ...mergedEdges],
+      isDirty: true,
+    }))
+  },
+
   // Undo — pop from past, push current to future
   undo: () => {
     const { past, nodes, edges, future } = get()

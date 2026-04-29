@@ -95,6 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/ai/generate-from-image',           [AiController::class, 'generateFromImage']);
     Route::patch('/ai/generations/{id}/apply',       [AiController::class, 'markApplied']);
     Route::post('/ai/suggest',                       [AiController::class, 'suggest']);
+    Route::post('/ai/roast',                         [AiController::class, 'roast']);
 
     // Profile
     Route::get('/profile',                              [ProfileController::class, 'show']);
