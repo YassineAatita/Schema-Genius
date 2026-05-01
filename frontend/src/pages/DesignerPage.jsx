@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Plus, Sparkles, Upload, CheckCircle, LayoutTemplate,
   Download, History, Image as ImageIcon,
-  Sun, Moon, Save, Wifi, WifiOff, Copy, Flame,
+  Sun, Moon, Save, Wifi, WifiOff, Copy, Flame, Code2,
 } from 'lucide-react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { toPng } from 'html-to-image'
@@ -15,6 +15,7 @@ import useSchemaStore, { setBroadcastFn, setRemoteUpdate } from '../store/useSch
 import useAuthStore from '../store/useAuthStore'
 import api from '../services/api'
 import ConfirmModal from '../components/ui/ConfirmModal'
+import OrmExportModal from '../components/ui/OrmExportModal'
 import HistoryPanel from '../components/panels/HistoryPanel'
 import { validateSchema } from '../utils/validateSchema'
 import { joinProjectChannel, leaveProjectChannel } from '../services/websocket'
@@ -51,6 +52,7 @@ export default function DesignerPage() {
   const [showShareModal,    setShowShareModal]    = useState(false)
   const [showTemplatesModal,setShowTemplatesModal]= useState(false)
   const [showMoreMenu,      setShowMoreMenu]      = useState(false)
+  const [showOrmModal,      setShowOrmModal]      = useState(false)
   const [showHistory,       setShowHistory]       = useState(false)
   const [undoToast,         setUndoToast]         = useState(null)  // { message }
   const [showGenerateMenu,  setShowGenerateMenu]  = useState(false)
@@ -1261,6 +1263,21 @@ export default function DesignerPage() {
           )}
         </div>
 
+        {/* Export Models (ORM) */}
+        <div className="relative group">
+          <button
+            onClick={() => setShowOrmModal(true)}
+            disabled={nodes.length === 0}
+            title="Export ORM model classes"
+            className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors
+              ${nodes.length === 0
+                ? 'opacity-25 cursor-not-allowed text-gray-400 dark:text-gray-600'
+                : 'text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950'}`}>
+            <Code2 className="w-4 h-4"/>
+          </button>
+          <PillTooltip>Export Models</PillTooltip>
+        </div>
+
         {/* Copy SQL */}
         <div className="relative group">
           <button
@@ -1453,6 +1470,11 @@ export default function DesignerPage() {
           error={roastError}
           onClose={() => { setShowRoastModal(false); setRoastItems([]); setRoastError('') }}
         />
+      )}
+
+      {/* ── ORM Export Modal ── */}
+      {showOrmModal && (
+        <OrmExportModal onClose={() => setShowOrmModal(false)} />
       )}
 
       {/* ── Save Version Modal ── */}
