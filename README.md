@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/YassineAatita/Schema-Genius/main/frontend/public/logo.svg" alt="Schema Genius Logo" width="100" />
+<img src="https://ibb.co/8DSCY6X7" alt="Schema Genius Logo" width="100" />
 
 # Schema Genius
 

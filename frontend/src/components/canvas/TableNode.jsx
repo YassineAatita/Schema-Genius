@@ -5,32 +5,64 @@ import useSchemaStore from '../../store/useSchemaStore'
 
 // ── Type badge colours ────────────────────────────────────────────────────────
 const TYPE_COLORS = {
-  BIGINT:   'bg-blue-100   text-blue-700',
-  INT:      'bg-blue-100   text-blue-700',
-  VARCHAR:  'bg-purple-100 text-purple-700',
-  TEXT:     'bg-purple-100 text-purple-700',
-  LONGTEXT: 'bg-purple-100 text-purple-700',
-  BOOLEAN:  'bg-green-100  text-green-700',
-  DATE:     'bg-orange-100 text-orange-700',
-  DATETIME: 'bg-orange-100 text-orange-700',
-  TIMESTAMP:'bg-orange-100 text-orange-700',
-  DECIMAL:  'bg-yellow-100 text-yellow-700',
-  FLOAT:    'bg-yellow-100 text-yellow-700',
-  ENUM:     'bg-pink-100   text-pink-700',
+  // Numeric
+  BIGINT:    'bg-blue-100   text-blue-700',
+  INT:       'bg-blue-100   text-blue-700',
+  INTEGER:   'bg-blue-100   text-blue-700',
+  SMALLINT:  'bg-blue-100   text-blue-700',
+  TINYINT:   'bg-blue-100   text-blue-700',
+  DECIMAL:   'bg-yellow-100 text-yellow-700',
+  FLOAT:     'bg-yellow-100 text-yellow-700',
+  DOUBLE:    'bg-yellow-100 text-yellow-700',
+  // String
+  VARCHAR:   'bg-purple-100 text-purple-700',
+  CHAR:      'bg-purple-100 text-purple-700',
+  TEXT:      'bg-purple-100 text-purple-700',
+  LONGTEXT:  'bg-purple-100 text-purple-700',
+  ENUM:      'bg-pink-100   text-pink-700',
+  // Date / Time
+  DATE:      'bg-orange-100 text-orange-700',
+  TIME:      'bg-orange-100 text-orange-700',
+  DATETIME:  'bg-orange-100 text-orange-700',
+  TIMESTAMP: 'bg-orange-100 text-orange-700',
+  // Binary
+  BLOB:      'bg-slate-100  text-slate-600',
+  MEDIUMBLOB:'bg-slate-100  text-slate-600',
+  LONGBLOB:  'bg-slate-100  text-slate-600',
+  // Other
+  BOOLEAN:   'bg-green-100  text-green-700',
+  JSON:      'bg-cyan-100   text-cyan-700',
+  UUID:      'bg-indigo-100 text-indigo-700',
 }
 const TYPE_COLORS_DARK = {
-  BIGINT:   'dark:bg-blue-950   dark:text-blue-300',
-  INT:      'dark:bg-blue-950   dark:text-blue-300',
-  VARCHAR:  'dark:bg-purple-950 dark:text-purple-300',
-  TEXT:     'dark:bg-purple-950 dark:text-purple-300',
-  LONGTEXT: 'dark:bg-purple-950 dark:text-purple-300',
-  BOOLEAN:  'dark:bg-green-950  dark:text-green-300',
-  DATE:     'dark:bg-orange-950 dark:text-orange-300',
-  DATETIME: 'dark:bg-orange-950 dark:text-orange-300',
-  TIMESTAMP:'dark:bg-orange-950 dark:text-orange-300',
-  DECIMAL:  'dark:bg-yellow-950 dark:text-yellow-300',
-  FLOAT:    'dark:bg-yellow-950 dark:text-yellow-300',
-  ENUM:     'dark:bg-pink-950   dark:text-pink-300',
+  // Numeric
+  BIGINT:    'dark:bg-blue-950   dark:text-blue-300',
+  INT:       'dark:bg-blue-950   dark:text-blue-300',
+  INTEGER:   'dark:bg-blue-950   dark:text-blue-300',
+  SMALLINT:  'dark:bg-blue-950   dark:text-blue-300',
+  TINYINT:   'dark:bg-blue-950   dark:text-blue-300',
+  DECIMAL:   'dark:bg-yellow-950 dark:text-yellow-300',
+  FLOAT:     'dark:bg-yellow-950 dark:text-yellow-300',
+  DOUBLE:    'dark:bg-yellow-950 dark:text-yellow-300',
+  // String
+  VARCHAR:   'dark:bg-purple-950 dark:text-purple-300',
+  CHAR:      'dark:bg-purple-950 dark:text-purple-300',
+  TEXT:      'dark:bg-purple-950 dark:text-purple-300',
+  LONGTEXT:  'dark:bg-purple-950 dark:text-purple-300',
+  ENUM:      'dark:bg-pink-950   dark:text-pink-300',
+  // Date / Time
+  DATE:      'dark:bg-orange-950 dark:text-orange-300',
+  TIME:      'dark:bg-orange-950 dark:text-orange-300',
+  DATETIME:  'dark:bg-orange-950 dark:text-orange-300',
+  TIMESTAMP: 'dark:bg-orange-950 dark:text-orange-300',
+  // Binary
+  BLOB:      'dark:bg-slate-800  dark:text-slate-300',
+  MEDIUMBLOB:'dark:bg-slate-800  dark:text-slate-300',
+  LONGBLOB:  'dark:bg-slate-800  dark:text-slate-300',
+  // Other
+  BOOLEAN:   'dark:bg-green-950  dark:text-green-300',
+  JSON:      'dark:bg-cyan-950   dark:text-cyan-300',
+  UUID:      'dark:bg-indigo-950 dark:text-indigo-300',
 }
 
 export default function TableNode({ id, data, selected }) {

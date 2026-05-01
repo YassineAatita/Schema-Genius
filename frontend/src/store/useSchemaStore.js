@@ -120,8 +120,10 @@ const useSchemaStore = create((set, get) => ({
           pk:            true,
           unique:        true,
           autoIncrement: true,
+          index:         false,
           default:       null,
           fk:            false,
+          fkRef:         null,
         }],
       },
     }
@@ -151,8 +153,10 @@ const useSchemaStore = create((set, get) => ({
           pk:            true,
           unique:        true,
           autoIncrement: true,
+          index:         false,
           default:       null,
           fk:            false,
+          fkRef:         null,
         }],
       },
     }
@@ -203,6 +207,36 @@ const useSchemaStore = create((set, get) => ({
       isDirty: _isRemote ? state.isDirty : true,
     }))
     emit('SchemaNodeDeleted', { nodeId })
+  },
+
+  // Wipe every fkRef across ALL nodes that points at tableName.colName.
+  // Called after a column is deleted so no orphaned FK references survive.
+  // Skipped entirely (no history push) when nothing references the column.
+  cleanupFkRefsForColumn: (tableName, colName) => {
+    const hasRefs = get().nodes.some(n =>
+      (n.data?.columns || []).some(
+        c => c.fk && c.fkRef?.table === tableName && c.fkRef?.column === colName
+      )
+    )
+    if (!hasRefs) return   // nothing to do
+
+    get()._pushHistory()
+    set((state) => ({
+      nodes: state.nodes.map(n => ({
+        ...n,
+        data: {
+          ...n.data,
+          columns: (n.data?.columns || []).map(c => {
+            if (c.fk && c.fkRef?.table === tableName && c.fkRef?.column === colName) {
+              return { ...c, fk: false, fkRef: null }
+            }
+            return c
+          }),
+        },
+      })),
+      isDirty: _isRemote ? state.isDirty : true,
+    }))
+    emit('SchemaFkRefsCleaned', { tableName, colName })
   },
 
   // Bulk delete — one history entry for multi-select or keyboard Delete

@@ -7,7 +7,8 @@ import api from '../services/api'
 import SchemaCanvas from '../components/canvas/SchemaCanvas'
 import { CanvasThemeContext } from '../contexts/CanvasThemeContext'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+// Match the same pattern as api.js: VITE_API_URL holds the base without /api suffix.
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api'
 
 export default function SharedSchemaPage() {
   const { projectId } = useParams()

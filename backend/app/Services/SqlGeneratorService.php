@@ -7,7 +7,7 @@ class SqlGeneratorService
     private string $dialect  = 'mysql';
     private array  $allNodes = [];
 
-    // ── Entry point ───────────────────────────────────────────────
+    // ── Entry point ───────────────────────────────────────────────────────────
     public function generate(array $schemaJson, string $dialect = 'mysql'): string
     {
         $this->dialect  = in_array($dialect, ['mysql', 'postgresql', 'sqlite']) ? $dialect : 'mysql';
@@ -21,7 +21,7 @@ class SqlGeneratorService
 
         $lines = [];
 
-        // ── Header ────────────────────────────────────────────────
+        // ── Header ────────────────────────────────────────────────────────────
         $dialectLabel = match($this->dialect) {
             'postgresql' => 'PostgreSQL',
             'sqlite'     => 'SQLite',
@@ -35,28 +35,36 @@ class SqlGeneratorService
         $lines[] = '-- ================================================';
         $lines[] = '';
 
-        // ── Dialect preamble ──────────────────────────────────────
+        // ── Dialect preamble ──────────────────────────────────────────────────
         match($this->dialect) {
             'mysql'  => array_push($lines, 'SET FOREIGN_KEY_CHECKS = 0;', ''),
             'sqlite' => array_push($lines, 'PRAGMA foreign_keys = OFF;', ''),
             default  => null,
         };
 
-        // ── Tables ────────────────────────────────────────────────
+        // ── CREATE TABLE statements ───────────────────────────────────────────
         foreach ($nodes as $node) {
             $lines[] = $this->generateTable($node, $edges);
             $lines[] = '';
+
+            // CREATE INDEX statements immediately after their table
+            $idxSql = $this->generateIndexStatements($node);
+            if ($idxSql) {
+                $lines[] = $idxSql;
+                $lines[] = '';
+            }
         }
 
-        // ── Pivot tables for M:N ──────────────────────────────────
+        // ── Pivot / junction tables for M:N edges ─────────────────────────────
         $pivot = $this->generatePivotTables($nodes, $edges);
         if ($pivot) {
             $lines[] = $pivot;
             $lines[] = '';
         }
 
-        // ── MySQL: ALTER TABLE foreign keys (after all tables) ────
+        // ── MySQL: ALTER TABLE foreign-key constraints (after all tables) ─────
         if ($this->dialect === 'mysql') {
+            // 1. Edge-based FKs (drawn relationship arrows on the canvas)
             foreach ($nodes as $node) {
                 $fk = $this->generateMysqlForeignKeys($node, $edges);
                 if ($fk) {
@@ -64,9 +72,17 @@ class SqlGeneratorService
                     $lines[] = '';
                 }
             }
+            // 2. Column-level FKs (configured via the FK Reference sub-form)
+            foreach ($nodes as $node) {
+                $fk = $this->generateColumnLevelMysqlFks($node);
+                if ($fk) {
+                    $lines[] = $fk;
+                    $lines[] = '';
+                }
+            }
         }
 
-        // ── Dialect postamble ─────────────────────────────────────
+        // ── Dialect postamble ─────────────────────────────────────────────────
         match($this->dialect) {
             'mysql'  => array_push($lines, 'SET FOREIGN_KEY_CHECKS = 1;'),
             'sqlite' => array_push($lines, 'PRAGMA foreign_keys = ON;'),
@@ -76,7 +92,7 @@ class SqlGeneratorService
         return implode("\n", $lines);
     }
 
-    // ── Quote an identifier ───────────────────────────────────────
+    // ── Quote an identifier ───────────────────────────────────────────────────
     private function q(string $name): string
     {
         return match($this->dialect) {
@@ -85,7 +101,12 @@ class SqlGeneratorService
         };
     }
 
-    // ── Map column type per dialect ───────────────────────────────
+    // ── Map column type per dialect ───────────────────────────────────────────
+    // Covers: INT, INTEGER, BIGINT, SMALLINT, TINYINT, DECIMAL, FLOAT, DOUBLE,
+    //         VARCHAR, CHAR, TEXT, LONGTEXT, ENUM,
+    //         DATE, TIME, DATETIME, TIMESTAMP,
+    //         BLOB, MEDIUMBLOB, LONGBLOB,
+    //         BOOLEAN, JSON, UUID
     private function mapType(array $col): string
     {
         $type      = strtoupper($col['type'] ?? 'VARCHAR');
@@ -93,52 +114,76 @@ class SqlGeneratorService
         $isAutoInc = $col['autoIncrement'] ?? false;
 
         return match($this->dialect) {
+
+            // ── PostgreSQL ────────────────────────────────────────────────────
             'postgresql' => match($type) {
-                'BIGINT'    => $isAutoInc ? 'BIGSERIAL' : 'BIGINT',
-                'INT'       => $isAutoInc ? 'SERIAL'    : 'INTEGER',
-                'SMALLINT'  => $isAutoInc ? 'SMALLSERIAL' : 'SMALLINT',
-                'VARCHAR'   => 'VARCHAR(' . ($length ?? 255) . ')',
-                'TEXT'      => 'TEXT',
-                'LONGTEXT'  => 'TEXT',
-                'BOOLEAN'   => 'BOOLEAN',
-                'DATE'      => 'DATE',
-                'DATETIME'  => 'TIMESTAMP',
-                'TIMESTAMP' => 'TIMESTAMP',
-                'DECIMAL'   => 'NUMERIC(' . ($length ?? '10,2') . ')',
-                'FLOAT'     => 'REAL',
-                'ENUM'      => 'VARCHAR(50)',
-                default     => 'VARCHAR(255)',
+                'BIGINT'               => $isAutoInc ? 'BIGSERIAL'    : 'BIGINT',
+                'INT', 'INTEGER'       => $isAutoInc ? 'SERIAL'       : 'INTEGER',
+                'SMALLINT'             => $isAutoInc ? 'SMALLSERIAL'  : 'SMALLINT',
+                'TINYINT'              => $isAutoInc ? 'SMALLSERIAL'  : 'SMALLINT',
+                'DOUBLE'               => 'DOUBLE PRECISION',
+                'VARCHAR'              => 'VARCHAR(' . ($length ?? 255) . ')',
+                'CHAR'                 => 'CHAR(' . ($length ?? 1) . ')',
+                'TEXT'                 => 'TEXT',
+                'LONGTEXT'             => 'TEXT',
+                'BOOLEAN'              => 'BOOLEAN',
+                'DATE'                 => 'DATE',
+                'TIME'                 => 'TIME',
+                'DATETIME'             => 'TIMESTAMP',
+                'TIMESTAMP'            => 'TIMESTAMP',
+                'DECIMAL'              => 'NUMERIC(' . ($length ?? '10,2') . ')',
+                'FLOAT'                => 'REAL',
+                'ENUM'                 => 'VARCHAR(50)',
+                'BLOB', 'MEDIUMBLOB', 'LONGBLOB' => 'BYTEA',
+                'JSON'                 => 'JSONB',
+                'UUID'                 => 'UUID',
+                default                => 'VARCHAR(255)',
             },
+
+            // ── SQLite ────────────────────────────────────────────────────────
             'sqlite' => match($type) {
-                'BIGINT', 'INT', 'SMALLINT' => 'INTEGER',
-                'VARCHAR'                   => 'TEXT',
-                'TEXT', 'LONGTEXT'          => 'TEXT',
-                'BOOLEAN'                   => 'INTEGER',
-                'DATE', 'DATETIME', 'TIMESTAMP' => 'TEXT',
-                'DECIMAL', 'FLOAT'          => 'REAL',
-                'ENUM'                      => 'TEXT',
-                default                     => 'TEXT',
+                'BIGINT', 'INT', 'INTEGER', 'SMALLINT', 'TINYINT' => 'INTEGER',
+                'DOUBLE', 'FLOAT', 'DECIMAL'  => 'REAL',
+                'VARCHAR', 'CHAR'             => 'TEXT',
+                'TEXT', 'LONGTEXT'            => 'TEXT',
+                'BOOLEAN'                     => 'INTEGER',
+                'DATE', 'TIME', 'DATETIME', 'TIMESTAMP' => 'TEXT',
+                'ENUM'                        => 'TEXT',
+                'BLOB', 'MEDIUMBLOB', 'LONGBLOB' => 'BLOB',
+                'JSON', 'UUID'                => 'TEXT',
+                default                       => 'TEXT',
             },
+
+            // ── MySQL (default) ───────────────────────────────────────────────
             default => match($type) {
-                'VARCHAR'   => 'VARCHAR(' . ($length ?? 255) . ')',
-                'BIGINT'    => 'BIGINT UNSIGNED',
-                'INT'       => 'INT',
-                'SMALLINT'  => 'SMALLINT',
-                'TEXT'      => 'TEXT',
-                'LONGTEXT'  => 'LONGTEXT',
-                'BOOLEAN'   => 'TINYINT(1)',
-                'DATE'      => 'DATE',
-                'DATETIME'  => 'DATETIME',
-                'TIMESTAMP' => 'TIMESTAMP',
-                'DECIMAL'   => 'DECIMAL(' . ($length ?? '10,2') . ')',
-                'FLOAT'     => 'FLOAT',
-                'ENUM'      => 'ENUM(' . ($col['enumValues'] ?? "'active','inactive'") . ')',
-                default     => 'VARCHAR(255)',
+                'VARCHAR'    => 'VARCHAR(' . ($length ?? 255) . ')',
+                'CHAR'       => 'CHAR(' . ($length ?? 1) . ')',
+                'BIGINT'     => 'BIGINT UNSIGNED',
+                'INT', 'INTEGER' => 'INT',
+                'SMALLINT'   => 'SMALLINT',
+                'TINYINT'    => 'TINYINT',
+                'DOUBLE'     => 'DOUBLE',
+                'TEXT'       => 'TEXT',
+                'LONGTEXT'   => 'LONGTEXT',
+                'BOOLEAN'    => 'TINYINT(1)',
+                'DATE'       => 'DATE',
+                'TIME'       => 'TIME',
+                'DATETIME'   => 'DATETIME',
+                'TIMESTAMP'  => 'TIMESTAMP',
+                'DECIMAL'    => 'DECIMAL(' . ($length ?? '10,2') . ')',
+                'FLOAT'      => 'FLOAT',
+                'ENUM'       => 'ENUM(' . ($col['enumValues'] ?? "'active','inactive'") . ')',
+                'BLOB'       => 'BLOB',
+                'MEDIUMBLOB' => 'MEDIUMBLOB',
+                'LONGBLOB'   => 'LONGBLOB',
+                'JSON'       => 'JSON',
+                'UUID'       => 'CHAR(36)',
+                default      => 'VARCHAR(255)',
             },
         };
     }
 
-    // ── CREATE TABLE ──────────────────────────────────────────────
+    // ── CREATE TABLE ──────────────────────────────────────────────────────────
     private function generateTable(array $node, array $edges): string
     {
         $tableName   = $this->sanitize($node['data']['name'] ?? 'unnamed_table');
@@ -158,7 +203,7 @@ class SqlGeneratorService
                 continue;
             }
 
-            $colSQL = '  ' . $this->q($colName) . ' ' . $this->mapType($col);
+            $colSQL  = '  ' . $this->q($colName) . ' ' . $this->mapType($col);
             $colSQL .= ($col['nullable'] ?? false) ? ' NULL' : ' NOT NULL';
 
             if (isset($col['default']) && $col['default'] !== null && $col['default'] !== '') {
@@ -184,7 +229,7 @@ class SqlGeneratorService
             }
         }
 
-        // PRIMARY KEY
+        // PRIMARY KEY constraint
         if (!empty($primaryKeys)) {
             $columnLines[] = '  PRIMARY KEY (' . implode(', ', $primaryKeys) . ')';
         }
@@ -192,29 +237,60 @@ class SqlGeneratorService
         // UNIQUE constraints
         foreach ($uniqueKeys as $uq) {
             if ($this->dialect === 'mysql') {
-                $columnLines[] = "  UNIQUE KEY " . $this->q("uq_{$tableName}_{$uq}") . " (" . $this->q($uq) . ")";
+                $columnLines[] = '  UNIQUE KEY ' . $this->q("uq_{$tableName}_{$uq}") . ' (' . $this->q($uq) . ')';
             } else {
-                $columnLines[] = "  CONSTRAINT " . $this->q("uq_{$tableName}_{$uq}") . " UNIQUE (" . $this->q($uq) . ")";
+                $columnLines[] = '  CONSTRAINT ' . $this->q("uq_{$tableName}_{$uq}") . ' UNIQUE (' . $this->q($uq) . ')';
             }
         }
 
         // PostgreSQL / SQLite: inline FK constraints
         if (in_array($this->dialect, ['postgresql', 'sqlite'])) {
+            // 1. Edge-based FK relationships drawn on the canvas
             foreach ($this->buildInlineFks($node, $edges) as $fk) {
+                $columnLines[] = $fk;
+            }
+            // 2. Column-level FK references configured via the FK sub-form
+            foreach ($this->buildColumnLevelInlineFks($node) as $fk) {
                 $columnLines[] = $fk;
             }
         }
 
         $closing = $this->dialect === 'mysql'
-            ? ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
-            : ");";
+            ? ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;'
+            : ');';
 
         return "CREATE TABLE " . $this->q($tableName) . " (\n"
             . implode(",\n", $columnLines) . "\n"
             . $closing;
     }
 
-    // ── Inline FK for PostgreSQL / SQLite ─────────────────────────
+    // ── CREATE INDEX statements (Problem 4 — Index constraint) ───────────────
+    // Generates one CREATE INDEX per column that has index:true,
+    // skipping columns that are already indexed via PRIMARY KEY or UNIQUE.
+    private function generateIndexStatements(array $node): string
+    {
+        $tableName = $this->sanitize($node['data']['name'] ?? 'unnamed_table');
+        $columns   = $node['data']['columns'] ?? [];
+        $lines     = [];
+
+        foreach ($columns as $col) {
+            if (!($col['index'] ?? false)) continue;
+            // PK and UNIQUE already create an index — no need to duplicate
+            if ($col['pk']     ?? false) continue;
+            if ($col['unique'] ?? false) continue;
+
+            $colName = $this->sanitize($col['name'] ?? 'unnamed_column');
+            $idxName = "idx_{$tableName}_{$colName}";
+
+            $lines[] = 'CREATE INDEX ' . $this->q($idxName)
+                . ' ON ' . $this->q($tableName)
+                . ' (' . $this->q($colName) . ');';
+        }
+
+        return implode("\n", $lines);
+    }
+
+    // ── Inline FK for PostgreSQL / SQLite (edge-based) ────────────────────────
     private function buildInlineFks(array $node, array $edges): array
     {
         $tableName = $this->sanitize($node['data']['name'] ?? 'unnamed');
@@ -230,16 +306,45 @@ class SqlGeneratorService
             $sourceColumn = $this->sanitize($edge['data']['sourceColumn'] ?? 'id');
             $fkColumn     = $this->sanitize($edge['data']['fkColumn'] ?? $sourceTable . '_id');
 
-            $fkLines[] = "  CONSTRAINT " . $this->q("fk_{$tableName}_{$fkColumn}")
-                . " FOREIGN KEY (" . $this->q($fkColumn) . ")"
-                . " REFERENCES " . $this->q($sourceTable) . " (" . $this->q($sourceColumn) . ")"
-                . " ON DELETE CASCADE ON UPDATE CASCADE";
+            $fkLines[] = '  CONSTRAINT ' . $this->q("fk_{$tableName}_{$fkColumn}")
+                . ' FOREIGN KEY (' . $this->q($fkColumn) . ')'
+                . ' REFERENCES ' . $this->q($sourceTable) . ' (' . $this->q($sourceColumn) . ')'
+                . ' ON DELETE CASCADE ON UPDATE CASCADE';
         }
 
         return $fkLines;
     }
 
-    // ── MySQL ALTER TABLE FKs (separate statements) ───────────────
+    // ── Inline FK for PostgreSQL / SQLite (column-level fkRef data) ──────────
+    // Problem 2 & 5: reads col.fkRef and generates CONSTRAINT … FOREIGN KEY inline.
+    private function buildColumnLevelInlineFks(array $node): array
+    {
+        $tableName = $this->sanitize($node['data']['name'] ?? 'unnamed_table');
+        $columns   = $node['data']['columns'] ?? [];
+        $fkLines   = [];
+
+        foreach ($columns as $col) {
+            if (!($col['fk'] ?? false)) continue;
+            $fkRef = $col['fkRef'] ?? null;
+            if (!$fkRef || empty($fkRef['table']) || empty($fkRef['column'])) continue;
+
+            $colName        = $this->sanitize($col['name'] ?? 'unnamed_column');
+            $refTable       = $this->sanitize($fkRef['table']);
+            $refColumn      = $this->sanitize($fkRef['column']);
+            $onDelete       = $this->sanitizeFkAction($fkRef['onDelete'] ?? 'RESTRICT');
+            $onUpdate       = $this->sanitizeFkAction($fkRef['onUpdate'] ?? 'RESTRICT');
+            $constraintName = "fk_{$tableName}_{$colName}";
+
+            $fkLines[] = '  CONSTRAINT ' . $this->q($constraintName)
+                . ' FOREIGN KEY (' . $this->q($colName) . ')'
+                . ' REFERENCES ' . $this->q($refTable) . ' (' . $this->q($refColumn) . ')'
+                . " ON DELETE {$onDelete} ON UPDATE {$onUpdate}";
+        }
+
+        return $fkLines;
+    }
+
+    // ── MySQL ALTER TABLE FKs — edge-based ────────────────────────────────────
     private function generateMysqlForeignKeys(array $node, array $edges): string
     {
         $tableName = $this->sanitize($node['data']['name'] ?? 'unnamed');
@@ -267,7 +372,40 @@ class SqlGeneratorService
         return implode("\n", $fkLines);
     }
 
-    // ── Pivot / junction tables for M:N ───────────────────────────
+    // ── MySQL ALTER TABLE FKs — column-level fkRef data ──────────────────────
+    // Problem 2 & 5: reads col.fkRef and generates ALTER TABLE … ADD CONSTRAINT.
+    // Unlike edge-based FKs, the column already exists in CREATE TABLE —
+    // so we only ADD CONSTRAINT, never ADD COLUMN.
+    private function generateColumnLevelMysqlFks(array $node): string
+    {
+        $tableName = $this->sanitize($node['data']['name'] ?? 'unnamed_table');
+        $columns   = $node['data']['columns'] ?? [];
+        $fkLines   = [];
+
+        foreach ($columns as $col) {
+            if (!($col['fk'] ?? false)) continue;
+            $fkRef = $col['fkRef'] ?? null;
+            if (!$fkRef || empty($fkRef['table']) || empty($fkRef['column'])) continue;
+
+            $colName        = $this->sanitize($col['name'] ?? 'unnamed_column');
+            $refTable       = $this->sanitize($fkRef['table']);
+            $refColumn      = $this->sanitize($fkRef['column']);
+            $onDelete       = $this->sanitizeFkAction($fkRef['onDelete'] ?? 'RESTRICT');
+            $onUpdate       = $this->sanitizeFkAction($fkRef['onUpdate'] ?? 'RESTRICT');
+            $constraintName = "fk_{$tableName}_{$colName}";
+
+            $fkLines[] = "ALTER TABLE `{$tableName}`";
+            $fkLines[] = "  ADD CONSTRAINT `{$constraintName}`";
+            $fkLines[] = "  FOREIGN KEY (`{$colName}`)";
+            $fkLines[] = "  REFERENCES `{$refTable}` (`{$refColumn}`)";
+            $fkLines[] = "  ON DELETE {$onDelete} ON UPDATE {$onUpdate};";
+            $fkLines[] = '';
+        }
+
+        return implode("\n", $fkLines);
+    }
+
+    // ── Pivot / junction tables for M:N edges ─────────────────────────────────
     private function generatePivotTables(array $nodes, array $edges): string
     {
         $pivotLines = [];
@@ -294,7 +432,7 @@ class SqlGeneratorService
                 $pivotLines[] = "  UNIQUE KEY `uq_{$pivot}` (`{$src}_id`, `{$tgt}_id`),";
                 $pivotLines[] = "  FOREIGN KEY (`{$src}_id`) REFERENCES `{$src}` (`id`) ON DELETE CASCADE,";
                 $pivotLines[] = "  FOREIGN KEY (`{$tgt}_id`) REFERENCES `{$tgt}` (`id`) ON DELETE CASCADE";
-                $pivotLines[] = ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
+                $pivotLines[] = ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;';
             } elseif ($this->dialect === 'postgresql') {
                 $pivotLines[] = "CREATE TABLE {$q($pivot)} (";
                 $pivotLines[] = "  {$q('id')} BIGSERIAL NOT NULL,";
@@ -304,8 +442,9 @@ class SqlGeneratorService
                 $pivotLines[] = "  CONSTRAINT {$q('uq_'.$pivot)} UNIQUE ({$q($src.'_id')}, {$q($tgt.'_id')}),";
                 $pivotLines[] = "  CONSTRAINT {$q('fk_'.$pivot.'_'.$src)} FOREIGN KEY ({$q($src.'_id')}) REFERENCES {$q($src)} ({$q('id')}) ON DELETE CASCADE,";
                 $pivotLines[] = "  CONSTRAINT {$q('fk_'.$pivot.'_'.$tgt)} FOREIGN KEY ({$q($tgt.'_id')}) REFERENCES {$q($tgt)} ({$q('id')}) ON DELETE CASCADE";
-                $pivotLines[] = ");";
+                $pivotLines[] = ');';
             } else {
+                // SQLite
                 $pivotLines[] = "CREATE TABLE {$q($pivot)} (";
                 $pivotLines[] = "  {$q('id')} INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,";
                 $pivotLines[] = "  {$q($src.'_id')} INTEGER NOT NULL,";
@@ -313,7 +452,7 @@ class SqlGeneratorService
                 $pivotLines[] = "  CONSTRAINT {$q('uq_'.$pivot)} UNIQUE ({$q($src.'_id')}, {$q($tgt.'_id')}),";
                 $pivotLines[] = "  FOREIGN KEY ({$q($src.'_id')}) REFERENCES {$q($src)} ({$q('id')}) ON DELETE CASCADE,";
                 $pivotLines[] = "  FOREIGN KEY ({$q($tgt.'_id')}) REFERENCES {$q($tgt)} ({$q('id')}) ON DELETE CASCADE";
-                $pivotLines[] = ");";
+                $pivotLines[] = ');';
             }
 
             $pivotLines[] = '';
@@ -322,12 +461,22 @@ class SqlGeneratorService
         return implode("\n", $pivotLines);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
     private function sanitize(string $name): string
     {
         $name = preg_replace('/\s+/', '_', $name);
         $name = preg_replace('/[^a-zA-Z0-9_]/', '', $name);
         return strtolower($name) ?: 'unnamed';
+    }
+
+    /** Whitelist FK referential actions to prevent SQL injection. */
+    private function sanitizeFkAction(string $action): string
+    {
+        $action = strtoupper(trim($action));
+        return in_array($action, ['CASCADE', 'SET NULL', 'RESTRICT', 'NO ACTION'])
+            ? $action
+            : 'RESTRICT';
     }
 
     private function findNodeById(array $nodes, string $id): ?array
