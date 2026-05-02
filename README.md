@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://ibb.co/8DSCY6X7" alt="Schema Genius Logo" width="100" />
+<img src="https://raw.githubusercontent.com/YassineAatita/Schema-Genius/main/frontend/public/logo_black.svg" alt="Schema Genius Logo" width="120" />
 
 # Schema Genius
 
@@ -58,7 +58,9 @@ Everything saves automatically, every change is versioned, and your whole team e
 |---|---|
 | **Drag-and-drop canvas** | Powered by React Flow — pan, zoom, snap to grid |
 | **Table editor** | Add / rename / delete columns with full type picker |
-| **Column flags** | PK · FK · Unique · Nullable · Auto-Increment · Default value |
+| **Column types** | 22 types in 5 groups — Numeric (`INT`, `BIGINT`, `SMALLINT`, `TINYINT`, `DECIMAL`, `FLOAT`, `DOUBLE`) · String (`VARCHAR`, `CHAR`, `TEXT`, `LONGTEXT`, `ENUM`) · Date/Time (`DATE`, `TIME`, `DATETIME`, `TIMESTAMP`) · Binary (`BLOB`, `MEDIUMBLOB`, `LONGBLOB`) · Other (`BOOLEAN`, `JSON`, `UUID`) |
+| **Column flags** | PK (single-PK enforced per table) · FK with sub-form (reference table/column, On Delete & On Update actions) · Unique · Nullable · Auto-Increment · Index · Default value |
+| **Deletion safety** | Deleting a column warns if it is referenced as a FK in another table (lists all `table.column` pairs) or is the last PK; on confirm, all orphaned FK references are auto-cleared across the canvas |
 | **Relationship drawing** | Drag from any handle to connect two tables |
 | **Relationship editor** | Type selector (1:1, 1:N, N:1, M:M), UML role-name labels, line style |
 | **Line styles** | Curved · Elbow · Step · Straight — switch per relationship |
@@ -84,8 +86,9 @@ Everything saves automatically, every change is versioned, and your whole team e
 | **Auto-save** | Every manual save creates a new version in `schema_versions` |
 | **Version history** | Paginated list of all saves; restore any point with one click |
 | **Schema diff viewer** | Color-coded side-by-side diff for tables, columns, and relationships between any two versions |
-| **SQL export** | Download a `.sql` file in MySQL, PostgreSQL, or SQLite dialect |
+| **SQL export** | Download a `.sql` file in MySQL, PostgreSQL, or SQLite dialect — supports all 22 column types, column-level FK constraints (`ON DELETE` / `ON UPDATE`), and `CREATE INDEX` statements |
 | **Copy SQL** | One-click clipboard copy of the generated SQL |
+| **Export Models (ORM)** | Generate framework model code from the current canvas — **Laravel** (Eloquent PHP classes with `$fillable`, `$casts`, `belongsTo`, `hasMany`, `belongsToMany`), **Django** (Python models with field mapping and `on_delete`), **Prisma** (full schema with scalar fields, `@relation`, reverse stubs, and M:N implicit tables) — copy to clipboard or download individual files |
 | **Import from SQL** | Paste or upload a `.sql` file to reverse-engineer a visual schema |
 | **Schema validation** | Client-side panel catches duplicate names, missing PKs, reserved words, empty tables |
 | **Unsaved changes guard** | Browser-close warning + custom confirm modal |
@@ -404,7 +407,8 @@ Schema-Genius/
 │   │   │   │   ├── TableEditor.jsx     Column CRUD right panel
 │   │   │   │   └── RelationshipEditor.jsx Edge type + labels panel
 │   │   │   └── ui/
-│   │   │       └── ConfirmModal.jsx    Reusable confirm dialog
+│   │   │       ├── ConfirmModal.jsx    Reusable confirm dialog
+│   │   │       └── OrmExportModal.jsx  Laravel / Django / Prisma code export modal
 │   │   ├── data/
 │   │   │   └── schemaTemplates.jsx     All 15 pre-built templates
 │   │   ├── pages/
@@ -424,7 +428,8 @@ Schema-Genius/
 │   │   │   └── useSchemaStore.js       Canvas state + undo/redo + collab emit
 │   │   └── utils/
 │   │       ├── validateSchema.js       Client-side schema linter
-│   │       └── parseSql.js             SQL → nodes/edges parser
+│   │       ├── parseSql.js             SQL → nodes/edges parser
+│   │       └── ormGenerator.js         Pure-JS ORM code generators (Laravel, Django, Prisma)
 │   └── index.html
 │
 └── README.md
@@ -585,6 +590,7 @@ Schema Genius uses **Laravel Reverb** presence channels and client whispers for 
 | `SchemaEdgeAdded` | whisper → peers | `{ edge }` | Relationship drawn |
 | `SchemaEdgeUpdated` | whisper → peers | `{ edgeId, changes }` | Edge type / label changed |
 | `SchemaEdgeDeleted` | whisper → peers | `{ edgeId }` | Relationship deleted |
+| `SchemaFkRefsCleaned` | whisper → peers | `{ tableName, colName }` | All FK refs to a deleted column cleared |
 | `CursorMoved` | whisper → peers | `{ x, y, userId, name, color }` | Live cursor position |
 | `whisper:joining` | presence | `{ id, name, avatar, color }` | User joined canvas |
 | `whisper:leaving` | presence | `{ id }` | User left canvas |
@@ -598,7 +604,10 @@ Schema Genius uses **Laravel Reverb** presence channels and client whispers for 
 - [x] Auth: register · email verify · login · logout · forgot/reset password · branded emails
 - [x] Projects CRUD with auto-created versioned schema
 - [x] Visual designer: drag-drop canvas, TableNode, RelationshipEditor
-- [x] Column types, flags (PK, FK, Unique, Nullable, Auto-Increment, Default)
+- [x] 22 column types across 5 groups (Numeric, String, Date/Time, Binary, Other — incl. TINYINT, DOUBLE, CHAR, TIME, BLOB, MEDIUMBLOB, LONGBLOB, JSON, UUID)
+- [x] Column flags — PK (single-PK enforced), FK sub-form (ref table/column + On Delete/Update), Unique, Nullable, Auto-Increment, Index, Default
+- [x] Column deletion safety — FK reference warnings + last-PK advisory + auto-cleanup of orphaned FK refs
+- [x] ORM export — Laravel Eloquent · Django models · Prisma schema (copy / download)
 - [x] Relationship types (1:1, 1:N, N:1, M:M) with UML role-name labels
 - [x] Line style switcher (Curved · Elbow · Step · Straight)
 - [x] Table annotations (sticky notes, real-time synced)
@@ -607,7 +616,7 @@ Schema Genius uses **Laravel Reverb** presence channels and client whispers for 
 - [x] Schema validation panel (duplicate names, missing PKs, reserved words)
 - [x] Version history browser + restore
 - [x] Schema diff viewer (compare any two versions)
-- [x] SQL export — MySQL / PostgreSQL / SQLite
+- [x] SQL export — MySQL / PostgreSQL / SQLite (all 22 types, column-level FK constraints, CREATE INDEX)
 - [x] Copy SQL to clipboard
 - [x] Import from SQL (paste or file upload)
 - [x] AI text → schema (Groq Llama 4 Scout)
