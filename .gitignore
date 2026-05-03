@@ -17,3 +17,9 @@ frontend/.env.local
 Thumbs.db
 *.log
 .claude/
+
+# Docker
+# .env.docker is intentionally NOT ignored — it contains only placeholders
+# and is safe to commit so teammates can get started without extra setup.
+# Real secrets (APP_KEY, API keys) must be filled in by each developer.
+docker-compose.override.yml

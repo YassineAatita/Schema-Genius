@@ -2,15 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
-
-class RoleSeeder extends Seeder
+// Backward-compatibility alias.
+// The canonical seeder is RolesSeeder — use that class going forward.
+// This file is kept so that any existing `--class=RoleSeeder` calls still work.
+class RoleSeeder extends RolesSeeder
 {
-    public function run(): void
-    {
-        // Create platform-level roles
-        Role::firstOrCreate(['name' => 'admin',     'guard_name' => 'web']);
-        Role::firstOrCreate(['name' => 'developer', 'guard_name' => 'web']);
-    }
 }

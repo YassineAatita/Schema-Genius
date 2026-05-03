@@ -1,0 +1,72 @@
+# =============================================================================
+# Schema Genius — Docker Compose PRODUCTION overrides
+#
+# Merge with the base file:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   (or simply: make prod)
+#
+# What changes vs development:
+#   app       — no source volume mount; uses the built image; production env
+#   webserver — not exposed externally (API accessed only through `frontend`)
+#   reverb    — no source volume mount; uses the built image
+#   frontend  — builds the React app and serves it via Nginx on port 80;
+#               the unified `nginx/default.conf` also proxies /api/ and /app/
+#
+# In production the request flow is:
+#   Browser → localhost:80 (frontend Nginx)
+#     ├── /              → React static files (baked into the image)
+#     ├── /api/*         → fastcgi_pass → app:9000 (PHP-FPM, internal)
+#     ├── /sanctum/*     → fastcgi_pass → app:9000
+#     ├── /broadcasting/*→ fastcgi_pass → app:9000
+#     ├── /app/*         → proxy_pass  → reverb:8080 (WebSocket, internal)
+#     └── /apps/*        → proxy_pass  → reverb:8080
+# =============================================================================
+
+services:
+
+  # ── Laravel PHP-FPM (production) ──────────────────────────────────────────
+  app:
+    volumes: []          # No source-code mount; use the baked image
+    environment:
+      APP_ENV:   production
+      APP_DEBUG: "false"
+
+  # ── Nginx (API gateway) ────────────────────────────────────────────────────
+  #    In production the unified frontend Nginx calls app:9000 directly,
+  #    so the `webserver` service is kept but not exposed to the host.
+  webserver:
+    ports: []            # Remove host port-mapping; internal only
+
+  # ── Reverb (production) ───────────────────────────────────────────────────
+  reverb:
+    volumes: []          # No source-code mount; use the baked image
+    # Remove debug flag in production for quieter logs
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+
+  # ── React App — production Nginx ──────────────────────────────────────────
+  #    The `production` stage of frontend/Dockerfile builds the Vite app and
+  #    packages it inside an Nginx image at /usr/share/nginx/html.
+  #
+  #    `nginx/default.conf` is mounted to replace the default Nginx config.
+  #    It serves the React static files AND proxies the API + WebSocket.
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        # With a unified nginx on port 80, API routes are same-origin.
+        # Using relative URLs avoids hard-coding the host.
+        VITE_API_URL:       /api
+        VITE_REVERB_HOST:   localhost
+        VITE_REVERB_PORT:   "80"
+        VITE_REVERB_SCHEME: http
+    ports:
+      - "80:80"
+    volumes:
+      # Override the default nginx.conf with the unified production config
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    environment: []      # No Vite env vars needed at runtime (baked at build)
+    depends_on:
+      - app
+      - reverb

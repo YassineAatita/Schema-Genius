@@ -1,0 +1,158 @@
+# =============================================================================
+# Schema Genius — Docker Compose (Development)
+#
+# Services:
+#   db          MySQL 8 — persistent named volume, healthcheck
+#   app         Laravel PHP-FPM — source volume-mounted for live edits
+#   webserver   Nginx — proxies HTTP requests to app:9000, port 8000
+#   reverb      Laravel Reverb WebSocket server — same image as app, port 8080
+#   frontend    Vite HMR dev server — source volume-mounted, port 5173
+#
+# Usage:
+#   docker compose up           # start everything
+#   docker compose up --build   # rebuild images first
+#   docker compose down -v      # stop and remove volumes
+#
+# See Makefile for convenient shorthand commands (make dev, make migrate, …)
+# =============================================================================
+
+services:
+
+  # ── MySQL 8 ────────────────────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: sg_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE:       schema_genius
+      MYSQL_USER:           schema_user
+      MYSQL_PASSWORD:       schema_password
+      MYSQL_ROOT_PASSWORD:  sg_root_secret
+    volumes:
+      - db_data:/var/lib/mysql
+    # Host port 3307 avoids conflict with XAMPP MySQL which owns 3306.
+    # Connect external tools to localhost:3307 (user/pass unchanged).
+    # The DB_PORT in .env.docker stays 3306 — that is the INTERNAL container
+    # port and is never affected by the host-side mapping.
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test:
+        - CMD
+        - mysqladmin
+        - ping
+        - -h
+        - "127.0.0.1"
+        - -u
+        - schema_user
+        - --password=schema_password
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - sg_net
+
+  # ── Laravel PHP-FPM ────────────────────────────────────────────────────────
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sg_app
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    volumes:
+      # Mount source code so edits are reflected instantly without rebuilding
+      - ./backend:/var/www/html
+      # Keep vendor inside the container volume so host composer install
+      # doesn't shadow the Docker-built packages
+      - vendor_data:/var/www/html/vendor
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sg_net
+
+  # ── Nginx (Laravel API gateway) ───────────────────────────────────────────
+  webserver:
+    image: nginx:1.27-alpine
+    container_name: sg_webserver
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/var/www/html
+      - ./nginx/laravel.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - sg_net
+
+  # ── Laravel Reverb WebSocket server ──────────────────────────────────────
+  #    Uses the SAME Dockerfile as `app`; only the command differs.
+  #    The browser connects to ws://localhost:8080 (port-mapped).
+  #    The `app` container broadcasts events to reverb:8080 (internal DNS).
+  reverb:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sg_reverb
+    restart: unless-stopped
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080", "--debug"]
+    env_file:
+      - .env.docker
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/var/www/html
+      - vendor_data:/var/www/html/vendor
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sg_net
+
+  # ── React Vite Dev Server ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: sg_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      # Keep node_modules inside the container so the host directory
+      # (Windows/Mac) doesn't shadow the Linux-compiled packages
+      - node_modules_data:/app/node_modules
+    environment:
+      # These become import.meta.env.VITE_* in the React app.
+      # NOTE: VITE_API_URL must NOT include /api — api.js appends it automatically.
+      - VITE_API_URL=http://localhost:8000
+      - VITE_REVERB_APP_KEY=sg-local-key
+      - VITE_REVERB_HOST=localhost
+      - VITE_REVERB_PORT=8080
+      - VITE_REVERB_SCHEME=http
+      # Enable polling-based file watching — required on Windows/Mac Docker
+      # because inotify events don't cross the Docker Desktop VM boundary.
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    networks:
+      - sg_net
+
+# ── Named volumes ──────────────────────────────────────────────────────────
+volumes:
+  db_data:
+    driver: local
+  vendor_data:
+    driver: local
+  node_modules_data:
+    driver: local
+
+# ── Internal network ───────────────────────────────────────────────────────
+networks:
+  sg_net:
+    driver: bridge

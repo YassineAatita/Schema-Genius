@@ -1,0 +1,68 @@
+# =============================================================================
+# backend/.dockerignore
+#
+# Excludes files from the Docker build context (the tar sent to dockerd).
+# IMPORTANT for XAMPP on Windows: vendor/ and .git/ contain thousands of
+# files with NTFS permissions that cause "tar: Cannot change ownership"
+# errors when Docker Desktop (WSL2) tries to build from C:\xampp\htdocs.
+# =============================================================================
+
+# ── PHP dependencies ──────────────────────────────────────────────────────────
+# Composer installs these INSIDE the container; the host copy is never needed.
+# Excluding vendor/ is the single most important fix for the XAMPP tar error.
+vendor/
+
+# ── Environment & secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Git internals ─────────────────────────────────────────────────────────────
+# .git/ contains binary objects with complex permissions — a major source of
+# tar ownership errors on Windows NTFS.
+.git/
+.gitignore
+.gitattributes
+
+# ── Laravel runtime directories ───────────────────────────────────────────────
+# These are created/populated at container runtime, not at build time.
+storage/logs/*
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+
+# Keep the directory structure (Docker needs the empty dirs to exist)
+!storage/logs/.gitignore
+!storage/framework/.gitignore
+!storage/framework/cache/.gitignore
+!storage/framework/sessions/.gitignore
+!storage/framework/views/.gitignore
+
+# ── Bootstrap cache ───────────────────────────────────────────────────────────
+bootstrap/cache/*.php
+
+# ── Test & dev tooling ────────────────────────────────────────────────────────
+.phpunit.result.cache
+phpunit.xml
+phpunit.xml.dist
+
+# ── Documentation ─────────────────────────────────────────────────────────────
+*.md
+README*
+
+# ── Node (should not be in backend, but exclude just in case) ────────────────
+node_modules/
+
+# ── Windows / XAMPP artifacts ─────────────────────────────────────────────────
+# These NTFS metadata files have special attributes that break Docker's tar.
+Thumbs.db
+desktop.ini
+*.lnk
+ehthumbs.db
+
+# ── IDE & editor ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store

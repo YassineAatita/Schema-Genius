@@ -1,0 +1,51 @@
+# =============================================================================
+# frontend/.dockerignore
+#
+# Excludes files from the Docker build context.
+# node_modules/ on Windows has deep paths and NTFS permissions that cause
+# "tar: Cannot change ownership" errors in Docker Desktop (WSL2).
+# =============================================================================
+
+# ── Node modules ──────────────────────────────────────────────────────────────
+# npm ci installs these INSIDE the container from package-lock.json.
+# The host node_modules/ is never needed and is often the largest directory.
+node_modules/
+
+# ── Built output ──────────────────────────────────────────────────────────────
+# Vite builds inside the container; host dist/ is irrelevant.
+dist/
+
+# ── Environment files ─────────────────────────────────────────────────────────
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ── Git internals ─────────────────────────────────────────────────────────────
+.git/
+.gitignore
+.gitattributes
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Documentation ─────────────────────────────────────────────────────────────
+*.md
+README*
+
+# ── Windows / XAMPP artifacts ─────────────────────────────────────────────────
+Thumbs.db
+desktop.ini
+*.lnk
+ehthumbs.db
+
+# ── IDE & editor ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store

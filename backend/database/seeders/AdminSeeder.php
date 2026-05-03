@@ -4,14 +4,16 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 
 class AdminSeeder extends Seeder
 {
     public function run(): void
     {
-        // Ensure the admin role exists before assigning it
-        Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        // Guarantee all platform roles exist before we try to assign one.
+        // Calling the seeder here makes AdminSeeder safe to run standalone
+        // (e.g. `php artisan db:seed --class=AdminSeeder`) without requiring
+        // RolesSeeder to have been executed beforehand.
+        $this->call(RolesSeeder::class);
 
         // Create the admin account (or fetch it if already exists)
         $admin = User::firstOrCreate(
@@ -27,7 +29,7 @@ class AdminSeeder extends Seeder
         // Assign the admin role (idempotent — safe to run multiple times)
         $admin->syncRoles(['admin']);
 
-        $this->command->info('✅ Admin account ready.');
+        $this->command->info('Admin account ready.');
         $this->command->info('   Email    : admin@schema-genius.com');
         $this->command->info('   Password : Admin@123456');
     }

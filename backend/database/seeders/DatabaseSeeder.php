@@ -9,7 +9,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            RoleSeeder::class,
+            RolesSeeder::class,  // must run before AdminSeeder so roles exist
+            AdminSeeder::class,
         ]);
     }
 }
