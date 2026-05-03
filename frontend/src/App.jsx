@@ -15,6 +15,7 @@ import DesignerPage from './pages/DesignerPage'
 import AdminPage from './pages/AdminPage'
 import PublicProfilePage from './pages/PublicProfilePage'
 import SharedSchemaPage from './pages/SharedSchemaPage'
+import NotFoundPage from './pages/NotFoundPage'
 
 // Protects routes that require login.
 // Also ensures `user` is populated after a hard page refresh — the token
@@ -116,6 +117,9 @@ export default function App() {
         {/* /profile and /friends redirect to dashboard (tabs inside dashboard) */}
         <Route path="/profile" element={<Navigate to="/dashboard" replace />} />
         <Route path="/friends" element={<Navigate to="/dashboard" replace />} />
+
+        {/* Catch-all — must be last */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   )

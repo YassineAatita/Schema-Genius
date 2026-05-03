@@ -61,8 +61,15 @@ rm -f bootstrap/cache/packages.php bootstrap/cache/services.php 2>/dev/null || t
 echo "[entrypoint] Running package:discover..."
 php artisan package:discover --ansi --no-interaction 2>/dev/null || true
 
-# ── 5. Clear config cache so fresh env vars are picked up ──────────────────
+# ── 6. Clear config cache so fresh env vars are picked up ──────────────────
 php artisan config:clear --no-interaction 2>/dev/null || true
+
+# ── 7. Create storage symlink for public file access ────────────────────────
+#    Avatars are served via a PHP route (/api/avatars/) so the symlink is not
+#    strictly required, but it keeps `php artisan storage:link` idempotent
+#    and lets other public disk files work without extra routes.
+echo "[entrypoint] Creating storage symlink (safe to re-run)..."
+php artisan storage:link --force 2>/dev/null || true
 
 # ── Hand off to the main command (php-fpm or reverb:start) ─────────────────
 echo "[entrypoint] Starting: $*"
