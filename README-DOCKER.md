@@ -40,25 +40,40 @@ In production, the browser only ever talks to port 80. The frontend Nginx handle
 
 ---
 
+## ⚠ Security — read before touching git
+
+`.env.docker` contains real secrets (APP_KEY, API keys, mail password). It is listed in `.gitignore` and must **never** be committed.
+
+- ✅ `.env.docker.example` — placeholder template, safe to commit, already in the repo
+- ❌ `.env.docker` — your real secrets, gitignored, lives only on your machine
+
+If you ever run `git add .` without checking first, git will silently skip `.env.docker`. To be safe, always confirm with `git status` before committing.
+
+---
+
 ## Development Setup (first time)
 
-### Step 1 — Clone and configure
+### Step 1 — Clone and create your env file
 
 ```bash
 git clone https://github.com/YassineAatita/Schema-Genius.git
 cd Schema-Genius
+
+# Create your local secrets file from the safe template
+cp .env.docker.example .env.docker
 ```
 
 ### Step 2 — Fill in your secrets in `.env.docker`
 
-Open `.env.docker` in any editor. The only values you **must** change before the app works:
+Open `.env.docker` and fill in every line marked `← fill this in`:
 
 | Variable | Where to get it |
 |---|---|
 | `APP_KEY` | Leave empty — generated automatically in Step 4 |
-| `REVERB_APP_KEY` | Run `openssl rand -hex 20` |
-| `REVERB_APP_SECRET` | Run `openssl rand -hex 20` |
+| `REVERB_APP_KEY` | Any random string, e.g. `openssl rand -hex 20` |
+| `REVERB_APP_SECRET` | Any random string, e.g. `openssl rand -hex 20` |
 | `GROQ_API_KEY` | Get a free key at https://console.groq.com |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` | Your Gmail address + a Gmail App Password |
 
 Everything else (DB credentials, ports) works out of the box with the Docker defaults.
 

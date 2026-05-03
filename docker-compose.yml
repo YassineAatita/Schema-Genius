@@ -1,6 +1,13 @@
 # =============================================================================
 # Schema Genius — Docker Compose (Development)
 #
+# BEFORE RUNNING:
+#   cp .env.docker.example .env.docker   # create your local secrets file
+#   # then fill in APP_KEY, GROQ_API_KEY, REVERB_*, MAIL_* in .env.docker
+#
+# WARNING: .env.docker is gitignored and must NEVER be committed.
+#          .env.docker.example (placeholders only) is what lives in the repo.
+#
 # Services:
 #   db          MySQL 8 — persistent named volume, healthcheck
 #   app         Laravel PHP-FPM — source volume-mounted for live edits
