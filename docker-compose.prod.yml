@@ -55,12 +55,15 @@ services:
       dockerfile: Dockerfile
       target: production
       args:
-        # VITE_API_URL must be the server base URL with NO /api suffix.
-        # api.js appends /api automatically, so passing /api here would
-        # produce /api/api (double prefix).  Set to your server's public IP
-        # or domain — e.g. http://34.163.220.141 for Google Cloud.
-        VITE_API_URL:         http://34.163.220.141
-        VITE_REVERB_HOST:     34.163.220.141
+        # VITE_API_URL uses a relative base so the app works on any IP or domain
+        # without rebuilding.  "/" is stripped to "" by api.js, giving baseURL="/api".
+        # Nginx routes /api/* → app:9000 (PHP-FPM) on the same port-80 server.
+        VITE_API_URL:         /
+
+        # WebSocket connections are NOT same-origin relative — the browser must
+        # open a real TCP connection to a specific host.  Set this to your server's
+        # public IP or domain name (e.g. 34.163.220.141 or schema-genius.example.com).
+        VITE_REVERB_HOST:     34.155.220.141
         VITE_REVERB_PORT:     "80"
         VITE_REVERB_SCHEME:   http
         VITE_REVERB_APP_KEY:  sg-local-key

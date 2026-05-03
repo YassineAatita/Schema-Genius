@@ -1,10 +1,16 @@
 import axios from 'axios'
 
-// API base URL is configured via VITE_API_URL in frontend/.env (or frontend/.env.production).
-// Hardcoding 127.0.0.1:8000 here would break every deployment; always use the env variable.
-// Development default: http://127.0.0.1:8000/api
+// API base URL is configured via VITE_API_URL (set as a Docker build ARG in production,
+// or in frontend/.env for local development without Docker).
+//
+// The value must NOT include a trailing /api — this file appends it automatically.
+//
+//   Development : VITE_API_URL=http://localhost:8000   → baseURL = http://localhost:8000/api
+//   Production  : VITE_API_URL=/                       → baseURL = /api  (same-origin, Nginx routes it)
+//
+// The .replace() strips any trailing slash so both "http://host" and "/" work correctly.
 const api = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000') + '/api',
+  baseURL: (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '') + '/api',
   withCredentials: false,
   headers: {
     'Content-Type': 'application/json',
