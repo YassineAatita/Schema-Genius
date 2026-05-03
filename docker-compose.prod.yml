@@ -55,12 +55,15 @@ services:
       dockerfile: Dockerfile
       target: production
       args:
-        # With a unified nginx on port 80, API routes are same-origin.
-        # Using relative URLs avoids hard-coding the host.
-        VITE_API_URL:       /api
-        VITE_REVERB_HOST:   localhost
-        VITE_REVERB_PORT:   "80"
-        VITE_REVERB_SCHEME: http
+        # VITE_API_URL must be the server base URL with NO /api suffix.
+        # api.js appends /api automatically, so passing /api here would
+        # produce /api/api (double prefix).  Set to your server's public IP
+        # or domain — e.g. http://34.163.220.141 for Google Cloud.
+        VITE_API_URL:         http://34.163.220.141
+        VITE_REVERB_HOST:     34.163.220.141
+        VITE_REVERB_PORT:     "80"
+        VITE_REVERB_SCHEME:   http
+        VITE_REVERB_APP_KEY:  sg-local-key
     ports:
       - "80:80"
     volumes:

@@ -30,16 +30,18 @@ COPY . .
 
 # Vite API / Reverb URLs are injected at build time via ARGs.
 # Override these in docker-compose.prod.yml under build.args.
-ARG VITE_API_URL=http://localhost:8000/api
+ARG VITE_API_URL=http://localhost:8000
 ARG VITE_REVERB_HOST=localhost
 ARG VITE_REVERB_PORT=8080
 ARG VITE_REVERB_SCHEME=http
+ARG VITE_REVERB_APP_KEY=sg-local-key
 
 # Make ARGs visible to Vite as env vars
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_REVERB_HOST=$VITE_REVERB_HOST
 ENV VITE_REVERB_PORT=$VITE_REVERB_PORT
 ENV VITE_REVERB_SCHEME=$VITE_REVERB_SCHEME
+ENV VITE_REVERB_APP_KEY=$VITE_REVERB_APP_KEY
 
 RUN npm run build
 
