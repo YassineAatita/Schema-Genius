@@ -7,6 +7,7 @@ import {
   UserCheck, UserX, Lock, Zap, CheckCircle, Search, Filter,
   Trash2, ShieldAlert, ShieldOff, ChevronLeft, RefreshCw,
   MoreVertical, FolderOpen, EyeOff, Trophy, Calendar, Eye,
+  Menu, X,
 } from 'lucide-react'
 import useAuthStore from '../store/useAuthStore'
 import api from '../services/api'
@@ -2445,6 +2446,7 @@ export default function AdminPage() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const [section, setSection] = useState('overview')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const navItems = [
     { id: 'overview',   label: 'Overview',     icon: <LayoutDashboard className="w-4 h-4"/> },
@@ -2464,11 +2466,29 @@ export default function AdminPage() {
 
   const currentLabel = navItems.find(n => n.id === section)?.label ?? 'Admin'
 
+  const handleNavClick = (id) => {
+    setSection(id)
+    setSidebarOpen(false)
+  }
+
   return (
     <div className="flex h-screen bg-[#0b0d14] overflow-hidden">
 
+      {/* ── Mobile backdrop ── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* ════════ SIDEBAR ════════ */}
-      <aside className="w-64 bg-[#0f1117] border-r border-white/5 flex flex-col flex-shrink-0 h-full">
+      <aside className={`
+        fixed inset-y-0 left-0 z-40 w-64 bg-[#0f1117] border-r border-white/5
+        flex flex-col h-full transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:relative md:translate-x-0 md:flex md:flex-shrink-0
+      `}>
 
         {/* Logo */}
         <div className="px-6 pt-7 pb-5">
@@ -2493,7 +2513,7 @@ export default function AdminPage() {
               icon={item.icon}
               label={item.label}
               active={section === item.id}
-              onClick={() => setSection(item.id)}
+              onClick={() => handleNavClick(item.id)}
             />
           ))}
         </nav>
@@ -2530,21 +2550,33 @@ export default function AdminPage() {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
 
         {/* Top bar */}
-        <header className="bg-[#0f1117] border-b border-white/5 px-8 py-4 flex items-center
-                           justify-between flex-shrink-0">
-          <div>
-            <h1 className="text-base font-bold text-white">{currentLabel}</h1>
-            <p className="text-xs text-gray-600 mt-0.5">Schema Genius · Admin Panel</p>
+        <header className="bg-[#0f1117] border-b border-white/5 px-4 md:px-8 py-4 flex items-center
+                           justify-between flex-shrink-0 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setSidebarOpen(v => !v)}
+              className="md:hidden flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl
+                         bg-white/5 border border-white/10 text-gray-400 hover:text-white
+                         hover:bg-white/10 transition-colors">
+              <Menu className="w-4 h-4"/>
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-base font-bold text-white truncate">{currentLabel}</h1>
+              <p className="text-xs text-gray-600 mt-0.5 hidden sm:block">Schema Genius · Admin Panel</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
             <span className="text-[11px] text-gray-600">Logged in as</span>
-            <span className="text-[11px] font-semibold text-gray-400">{user?.email}</span>
+            <span className="text-[11px] font-semibold text-gray-400 max-w-[160px] truncate">{user?.email}</span>
           </div>
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto px-8 py-7 flex flex-col">
-          {sectionContent[section]}
+        <main className="flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-7 flex flex-col min-w-0">
+          <div className="min-w-0 overflow-x-auto">
+            {sectionContent[section]}
+          </div>
         </main>
       </div>
     </div>

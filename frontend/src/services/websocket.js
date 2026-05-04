@@ -19,10 +19,18 @@ window.Echo = new Echo({
     // current token from localStorage — even though Echo is created at module
     // load time (before the user has logged in).  Using the static `auth.headers`
     // object would snapshot an empty token and cause 401 on every auth request.
+    //
+    // Using a relative URL (/broadcasting/auth) means the request always goes
+    // to the same origin the frontend is served from — correct in both dev
+    // (Nginx on :8000 proxies /broadcasting/* to app:9000) and production
+    // (Nginx on :80 does the same).  A hardcoded http://127.0.0.1:8000 would
+    // cause ERR_CONNECTION_REFUSED when deployed to a real server.
     authorizer: (channel) => ({
         authorize(socketId, callback) {
             const token = localStorage.getItem('token') || '';
-            fetch('http://127.0.0.1:8000/broadcasting/auth', {
+            fetch(import.meta.env.DEV 
+                ? (import.meta.env.VITE_API_URL || 'http://localhost:8000') + '/broadcasting/auth'
+                : '/broadcasting/auth', {
                 method:  'POST',
                 headers: {
                     'Content-Type':  'application/json',

@@ -329,7 +329,7 @@ export default function DashboardPage() {
       />
 
       {/* ════════════════ SECTION SUB-HEADER ════════════════ */}
-      <header className="bg-white border-b border-gray-100 px-6 md:px-8 py-4 flex items-center justify-between flex-shrink-0 shadow-sm">
+      <header className="bg-white border-b border-gray-100 px-4 sm:px-6 md:px-8 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3 flex-shrink-0 shadow-sm">
         <div>
           {view === 'dashboard' ? (
             <>
@@ -355,27 +355,27 @@ export default function DashboardPage() {
         </div>
 
         {view === 'dashboard' && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="relative">
               <svg className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"
                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
               </svg>
-              <input type="text" placeholder="Search projects…" value={search}
+              <input type="text" placeholder="Search…" value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-8 pr-4 py-2 text-sm border border-gray-200 rounded-xl w-52
+                className="pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl w-32 sm:w-44 md:w-52
                            focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400
                            bg-gray-50 transition-all"/>
             </div>
             <button onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold
-                         px-4 py-2 rounded-xl shadow-md shadow-blue-500/20 transition-all
-                         hover:shadow-blue-500/30 hover:-translate-y-px active:translate-y-0">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              className="flex items-center gap-1.5 sm:gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold
+                         px-3 sm:px-4 py-2 rounded-xl shadow-md shadow-blue-500/20 transition-all
+                         hover:shadow-blue-500/30 hover:-translate-y-px active:translate-y-0 whitespace-nowrap">
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
               </svg>
-              New Project
+              <span className="hidden xs:inline sm:inline">New Project</span>
             </button>
           </div>
         )}
@@ -741,7 +741,7 @@ function TopNav({
 
             {showBell && (
               <div className="absolute right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden"
-                   style={{ width: '340px' }}>
+                   style={{ width: 'min(340px, calc(100vw - 1rem))' }}>
                 {/* Tabs */}
                 <div className="flex border-b border-gray-100">
                   <button onClick={() => setBellTab('invitations')}

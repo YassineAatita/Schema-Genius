@@ -256,26 +256,52 @@ Jump-start any project with one of **15 pre-built templates** — loaded with ta
 
 ## ⚡ Quick Start
 
-### Prerequisites
+### Option A — Docker (recommended, no local PHP/Node/MySQL needed)
 
-- PHP 8.2+, Composer 2+
-- Node.js 22+, npm 10+
-- MySQL / MariaDB (XAMPP recommended on Windows)
-
-### 1 — Clone & install
+> **Full guide:** [`README-DOCKER.md`](README-DOCKER.md)
 
 ```bash
 git clone https://github.com/YassineAatita/Schema-Genius.git
 cd Schema-Genius
 
-# Backend
-cd backend && composer install
+# 1. Create your secrets file and fill in the marked values
+cp .env.docker.example .env.docker
 
-# Frontend
+# 2. Build and start all five containers
+make dev-build          # or: docker compose up --build
+
+# 3. Run migrations (first time only)
+make migrate && make seed
+```
+
+| URL | Service |
+|---|---|
+| http://localhost:5173 | React frontend (Vite HMR) |
+| http://localhost:8000/api | Laravel REST API |
+| ws://localhost:8080 | Reverb WebSocket |
+| localhost:3307 | MySQL (TablePlus / DBeaver) |
+
+---
+
+### Option B — Local (XAMPP / native PHP + Node)
+
+#### Prerequisites
+
+- PHP 8.2+, Composer 2+
+- Node.js 22+, npm 10+
+- MySQL / MariaDB (XAMPP recommended on Windows)
+
+#### 1 — Clone & install
+
+```bash
+git clone https://github.com/YassineAatita/Schema-Genius.git
+cd Schema-Genius
+
+cd backend && composer install
 cd ../frontend && npm install
 ```
 
-### 2 — Configure backend
+#### 2 — Configure backend
 
 ```bash
 cd backend
@@ -286,21 +312,14 @@ php artisan key:generate
 Edit `backend/.env`:
 
 ```env
-# Database
 DB_DATABASE=schema_genius
 DB_USERNAME=root
 DB_PASSWORD=
 
-# Frontend URL (for CORS + email links)
 FRONTEND_URL=http://localhost:5173
-# Token expiration in minutes (43200 = 30 days). Set to null to disable.
 SANCTUM_TOKEN_EXPIRATION=43200
 
-# CORS — in production set to your real domain(s), comma-separated.
-# Falls back to FRONTEND_URL when not set.
-# CORS_ALLOWED_ORIGINS=https://schema-genius.com,https://www.schema-genius.com
-
-# Email — use a Gmail App Password
+# Email — Gmail App Password
 MAIL_MAILER=smtp
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
@@ -308,12 +327,11 @@ MAIL_USERNAME=your@gmail.com
 MAIL_PASSWORD="your-16-char-app-password"
 MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=your@gmail.com
-MAIL_FROM_NAME="Schema Genius"
 
 # AI — free at console.groq.com
 GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
 
-# WebSockets — any random strings
+# WebSockets
 REVERB_APP_ID=1
 REVERB_APP_KEY=your-reverb-key
 REVERB_APP_SECRET=your-reverb-secret
@@ -328,7 +346,7 @@ php artisan db:seed --class=RolesSeeder
 php artisan db:seed --class=AdminSeeder
 ```
 
-### 3 — Configure frontend
+#### 3 — Configure frontend
 
 Create `frontend/.env`:
 
@@ -339,7 +357,7 @@ VITE_REVERB_PORT=8080
 VITE_REVERB_SCHEME=http
 ```
 
-### 4 — Run (3 terminals)
+#### 4 — Run (3 terminals)
 
 ```bash
 # Terminal 1 — REST API
@@ -351,6 +369,8 @@ cd backend && php artisan reverb:start   # ws://localhost:8080
 # Terminal 3 — Frontend
 cd frontend && npm run dev               # http://localhost:5173
 ```
+
+---
 
 ### Default Admin Account
 
@@ -421,8 +441,8 @@ Schema-Genius/
 │   │   │   ├── ProfilePage.jsx         Public / own profile
 │   │   │   └── AdminPage.jsx           Admin dashboard
 │   │   ├── services/
-│   │   │   ├── api.js                  Axios instance (base URL + token)
-│   │   │   └── echo.js                 Laravel Echo + Reverb init
+│   │   │   ├── api.js                  Axios instance (base URL + token + interceptors)
+│   │   │   └── websocket.js            Laravel Echo + Reverb WebSocket init + authorizer
 │   │   ├── store/
 │   │   │   ├── useAuthStore.js         Auth state (user, token)
 │   │   │   └── useSchemaStore.js       Canvas state + undo/redo + collab emit
@@ -640,10 +660,10 @@ Schema Genius uses **Laravel Reverb** presence channels and client whispers for 
 - [x] User profiles (public + edit + avatar upload)
 - [x] Admin dashboard — users · projects · AI monitoring · moderation
 - [x] Security hardening — rate limiting on all auth + AI endpoints, IDOR fixes, token expiration, security headers, CORS via env, schema payload caps, image MIME validation, email PII protection, fork tree visibility enforcement
+- [x] **Deployment** — Docker Compose (dev + prod), Nginx reverse proxy, Laravel Reverb WebSocket server, mobile-responsive UI, production `.env` guide, GCP / VPS deployment walkthrough
 
 ### 🔜 Up Next
 
-- [ ] **Deployment** — Dockerise both services, nginx reverse proxy, CI/CD pipeline, production `.env` guide
 - [ ] Keyboard shortcuts overlay panel
 - [ ] Organization accounts with shared project libraries
 - [ ] Subscription plans (free tier + Pro)

@@ -839,10 +839,12 @@ export default function DesignerPage() {
       </div>
 
       {/* ── Toolbar ── */}
-      <div className="px-4 py-2.5 flex items-center justify-between flex-shrink-0 z-10 shadow-sm
+      {/* overflow-x-auto makes it scrollable on narrow mobile screens instead of wrapping/breaking */}
+      <div className="flex-shrink-0 z-10 shadow-sm overflow-x-auto
                       transition-colors duration-200
                       bg-white dark:bg-[#141620]
                       border-b border-gray-200 dark:border-[#252a3e]">
+      <div className="px-4 py-2.5 flex items-center justify-between min-w-max">
 
         {/* Left */}
         <div className="flex items-center gap-3">
@@ -1056,6 +1058,7 @@ export default function DesignerPage() {
           )}
         </div>
       </div>
+      </div>{/* end overflow-x-auto toolbar wrapper */}
 
       {/* ── Body ── */}
       <div className="flex flex-1 overflow-hidden">
@@ -1074,9 +1077,9 @@ export default function DesignerPage() {
           </ReactFlowProvider>
         </div>
 
-        {/* Right panel */}
+        {/* Right panel — fixed overlay on mobile, side panel on md+ */}
         {showRightPanel && (
-          <div className="w-80 h-full flex-shrink-0">
+          <div className="absolute inset-y-0 right-0 w-full sm:w-80 md:relative md:w-80 h-full flex-shrink-0 z-20 md:z-auto">
             {showHistory && (
               <HistoryPanel
                 schemaId={useSchemaStore.getState().schemaId}

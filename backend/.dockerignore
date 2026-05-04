@@ -39,7 +39,14 @@ storage/framework/views/*
 !storage/framework/views/.gitignore
 
 # ── Bootstrap cache ───────────────────────────────────────────────────────────
+# Only exclude the compiled PHP cache files — NOT the directory itself.
+# The directory is created by `mkdir -p` in the Dockerfile (it won't exist
+# after COPY because no files survive the filter, and Docker skips empty dirs).
 bootstrap/cache/*.php
+
+# ── Public storage symlink ────────────────────────────────────────────────────
+# Created at runtime by `php artisan storage:link` in the entrypoint.
+public/storage
 
 # ── Test & dev tooling ────────────────────────────────────────────────────────
 .phpunit.result.cache

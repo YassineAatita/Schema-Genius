@@ -59,9 +59,20 @@ COPY . .
 RUN composer dump-autoload --optimize --no-scripts
 
 # ── Set correct ownership & permissions on writable directories ──────────────
-#    These are overridden at runtime by the entrypoint for dev volume mounts.
-RUN chown -R www-data:www-data storage bootstrap/cache \
- && chmod -R 775 storage bootstrap/cache
+#    mkdir -p first because bootstrap/cache is excluded from the build context
+#    by .dockerignore (we don't want stale compiled cache files baked into the
+#    image), so the directory won't exist after `COPY . .`.
+#    The `|| true` guards handle any NTFS ownership errors on Windows/XAMPP
+#    bind-mounts — the app still works because PHP-FPM runs as root and can
+#    write regardless of ownership metadata.
+RUN mkdir -p storage/app/public \
+             storage/framework/cache \
+             storage/framework/sessions \
+             storage/framework/views \
+             storage/logs \
+             bootstrap/cache \
+ && chown -R www-data:www-data storage bootstrap/cache || true \
+ && chmod -R 775 storage bootstrap/cache || true
 
 # ── Copy and register the entrypoint ────────────────────────────────────────
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
