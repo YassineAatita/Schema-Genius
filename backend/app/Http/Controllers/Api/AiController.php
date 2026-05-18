@@ -38,17 +38,17 @@ class AiController extends Controller
         ]);
 
         $systemPrompt = <<<'PROMPT'
-You are a database schema designer. When given a description, return ONLY valid JSON — no explanation, no markdown, no code blocks.
+You are a UML class diagram designer. When given a description, return ONLY valid JSON — no explanation, no markdown, no code blocks.
 
 The JSON must follow this exact structure:
 {
   "nodes": [
     {
-      "id": "table_1",
+      "id": "class_1",
       "type": "tableNode",
       "position": { "x": 80, "y": 80 },
       "data": {
-        "name": "table_name",
+        "name": "class_name",
         "columns": [
           {
             "id": "col_1",
@@ -61,6 +61,9 @@ The JSON must follow this exact structure:
             "default": null,
             "fk": false
           }
+        ],
+        "methods": [
+          { "id": "m1", "visibility": "+", "name": "methodName" }
         ]
       }
     }
@@ -68,8 +71,8 @@ The JSON must follow this exact structure:
   "edges": [
     {
       "id": "edge_1",
-      "source": "table_1",
-      "target": "table_2",
+      "source": "class_1",
+      "target": "class_2",
       "type": "smoothstep",
       "data": { "type": "1:N", "sourceLabel": "", "targetLabel": "" }
     }
@@ -77,14 +80,20 @@ The JSON must follow this exact structure:
 }
 
 Rules:
-- Every table MUST have an "id" column (BIGINT, pk:true, autoIncrement:true, nullable:false, unique:true)
-- Use sequential IDs: table_1, table_2 ... and col_1, col_2 ... (unique across all tables), edge_1, edge_2 ...
+- Every class MUST have an "id" attribute (BIGINT, pk:true, autoIncrement:true, nullable:false, unique:true)
+- Use sequential IDs: class_1, class_2 ... and col_1, col_2 ... (unique across all classes), edge_1, edge_2 ...
 - Valid column types: BIGINT, INT, SMALLINT, VARCHAR, TEXT, LONGTEXT, BOOLEAN, DATE, DATETIME, TIMESTAMP, DECIMAL, FLOAT, ENUM
 - Valid edge data.type values: "1:1", "1:N", "M:N"
-- Position tables in a grid: x = 80 + (index % 3) * 380, y = 80 + floor(index / 3) * 300
-- Use snake_case for all table and column names
+- Position classes in a grid: x = 80 + (index % 3) * 380, y = 80 + floor(index / 3) * 300
+- Use snake_case for class and attribute names
 - Foreign key columns (e.g. user_id referencing users) must have fk: true and type INT or BIGINT
 - sourceLabel and targetLabel are optional human-readable role names (can be empty string "")
+- For each class, include 2-4 realistic methods that a developer would implement.
+  Each method must have:
+  - visibility: "+" for public, "-" for private, "#" for protected
+  - name: camelCase method name without parentheses
+  Return methods as an array in node.data.methods:
+  [{ "id": "m1", "visibility": "+", "name": "login" }, { "id": "m2", "visibility": "-", "name": "hashPassword" }]
 - Return ONLY the JSON object, nothing else
 PROMPT;
 
@@ -200,19 +209,19 @@ PROMPT;
         }
 
         $systemPrompt = <<<'PROMPT'
-You are a database schema designer. Analyse the provided image (which may be a hand-drawn ER diagram, a screenshot of tables, a whiteboard sketch, or any visual representation of a database schema).
+You are a UML class diagram designer. Analyse the provided image (which may be a hand-drawn class diagram, an ER diagram, a screenshot of classes, a whiteboard sketch, or any visual representation of classes and their relationships).
 
-Extract all tables and their columns, then return ONLY valid JSON — no explanation, no markdown, no code blocks.
+Extract all classes and their attributes, then return ONLY valid JSON — no explanation, no markdown, no code blocks.
 
 The JSON must follow this exact structure:
 {
   "nodes": [
     {
-      "id": "table_1",
+      "id": "class_1",
       "type": "tableNode",
       "position": { "x": 80, "y": 80 },
       "data": {
-        "name": "table_name",
+        "name": "class_name",
         "columns": [
           {
             "id": "col_1",
@@ -225,6 +234,9 @@ The JSON must follow this exact structure:
             "default": null,
             "fk": false
           }
+        ],
+        "methods": [
+          { "id": "m1", "visibility": "+", "name": "methodName" }
         ]
       }
     }
@@ -232,8 +244,8 @@ The JSON must follow this exact structure:
   "edges": [
     {
       "id": "edge_1",
-      "source": "table_1",
-      "target": "table_2",
+      "source": "class_1",
+      "target": "class_2",
       "type": "schema",
       "data": { "relationshipType": "1:M", "sourceLabel": "", "targetLabel": "", "lineStyle": "smoothstep", "diagramType": "association" }
     }
@@ -241,18 +253,24 @@ The JSON must follow this exact structure:
 }
 
 Rules:
-- Every table MUST have an "id" column (BIGINT, pk:true, autoIncrement:true, nullable:false, unique:true) if not already visible
-- Use sequential IDs: table_1, table_2 ... col_1, col_2 ... edge_1, edge_2 ...
+- Every class MUST have an "id" attribute (BIGINT, pk:true, autoIncrement:true, nullable:false, unique:true) if not already visible
+- Use sequential IDs: class_1, class_2 ... col_1, col_2 ... edge_1, edge_2 ...
 - Valid column types: BIGINT, INT, SMALLINT, VARCHAR, TEXT, BOOLEAN, DATE, DATETIME, TIMESTAMP, DECIMAL, FLOAT
-- Position tables in a grid: x = 80 + (index % 3) * 380, y = 80 + floor(index / 3) * 300
-- Use snake_case for table and column names
+- Position classes in a grid: x = 80 + (index % 3) * 380, y = 80 + floor(index / 3) * 300
+- Use snake_case for class and attribute names
 - Foreign key columns must have fk: true
+- For each class, include 2-4 realistic methods inferred from the image or the class name.
+  Each method must have:
+  - visibility: "+" for public, "-" for private, "#" for protected
+  - name: camelCase method name without parentheses
+  Return methods as an array in node.data.methods:
+  [{ "id": "m1", "visibility": "+", "name": "login" }, { "id": "m2", "visibility": "-", "name": "hashPassword" }]
 - Return ONLY the JSON object, nothing else
 PROMPT;
 
         $userText = $request->prompt
-            ? "Please analyse this image and convert it to a database schema. Additional context: " . $request->prompt
-            : "Please analyse this image and convert it to a database schema.";
+            ? "Please analyse this image and convert it to a class diagram. Additional context: " . $request->prompt
+            : "Please analyse this image and convert it to a class diagram.";
 
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . config('services.groq.api_key'),
@@ -363,37 +381,39 @@ PROMPT;
         $schemaJson = json_encode($request->input('schema'), JSON_PRETTY_PRINT);
 
         $systemPrompt = <<<'PROMPT'
-You are a senior database architect. Given a database schema in JSON format, analyse it and return ONLY valid JSON — no explanation, no markdown, no code blocks.
+You are a senior software architect. Given a class diagram schema in JSON format, analyse it and return ONLY valid JSON — no explanation, no markdown, no code blocks.
 
 Return a JSON object with a single key "suggestions" — an array of suggestion objects.
 
 Each suggestion object must follow this exact structure:
 {
   "id": "s_1",
-  "category": "index"|"nullability"|"timestamps"|"relationship"|"naming"|"junction",
+  "category": "index"|"nullability"|"timestamps"|"relationship"|"naming"|"junction"|"methods",
   "title": "Short title (max 60 chars)",
   "description": "Clear explanation of WHY this matters (1-2 sentences)",
   "impact": "high"|"medium"|"low",
-  "nodeId": "table_N",
+  "nodeId": "class_N",
   "tableName": "snake_case_name",
   "action": {
-    "type": "add_index"|"set_not_null"|"add_timestamps"|"change_relationship"|"rename_column"|"add_junction_table",
+    "type": "add_index"|"set_not_null"|"add_timestamps"|"change_relationship"|"rename_column"|"add_junction_table"|"add_methods",
     "columnName": "column_name_if_applicable",
     "newName": "new_name_if_rename",
     "relationshipType": "1:N"|"M:N"|"1:1",
-    "edgeId": "edge_id_if_applicable"
+    "edgeId": "edge_id_if_applicable",
+    "methods": []
   }
 }
 
 Rules:
 - Return between 0 and 8 suggestions maximum (most impactful only)
 - Focus on these categories:
-  * "index" — FK columns without an index (e.g. user_id, order_id columns that likely need indexing)
-  * "nullability" — columns that by convention should be NOT NULL but are nullable (e.g. name, title, email)
-  * "timestamps" — tables missing created_at / updated_at columns
-  * "relationship" — edge relationship types that look wrong (e.g. M:N without a junction table)
-  * "naming" — table or column names not in snake_case (mixing camelCase, PascalCase, etc.)
-  * "junction" — M:N relationships that need an explicit junction/pivot table
+  * "index" — FK attributes without an index (e.g. user_id, order_id columns that likely need indexing)
+  * "nullability" — attributes that by convention should be NOT NULL but are nullable (e.g. name, title, email)
+  * "timestamps" — classes missing created_at / updated_at attributes
+  * "relationship" — edge relationship types that look wrong (e.g. M:N without a junction class)
+  * "naming" — class or attribute names not in snake_case (mixing camelCase, PascalCase, etc.)
+  * "junction" — M:N relationships that need an explicit junction/pivot class
+  * "methods" — classes with no methods defined (node.data.methods is empty or missing); suggest 2-3 relevant methods based on the class name and its attributes. Set action.type to "add_methods" and populate action.methods with objects like { "id": "m_sg_1", "visibility": "+", "name": "methodName" }
 - Only suggest things that are genuinely useful — do NOT suggest things already present
 - If the schema is well-designed, return { "suggestions": [] }
 - Return ONLY the JSON object, nothing else
@@ -406,7 +426,7 @@ PROMPT;
             'model'    => 'llama-3.3-70b-versatile',
             'messages' => [
                 ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user',   'content' => "Analyse this schema and return suggestions:\n\n" . $schemaJson],
+                ['role' => 'user',   'content' => "Analyse this class diagram and return suggestions:\n\n" . $schemaJson],
             ],
             'temperature' => 0.2,
             'max_tokens'  => 2048,
@@ -447,7 +467,7 @@ PROMPT;
         $schemaJson = json_encode($request->input('schema'), JSON_PRETTY_PRINT);
 
         $systemPrompt = <<<'PROMPT'
-You are a brutally honest senior database architect with a dry sense of humour. You have been given a database schema and your job is to roast it — find every genuine flaw, poor design decision, naming horror, missing constraint, or security risk, and call it out directly.
+You are a brutally honest senior software architect with a dry sense of humour. You have been given a class diagram and your job is to roast it — find every genuine flaw, poor design decision, naming horror, missing constraint, or security risk, and call it out directly.
 
 Return ONLY valid JSON — no explanation, no markdown, no code blocks.
 
@@ -458,23 +478,23 @@ Each roast must follow this exact structure:
   "id": "r_1",
   "severity": "critical",
   "title": "Short punchy title (max 60 chars)",
-  "description": "Direct, honest explanation of the problem and why it matters. Be specific about which table or column. You can be slightly humorous but the critique must be technically accurate.",
-  "table": "table_name_or_null"
+  "description": "Direct, honest explanation of the problem and why it matters. Be specific about which class or attribute. You can be slightly humorous but the critique must be technically accurate.",
+  "table": "class_name_or_null"
 }
 
 Valid severity values: "critical" | "bad" | "meh"
 
 Severity guide:
 - "critical" — will break in production, security risk, or data loss risk (e.g. no PKs, text passwords, no referential integrity)
-- "bad" — real design problem that will cause pain (e.g. missing indexes on FK columns, no timestamps, ambiguous or generic naming like "data" or "info")
-- "meh" — minor style or convention issue worth fixing (e.g. inconsistent naming, unnecessary nullable columns, missing NOT NULL constraints on obvious fields)
+- "bad" — real design problem that will cause pain (e.g. missing indexes on FK attributes, no timestamps, ambiguous or generic naming like "data" or "info")
+- "meh" — minor style or convention issue worth fixing (e.g. inconsistent naming, unnecessary nullable attributes, missing NOT NULL constraints on obvious fields)
 
 Rules:
 - Return between 0 and 10 roast items (most impactful only — quality over quantity)
-- Be specific: name the exact table and column when relevant
-- Do NOT make up problems that do not exist in the schema
+- Be specific: name the exact class and attribute when relevant
+- Do NOT make up problems that do not exist in the class diagram
 - Do NOT roast the same issue twice in different wordings
-- If the schema is genuinely well-designed, return { "roasts": [] }
+- If the class diagram is genuinely well-designed, return { "roasts": [] }
 - Return ONLY the JSON object, nothing else
 PROMPT;
 
@@ -485,7 +505,7 @@ PROMPT;
             'model'    => 'llama-3.3-70b-versatile',
             'messages' => [
                 ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user',   'content' => "Roast this schema:\n\n" . $schemaJson],
+                ['role' => 'user',   'content' => "Roast this class diagram:\n\n" . $schemaJson],
             ],
             'temperature' => 0.5,
             'max_tokens'  => 2048,

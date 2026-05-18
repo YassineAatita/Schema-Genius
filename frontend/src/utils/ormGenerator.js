@@ -219,6 +219,19 @@ function buildLaravelModel(node, allNodes, allEdges) {
     L.push('')
   })
 
+  // Custom method stubs (from class diagram)
+  const methods = node.data?.methods ?? []
+  methods.forEach(m => {
+    const vis = m.visibility === '-' ? 'private'
+              : m.visibility === '#' ? 'protected'
+              : 'public'
+    L.push(`    ${vis} function ${m.name}(): void`)
+    L.push('    {')
+    L.push('        // TODO: implement')
+    L.push('    }')
+    L.push('')
+  })
+
   L.push('}')
   return L.join('\n')
 }
@@ -358,6 +371,17 @@ export function generateDjango(nodes, edges) {
       L.push('')
       L.push('    def __str__(self):')
       L.push(`        return str(self.${strField})`)
+
+      // Custom method stubs (from class diagram)
+      const methods = node.data?.methods ?? []
+      methods.forEach(m => {
+        const prefix = m.visibility === '-' ? '__'
+                     : m.visibility === '#' ? '_'
+                     : ''
+        L.push('')
+        L.push(`    def ${prefix}${m.name}(self):`)
+        L.push('        pass  # TODO: implement')
+      })
     }
 
     L.push('')
@@ -520,6 +544,16 @@ export function generatePrisma(nodes, edges) {
       L.push('')
       revs.forEach(r => {
         L.push(`  ${r.field.padEnd(20)} ${r.type}`)
+      })
+    }
+
+    // Custom method stubs (comment block — Prisma has no method syntax)
+    const methods = node.data?.methods ?? []
+    if (methods.length > 0) {
+      L.push('')
+      L.push('  // Methods (from class diagram):')
+      methods.forEach(m => {
+        L.push(`  //   ${m.visibility} ${m.name}()`)
       })
     }
 

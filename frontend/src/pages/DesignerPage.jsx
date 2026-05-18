@@ -533,6 +533,16 @@ export default function DesignerPage() {
         )
         updateNodeData(nodeId, { columns: newColumns })
       }
+    } else if (action.type === 'add_methods' && nodeId && action.methods?.length) {
+      const node = useSchemaStore.getState().nodes.find(n => n.id === nodeId)
+      if (node) {
+        const existingMethods = node.data?.methods ?? []
+        const existingNames   = new Set(existingMethods.map(m => m.name.toLowerCase()))
+        const toAdd = action.methods.filter(m => !existingNames.has(m.name.toLowerCase()))
+        if (toAdd.length > 0) {
+          updateNodeData(nodeId, { methods: [...existingMethods, ...toAdd] })
+        }
+      }
     }
     // Mark as ignored/applied so it disappears
     setIgnoredSuggestions(prev => new Set([...prev, suggestion.id]))
@@ -2015,6 +2025,7 @@ const CATEGORY_ICON = {
   relationship: { emoji: '🔗', label: 'Relation' },
   naming:       { emoji: '✏️', label: 'Naming' },
   junction:     { emoji: '🔀', label: 'Junction' },
+  methods:      { emoji: '⚙', label: 'Methods' },
 }
 
 function ValidationPanel({
@@ -2195,7 +2206,7 @@ function ValidationPanel({
           {suggestions.map((s) => {
             const impact  = IMPACT_COLOR[s.impact] || IMPACT_COLOR.low
             const catMeta = CATEGORY_ICON[s.category] || { emoji: '💡', label: s.category }
-            const canAutoApply = ['add_index','set_not_null','add_timestamps','rename_column'].includes(s.action?.type)
+            const canAutoApply = ['add_index','set_not_null','add_timestamps','rename_column','add_methods'].includes(s.action?.type)
 
             return (
               <div key={s.id}
@@ -2216,6 +2227,21 @@ function ValidationPanel({
 
                 {/* Description */}
                 <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{s.description}</p>
+
+                {/* Suggested methods list (methods category only) */}
+                {s.action?.type === 'add_methods' && s.action?.methods?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {s.action.methods.map((m, i) => (
+                      <code key={i}
+                        className="text-[10px] font-mono px-1.5 py-0.5 rounded
+                                   bg-white/60 dark:bg-black/30
+                                   text-purple-700 dark:text-purple-300
+                                   border border-purple-200 dark:border-purple-800">
+                        {m.visibility}{m.name}()
+                      </code>
+                    ))}
+                  </div>
+                )}
 
                 {/* Table badge */}
                 {s.tableName && (

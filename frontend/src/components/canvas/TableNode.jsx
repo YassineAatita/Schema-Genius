@@ -211,6 +211,28 @@ export default function TableNode({ id, data, selected }) {
         )}
       </div>
 
+      {/* ── Methods section (UML 3rd compartment) ────────────────────────── */}
+      {(data.methods ?? []).length > 0 && (
+        <div className="border-t border-gray-200 dark:border-[#252a3e]
+                        divide-y divide-gray-100 dark:divide-[#252a3e]">
+          {(data.methods ?? []).map((method) => (
+            <div
+              key={method.id}
+              className="relative px-3 py-1.5 flex items-center gap-1.5
+                         hover:bg-gray-50 dark:hover:bg-[#252a3e] transition-colors"
+            >
+              <span className="text-[11px] text-purple-500 dark:text-purple-400
+                               font-mono flex-shrink-0 w-3 text-center leading-none select-none">
+                {method.visibility}
+              </span>
+              <span className="text-xs text-gray-600 dark:text-gray-400 font-mono truncate">
+                {method.name}()
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Sticky note ──────────────────────────────────────────────────── */}
       {(hasNote || editingNote) && (
         <div

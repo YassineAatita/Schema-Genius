@@ -4,7 +4,14 @@ const MAX_HISTORY = 50
 
 // Lightweight snapshot — shallow-copy nodes and edges arrays
 const snap = ({ nodes, edges }) => ({
-  nodes: nodes.map(n => ({ ...n, data: { ...n.data, columns: [...(n.data.columns || [])] } })),
+  nodes: nodes.map(n => ({
+    ...n,
+    data: {
+      ...n.data,
+      columns: [...(n.data.columns || [])],
+      methods: [...(n.data.methods || [])],
+    },
+  })),
   edges: edges.map(e => ({ ...e })),
 })
 
@@ -125,6 +132,7 @@ const useSchemaStore = create((set, get) => ({
           fk:            false,
           fkRef:         null,
         }],
+        methods: [],
       },
     }
     set((state) => ({
@@ -158,6 +166,7 @@ const useSchemaStore = create((set, get) => ({
           fk:            false,
           fkRef:         null,
         }],
+        methods: [],
       },
     }
     set((state) => ({

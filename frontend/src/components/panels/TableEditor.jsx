@@ -38,6 +38,7 @@ export default function TableEditor({ nodeId, onClose }) {
 
   const [tableName,       setTableName]       = useState('')
   const [columns,         setColumns]         = useState([])
+  const [methods,         setMethods]         = useState([])
   const [isDirty,         setIsDirty]         = useState(false)
   const [saved,           setSaved]           = useState(false)
   const [showDelModal,    setShowDelModal]     = useState(false)
@@ -56,6 +57,7 @@ export default function TableEditor({ nodeId, onClose }) {
 
     setTableName(node.data.name)
     setColumns(JSON.parse(JSON.stringify(node.data.columns || [])))
+    setMethods(JSON.parse(JSON.stringify(node.data.methods ?? [])))
     setIsDirty(false)
     setSaved(false)
   }, [nodeId, nodes])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -197,9 +199,34 @@ export default function TableEditor({ nodeId, onClose }) {
     setColDeletePending(null)
   }
 
+  // ── Method mutations ──────────────────────────────────────────────────────────
+  const addMethod = () => {
+    setMethods(prev => [
+      ...prev,
+      { id: `mth_${Date.now()}`, visibility: '+', name: 'newMethod' },
+    ])
+    setIsDirty(true)
+    setSaved(false)
+  }
+
+  const updateMethod = (mthId, field, value) => {
+    setMethods(prev =>
+      prev.map(m => m.id === mthId ? { ...m, [field]: value } : m)
+    )
+    setIsDirty(true)
+    setSaved(false)
+  }
+
+  const deleteMethod = (mthId) => {
+    setMethods(prev => prev.filter(m => m.id !== mthId))
+    setIsDirty(true)
+    setSaved(false)
+  }
+
   const handleSaveTable = () => {
     const colsToSave = JSON.parse(JSON.stringify(columns))
-    updateNodeData(nodeId, { name: tableName, columns: colsToSave })
+    const mthsToSave = JSON.parse(JSON.stringify(methods))
+    updateNodeData(nodeId, { name: tableName, columns: colsToSave, methods: mthsToSave })
     setIsDirty(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -297,6 +324,88 @@ export default function TableEditor({ nodeId, onClose }) {
                               text-gray-300 dark:text-gray-600
                               border-gray-200 dark:border-[#252a3e]">
                 No columns — click Add Column
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Methods */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold uppercase tracking-wide
+                              text-gray-500 dark:text-gray-500">
+              Methods ({methods.length})
+            </label>
+            <button
+              onClick={addMethod}
+              className="text-xs font-medium flex items-center gap-1 px-2 py-1 rounded transition-colors
+                         text-purple-600 dark:text-purple-400
+                         hover:text-purple-700 dark:hover:text-purple-300
+                         hover:bg-purple-50 dark:hover:bg-purple-950">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M12 4v16m8-8H4"/>
+              </svg>
+              Add Method
+            </button>
+          </div>
+
+          <div className="space-y-1.5">
+            {methods.map((m) => (
+              <div key={m.id}
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border
+                           border-gray-200 dark:border-[#252a3e]
+                           bg-gray-50 dark:bg-[#252a3e]">
+
+                {/* Visibility selector */}
+                <select
+                  value={m.visibility}
+                  onChange={e => updateMethod(m.id, 'visibility', e.target.value)}
+                  title="+  public   −  private   #  protected"
+                  className="flex-shrink-0 text-xs font-mono rounded px-1 py-0.5 outline-none cursor-pointer
+                             w-10 text-center
+                             border border-gray-200 dark:border-[#2d3247]
+                             bg-white dark:bg-[#1c1f2e]
+                             text-purple-600 dark:text-purple-400">
+                  <option value="+">+</option>
+                  <option value="-">−</option>
+                  <option value="#">#</option>
+                </select>
+
+                {/* Method name */}
+                <input
+                  type="text"
+                  value={m.name}
+                  onChange={e => updateMethod(m.id, 'name', e.target.value)}
+                  className="flex-1 min-w-0 text-xs bg-transparent border-none outline-none font-mono
+                             text-gray-700 dark:text-gray-300"
+                  placeholder="methodName"
+                />
+
+                {/* () suffix hint */}
+                <span className="text-xs text-gray-300 dark:text-gray-600 font-mono flex-shrink-0">
+                  ()
+                </span>
+
+                {/* Delete */}
+                <button
+                  onClick={() => deleteMethod(m.id)}
+                  className="flex-shrink-0 transition-colors
+                             text-gray-300 dark:text-gray-600 hover:text-red-400 dark:hover:text-red-400">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            ))}
+
+            {methods.length === 0 && (
+              <div className="text-center py-4 text-xs
+                              border-2 border-dashed rounded-lg
+                              text-gray-300 dark:text-gray-600
+                              border-gray-200 dark:border-[#252a3e]">
+                No methods — click Add Method
               </div>
             )}
           </div>

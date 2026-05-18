@@ -1273,7 +1273,7 @@ export default function ExploreView() {
         )}
       </div>
 
-      {/* Featured banner */}
+      {/* Featured banner — only rendered when a featured schema exists */}
       {tab === 'discover' && featured && (
         <FeaturedBanner featured={featured} onOpen={handleOpenDetail}/>
       )}
