@@ -2441,6 +2441,204 @@ function AiUsageSection() {
   )
 }
 
+// ── Schema of the Week Section ────────────────────────────────────
+function FeaturedSection({ onNavigate }) {
+  const [featured, setFeatured] = useState(null)   // null = no schema for this week
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState('')
+  const [toggling, setToggling] = useState(false)
+  const [toastMsg, setToastMsg] = useState('')
+
+  const showToast = (msg) => {
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(''), 3000)
+  }
+
+  // Load current week's featured schema on mount
+  useEffect(() => {
+    api.get('/admin/featured/current')
+      .then(r => setFeatured(r.data))
+      .catch(() => setError('Failed to load the current featured schema.'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleToggle = async () => {
+    if (!featured || toggling) return
+    const newValue = !featured.is_visible
+    setToggling(true)
+    setError('')
+    try {
+      const res = await api.patch('/admin/featured/visibility', { is_visible: newValue })
+      setFeatured(prev => ({ ...prev, is_visible: res.data.is_visible }))
+      showToast(
+        newValue
+          ? 'Schema of the Week is now visible on the Explore page.'
+          : 'Schema of the Week is now hidden from the Explore page.'
+      )
+    } catch (e) {
+      setError(e.response?.data?.error || 'Failed to update visibility.')
+    } finally {
+      setToggling(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-5 pb-4 max-w-2xl">
+
+      {/* Toast */}
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-[#1a1d2e] border border-indigo-500/30 text-indigo-300
+                        text-xs font-medium px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2">
+          <CheckCircle className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0"/>
+          {toastMsg}
+        </div>
+      )}
+
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-bold text-white">Schema of the Week</h2>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Control the featured banner that appears at the top of the Discover tab on the Explore page.
+        </p>
+      </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-300
+                        text-xs font-medium px-4 py-2.5 rounded-xl">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0"/>
+          {error}
+          <button onClick={() => setError('')} className="ml-auto text-rose-400 hover:text-rose-200">✕</button>
+        </div>
+      )}
+
+      {/* Main card */}
+      <div className="bg-white/3 border border-white/8 rounded-2xl overflow-hidden">
+
+        {/* Current schema info row */}
+        <div className="p-6 flex items-start gap-4">
+          <div className="w-10 h-10 bg-amber-500/15 rounded-xl flex items-center justify-center flex-shrink-0 ring-1 ring-amber-500/20">
+            <Trophy className="w-5 h-5 text-amber-400"/>
+          </div>
+          <div className="flex-1 min-w-0">
+            {loading ? (
+              <div className="space-y-2">
+                <div className="h-4 bg-white/8 rounded w-48 animate-pulse"/>
+                <div className="h-3 bg-white/5 rounded w-64 animate-pulse"/>
+              </div>
+            ) : featured ? (
+              <>
+                <p className="text-sm font-bold text-white truncate">{featured.project_name}</p>
+                <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                  <span>
+                    Week of{' '}
+                    {new Date(featured.week_of).toLocaleDateString('en-US', {
+                      month: 'long', day: 'numeric', year: 'numeric',
+                    })}
+                  </span>
+                  {featured.auto_selected ? (
+                    <span className="text-[10px] font-semibold text-indigo-400 bg-indigo-500/15
+                                     border border-indigo-500/25 px-1.5 py-0.5 rounded-full">
+                      auto-picked
+                    </span>
+                  ) : featured.featured_by ? (
+                    <span className="text-[10px] text-gray-600">by {featured.featured_by}</span>
+                  ) : null}
+                </p>
+                {featured.note && (
+                  <p className="text-xs text-gray-600 mt-1.5 italic leading-relaxed">
+                    &ldquo;{featured.note}&rdquo;
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-gray-500">No schema featured this week</p>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  Feature a public project from the{' '}
+                  <button
+                    onClick={() => onNavigate?.('projects')}
+                    className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors">
+                    Projects section
+                  </button>
+                  {' '}to enable this toggle.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-white/8"/>
+
+        {/* Visibility toggle row */}
+        <div className="px-6 py-5 flex items-center justify-between gap-6">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-200">Show on Explore page</p>
+            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+              {featured
+                ? 'When ON, the featured banner is shown at the top of the Discover tab.'
+                : 'No schema is featured this week — feature one first to enable this toggle.'}
+            </p>
+          </div>
+          {/* Toggle switch */}
+          <button
+            onClick={handleToggle}
+            disabled={!featured || toggling || loading}
+            role="switch"
+            aria-checked={featured?.is_visible ?? false}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent
+                        transition-colors duration-200 ease-in-out
+                        focus:outline-none focus:ring-2 focus:ring-amber-500/50
+                        focus:ring-offset-2 focus:ring-offset-[#0f1117]
+                        ${featured?.is_visible ? 'bg-amber-500' : 'bg-white/15'}
+                        ${(!featured || toggling || loading) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white
+                          shadow ring-0 transition duration-200 ease-in-out
+                          ${featured?.is_visible ? 'translate-x-5' : 'translate-x-0'}`}
+            />
+          </button>
+        </div>
+
+        {/* Status badge row */}
+        {!loading && featured && (
+          <>
+            <div className="border-t border-white/8"/>
+            <div className="px-6 py-3 flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1
+                               rounded-full border transition-colors
+                               ${featured.is_visible
+                                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                 : 'bg-white/5 text-gray-500 border-white/10'}`}>
+                {featured.is_visible
+                  ? <Eye className="w-3 h-3"/>
+                  : <EyeOff className="w-3 h-3"/>}
+                {featured.is_visible ? 'Visible on Explore' : 'Hidden from Explore'}
+              </span>
+              {toggling && (
+                <span className="text-[11px] text-gray-600 animate-pulse">Saving…</span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* History hint */}
+      <p className="text-xs text-gray-600 leading-relaxed">
+        To change which schema is featured, go to the{' '}
+        <button
+          onClick={() => onNavigate?.('projects')}
+          className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors">
+          Projects section
+        </button>
+        {' '}and choose &ldquo;Feature as SOTW&rdquo; from the context menu of any public project.
+      </p>
+    </div>
+  )
+}
+
 // ── Main AdminPage ────────────────────────────────────────────────
 export default function AdminPage() {
   const { user } = useAuthStore()
@@ -2449,19 +2647,21 @@ export default function AdminPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const navItems = [
-    { id: 'overview',   label: 'Overview',     icon: <LayoutDashboard className="w-4 h-4"/> },
-    { id: 'users',      label: 'Users',         icon: <Users className="w-4 h-4"/>          },
-    { id: 'projects',   label: 'Projects',      icon: <FolderKanban className="w-4 h-4"/>   },
-    { id: 'community',  label: 'Community',     icon: <Globe className="w-4 h-4"/>           },
-    { id: 'ai-usage',   label: 'AI Usage',      icon: <Sparkles className="w-4 h-4"/>       },
+    { id: 'overview',   label: 'Overview',        icon: <LayoutDashboard className="w-4 h-4"/> },
+    { id: 'users',      label: 'Users',            icon: <Users className="w-4 h-4"/>          },
+    { id: 'projects',   label: 'Projects',         icon: <FolderKanban className="w-4 h-4"/>   },
+    { id: 'community',  label: 'Community',        icon: <Globe className="w-4 h-4"/>           },
+    { id: 'ai-usage',   label: 'AI Usage',         icon: <Sparkles className="w-4 h-4"/>       },
+    { id: 'featured',   label: 'Schema of Week',   icon: <Trophy className="w-4 h-4"/>         },
   ]
 
   const sectionContent = {
-    overview: <OverviewSection/>,
-    users: <UsersSection/>,
-    projects: <ProjectsSection/>,
-    community: <CommunitySection/>,
+    overview:   <OverviewSection/>,
+    users:      <UsersSection/>,
+    projects:   <ProjectsSection/>,
+    community:  <CommunitySection/>,
     'ai-usage': <AiUsageSection/>,
+    featured:   <FeaturedSection onNavigate={setSection}/>,
   }
 
   const currentLabel = navItems.find(n => n.id === section)?.label ?? 'Admin'

@@ -1114,7 +1114,15 @@ export default function ExploreView() {
   // Featured banner (discover tab only)
   useEffect(() => {
     if (tab !== 'discover') return
-    api.get('/explore/featured').then(r => setFeatured(r.data)).catch(() => {})
+    api.get('/explore/featured')
+      .then(r => {
+        // DEBUG — remove once visibility toggle is confirmed working
+        console.log('[ExploreView] featured API response:', r.data)
+        // Only set featured when the API returns a real schema object (has an id).
+        // Null, undefined, or empty objects all correctly hide the banner.
+        setFeatured(r.data && r.data.id ? r.data : null)
+      })
+      .catch(() => { setFeatured(null) })
   }, [tab])
 
   // ── Interaction handlers ─────────────────────────────────────────
