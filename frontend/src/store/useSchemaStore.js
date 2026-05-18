@@ -111,7 +111,7 @@ const useSchemaStore = create((set, get) => ({
         y: 80 + Math.floor(existing.length / 3) * 280,
       },
       data: {
-        name: `table_${existing.length + 1}`,
+        name: `NewClass_${existing.length + 1}`,
         columns: [{
           id:            `col_${Date.now()}`,
           name:          'id',
@@ -144,7 +144,7 @@ const useSchemaStore = create((set, get) => ({
       type: 'tableNode',
       position: { x, y },
       data: {
-        name: `table_${existing.length + 1}`,
+        name: `NewClass_${existing.length + 1}`,
         columns: [{
           id:            `col_${Date.now()}`,
           name:          'id',

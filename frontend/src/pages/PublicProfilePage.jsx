@@ -301,7 +301,7 @@ function ProfileSchemaCard({ card: initialCard, viewer, onStar, onLike, onFork, 
         </p>
 
         <div className="flex items-center gap-3 text-[11px] text-gray-400 mb-2.5">
-          <span>{card.stats?.tables || 0} tables</span>
+          <span>{card.stats?.tables || 0} classes</span>
           <span>·</span>
           <span>{card.stats?.edges || 0} relations</span>
           <span>·</span>
@@ -459,7 +459,7 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, vie
           </div>
 
           <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400 flex-wrap">
-            <span>{stats.tables ?? 0} tables · {stats.edges ?? 0} relations</span>
+            <span>{stats.tables ?? 0} classes · {stats.edges ?? 0} relations</span>
             <span>·</span>
             <span>{timeAgo(card.created_at)}</span>
           </div>

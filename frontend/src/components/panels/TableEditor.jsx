@@ -223,7 +223,7 @@ export default function TableEditor({ nodeId, onClose }) {
                       border-gray-100 dark:border-[#252a3e]">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-blue-500"/>
-          <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100">Table Editor</h3>
+          <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100">Class Editor</h3>
         </div>
         <button onClick={onClose}
           className="p-1 rounded transition-colors

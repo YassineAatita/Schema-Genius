@@ -9,7 +9,7 @@ import useSchemaStore from '../../store/useSchemaStore'
 // ── Normalise stored relationship types to the canonical set ─────────────────
 const NORM_REL = { '1:M': '1:N', 'M:1': 'N:1' }
 
-// ── Display labels for each cardinality value ────────────────────────────────
+// ── Centre display labels for each cardinality value ────────────────────────
 const REL_LABEL = {
   '1:1': '1 : 1',
   '1:N': '1 : N',
@@ -19,20 +19,41 @@ const REL_LABEL = {
   'N:N': 'N : N',
 }
 
-// ── Arrow end marker (SVG defs) — used for all line types via markerEnd ───────
-// Only the arrow uses context-stroke (works reliably as markerEnd in all browsers).
-// Diamonds are rendered as explicit <g> elements (see below) because markerStart
-// with context-stroke has known orientation issues on curved paths.
+// ── Derive per-end cardinality strings from the stored relationshipType ───────
+// Returns [sourceCardinality, targetCardinality].
+// Used as a fallback when explicit per-end values are not set.
+function deriveEndCardinalities(relType) {
+  const map = {
+    '1:1': ['1',  '1'],
+    '1:N': ['1',  '*'],
+    'N:1': ['*',  '1'],
+    'M:M': ['*',  '*'],
+    'M:N': ['*',  '*'],
+    'N:N': ['*',  '*'],
+  }
+  return map[relType] || [null, null]
+}
+
+// ── SVG marker definitions ────────────────────────────────────────────────────
+// Rules per UML class diagram standard:
+//   Association          → no arrowhead (plain line)
+//   Directed Association → open arrowhead at target (sg-open-arrow)
+//   Aggregation          → hollow diamond at source, no arrowhead at target
+//   Composition          → filled  diamond at source, no arrowhead at target
+//   Inheritance          → hollow  triangle at target (sg-triangle)
+//   Realization          → hollow  triangle at target on dashed line (sg-triangle)
+//   Dependency           → open arrowhead at target on dashed line (sg-open-arrow)
 function EdgeDefs() {
   return (
     <defs>
-      {/* Filled solid arrow ─ Association / Dependency / Aggregation / Composition */}
-      <marker id="sg-arrow" viewBox="0 0 12 12" refX="10" refY="6"
-        markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto">
-        <path d="M 1 1 L 11 6 L 1 11 Z" fill="context-stroke" stroke="none"/>
+      {/* Open V arrowhead — Directed Association & Dependency */}
+      <marker id="sg-open-arrow" viewBox="0 0 14 14" refX="11" refY="7"
+        markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" orient="auto">
+        <path d="M 1 1 L 13 7 L 1 13" fill="none" stroke="context-stroke"
+              strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round"/>
       </marker>
 
-      {/* Open hollow triangle ─ Inheritance / Generalisation */}
+      {/* Hollow triangle — Inheritance (Generalisation) & Realization */}
       <marker id="sg-triangle" viewBox="0 0 14 14" refX="12" refY="7"
         markerUnits="userSpaceOnUse" markerWidth="18" markerHeight="18" orient="auto">
         <path d="M 1 1 L 13 7 L 1 13 Z" fill="white" stroke="context-stroke" strokeWidth="1.4"/>
@@ -42,7 +63,7 @@ function EdgeDefs() {
 }
 
 // ── Diamond rendered as an explicit SVG element at the source point ──────────
-// This bypasses the markerStart + context-stroke orientation issue on bezier /
+// Bypasses the markerStart + context-stroke orientation issue on bezier /
 // smoothstep paths that caused diamonds to disappear on non-straight lines.
 function DiamondAtSource({ sx, sy, tx, ty, filled, strokeColor, bgColor }) {
   const angle = Math.atan2(ty - sy, tx - sx) * 180 / Math.PI
@@ -69,7 +90,6 @@ function getEdgePath(lineStyle, params) {
 }
 
 // Quadratic bezier through a user-dragged control-point offset (cpX, cpY).
-// Formula: bezier CP = 2*(mid+offset) − 0.5*(start+end)
 function buildBentPath(sx, sy, tx, ty, cpX, cpY) {
   const midX = (sx + tx) / 2
   const midY = (sy + ty) / 2
@@ -113,15 +133,23 @@ export default function CustomSchemaEdge({
     : hovered                   ? (dark ? '#60a5fa' : '#2563EB')
     : (style.stroke || (dark ? '#9ca3af' : '#6B7280'))
   const strokeWidth = (selected || hovered) ? (style.strokeWidth || 2) + 0.5 : (style.strokeWidth || 2)
-  const isDashed    = diagramType === 'dependency'
 
-  // Canvas background — used for hollow fills (hollow diamond, open triangle)
+  // Dashed line for Dependency and Realization
+  const isDashed = diagramType === 'dependency' || diagramType === 'realization'
+
+  // Canvas background — used for hollow fills (hollow diamond, open triangle fill)
   const bgColor = dark ? '#0f1117' : '#ffffff'
 
-  // ── Markers ──────────────────────────────────────────────────────────────
-  // Diamonds are drawn explicitly (DiamondAtSource below), NOT via markerStart.
-  const markerEnd = diagramType === 'inheritance' ? 'url(#sg-triangle)' : 'url(#sg-arrow)'
-  // No markerStart on the path — diamonds rendered as separate SVG elements.
+  // ── Markers — per UML standard ───────────────────────────────────────────
+  // Inheritance & Realization → hollow triangle (sg-triangle)
+  // Directed Association & Dependency → open V arrow (sg-open-arrow)
+  // Association, Aggregation, Composition → no arrowhead at target
+  const markerEnd =
+    (diagramType === 'inheritance' || diagramType === 'realization')
+      ? 'url(#sg-triangle)'
+      : (diagramType === 'directed-association' || diagramType === 'dependency')
+        ? 'url(#sg-open-arrow)'
+        : undefined   // association / aggregation / composition: no target arrowhead
 
   // ── Draggable bend handle ─────────────────────────────────────────────────
   const dragRef = useRef(null)
@@ -153,15 +181,46 @@ export default function CustomSchemaEdge({
     updateEdge(id, { data: { cpX: 0, cpY: 0 } })
   }, [id, updateEdge])
 
-  // ── Label text ────────────────────────────────────────────────────────────
+  // ── Label / cardinality text ──────────────────────────────────────────────
   const rawRel   = data.relationshipType || data.type || '1:N'
   const relType  = NORM_REL[rawRel] || rawRel
   const relLabel = REL_LABEL[relType] || relType
   const srcRole  = data.sourceLabel?.trim() || ''
   const tgtRole  = data.targetLabel?.trim() || ''
 
-  // Push the centre label 10 px above the line to reduce overlap with nodes
+  // Per-end cardinality: explicit override first, fall back to deriving from type
+  const [derivedSrc, derivedTgt] = deriveEndCardinalities(relType)
+  const srcCard = data.sourceCardinality?.trim() || derivedSrc || ''
+  const tgtCard = data.targetCardinality?.trim() || derivedTgt || ''
+
+  // Push the centre cardinality label 10 px above the line to reduce overlap
   const labelY = midY - 10
+
+  // ── Endpoint cardinality label positions ─────────────────────────────────
+  // Placed 12 % of the way from each endpoint toward the midpoint, so they
+  // sit just outside the node border without touching the role-name labels
+  // (which live at 22 %).
+  const srcCardX = sourceX + (midX - sourceX) * 0.12
+  const srcCardY = sourceY + (midY - sourceY) * 0.12
+  const tgtCardX = targetX + (midX - targetX) * 0.12
+  const tgtCardY = targetY + (midY - targetY) * 0.12
+
+  // ── Shared styles ─────────────────────────────────────────────────────────
+  const cardStyle = {
+    fontSize:        9,
+    fontWeight:      700,
+    fontFamily:      'ui-monospace, SFMono-Regular, Menlo, monospace',
+    color:           selected ? (dark ? '#93c5fd' : '#1D4ED8') : (dark ? '#d1d5db' : '#374151'),
+    backgroundColor: dark ? '#1c1f2ecc' : '#ffffffcc',
+    border:          `1px solid ${selected
+      ? (dark ? '#3b82f6' : '#93C5FD')
+      : (dark ? '#374151' : '#D1D5DB')}`,
+    padding:         '1px 5px',
+    borderRadius:    4,
+    whiteSpace:      'nowrap',
+    userSelect:      'none',
+    backdropFilter:  'blur(2px)',
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -249,7 +308,31 @@ export default function CustomSchemaEdge({
           </span>
         </div>
 
-        {/* Source role label (18 % along the line toward mid, offset up) */}
+        {/* Source-end cardinality (12 % from source toward mid, above line) */}
+        {srcCard && (
+          <div style={{
+            position:      'absolute',
+            transform:     `translate(-50%, -140%) translate(${srcCardX}px,${srcCardY}px)`,
+            pointerEvents: 'none',
+            zIndex:        10,
+          }}>
+            <span style={cardStyle}>{srcCard}</span>
+          </div>
+        )}
+
+        {/* Target-end cardinality (12 % from target toward mid, above line) */}
+        {tgtCard && (
+          <div style={{
+            position:      'absolute',
+            transform:     `translate(-50%, -140%) translate(${tgtCardX}px,${tgtCardY}px)`,
+            pointerEvents: 'none',
+            zIndex:        10,
+          }}>
+            <span style={cardStyle}>{tgtCard}</span>
+          </div>
+        )}
+
+        {/* Source role label (22 % along the line toward mid, above line) */}
         {srcRole && (
           <div style={{
             position:      'absolute',
@@ -273,7 +356,7 @@ export default function CustomSchemaEdge({
           </div>
         )}
 
-        {/* Target role label */}
+        {/* Target role label (22 % from target toward mid, above line) */}
         {tgtRole && (
           <div style={{
             position:      'absolute',

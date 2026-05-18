@@ -219,7 +219,7 @@ export default function OrmExportModal({ onClose }) {
                     d="M4 7v10c0 1.1.9 2 2 2h12a2 2 0 002-2V7M4 7l8-4 8 4M4 7h16"/>
                 </svg>
                 <p className="text-sm text-gray-400 dark:text-gray-600">
-                  Add tables to the canvas to generate models.
+                  Add classes to the canvas to generate models.
                 </p>
               </div>
             </div>

@@ -467,7 +467,7 @@ export default function HistoryPanel({ schemaId, onRestore, onClose, onFocusNode
 
                 {/* Added tables */}
                 <DiffSection
-                  title="Added Tables"
+                  title="Added Classes"
                   count={diff.tables.added.length}
                   defaultOpen
                   accentCls={{
@@ -482,7 +482,7 @@ export default function HistoryPanel({ schemaId, onRestore, onClose, onFocusNode
 
                 {/* Removed tables */}
                 <DiffSection
-                  title="Removed Tables"
+                  title="Removed Classes"
                   count={diff.tables.removed.length}
                   defaultOpen
                   accentCls={{
@@ -497,7 +497,7 @@ export default function HistoryPanel({ schemaId, onRestore, onClose, onFocusNode
 
                 {/* Modified tables */}
                 <DiffSection
-                  title="Modified Tables"
+                  title="Modified Classes"
                   count={diff.tables.modified.length}
                   defaultOpen
                   accentCls={{

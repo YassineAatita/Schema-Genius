@@ -47,53 +47,82 @@ const LINE_STYLES = [
   },
 ]
 
+// ── UML relationship type definitions ────────────────────────────────────────
+// Icons reflect the correct UML notation for each type.
 const DIAGRAM_TYPES = [
   {
     value: 'association',
     label: 'Association',
-    description: 'Standard directed relationship',
+    description: 'Bidirectional plain line — no arrowhead',
     color: 'blue',
     icon: (
+      // Plain solid line, no arrowhead at either end
       <svg viewBox="0 0 48 16" className="w-12 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <line x1="2" y1="8" x2="36" y2="8"/>
-        <path d="M 26 3 L 38 8 L 26 13" fill="none" strokeLinejoin="round"/>
+        <line x1="2" y1="8" x2="46" y2="8" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    value: 'directed-association',
+    label: 'Directed Association',
+    description: 'One-way navigation — open arrow at target',
+    color: 'sky',
+    icon: (
+      // Solid line with open V arrowhead at right
+      <svg viewBox="0 0 48 16" className="w-12 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <line x1="2" y1="8" x2="36" y2="8" strokeLinecap="round"/>
+        <path d="M 26 3 L 38 8 L 26 13" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
       </svg>
     ),
   },
   {
     value: 'aggregation',
     label: 'Aggregation',
-    description: '"Has a" — shared ownership',
+    description: '"Has a" — hollow diamond at whole end',
     color: 'violet',
     icon: (
+      // Hollow diamond at left (whole), plain line to right (no arrow)
       <svg viewBox="0 0 54 16" className="w-14 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M 2 8 L 8 3 L 14 8 L 8 13 z" fill="white" stroke="currentColor"/>
-        <line x1="14" y1="8" x2="38" y2="8"/>
-        <path d="M 28 3 L 40 8 L 28 13" fill="none" strokeLinejoin="round"/>
+        <path d="M 2 8 L 9 3 L 16 8 L 9 13 z" fill="white" stroke="currentColor"/>
+        <line x1="16" y1="8" x2="52" y2="8" strokeLinecap="round"/>
       </svg>
     ),
   },
   {
     value: 'composition',
     label: 'Composition',
-    description: '"Part of" — strong ownership',
+    description: '"Part of" — filled diamond at whole end',
     color: 'purple',
     icon: (
+      // Filled diamond at left (whole), plain line to right (no arrow)
       <svg viewBox="0 0 54 16" className="w-14 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M 2 8 L 8 3 L 14 8 L 8 13 z" fill="currentColor"/>
-        <line x1="14" y1="8" x2="38" y2="8"/>
-        <path d="M 28 3 L 40 8 L 28 13" fill="none" strokeLinejoin="round"/>
+        <path d="M 2 8 L 9 3 L 16 8 L 9 13 z" fill="currentColor"/>
+        <line x1="16" y1="8" x2="52" y2="8" strokeLinecap="round"/>
       </svg>
     ),
   },
   {
     value: 'inheritance',
     label: 'Inheritance',
-    description: '"Is a" — generalization',
+    description: '"Is a" — hollow triangle toward parent',
     color: 'emerald',
     icon: (
+      // Solid line with hollow closed triangle (pointing right = toward parent)
       <svg viewBox="0 0 48 16" className="w-12 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
         <line x1="2" y1="8" x2="30" y2="8"/>
+        <path d="M 22 3 L 36 8 L 22 13 z" fill="white" stroke="currentColor" strokeWidth="1.8"/>
+      </svg>
+    ),
+  },
+  {
+    value: 'realization',
+    label: 'Realization',
+    description: 'Implements interface — dashed + hollow triangle',
+    color: 'teal',
+    icon: (
+      // Dashed line with hollow closed triangle (pointing right = toward interface)
+      <svg viewBox="0 0 48 16" className="w-12 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <line x1="2" y1="8" x2="30" y2="8" strokeDasharray="5 3"/>
         <path d="M 22 3 L 36 8 L 22 13 z" fill="white" stroke="currentColor" strokeWidth="1.8"/>
       </svg>
     ),
@@ -104,9 +133,10 @@ const DIAGRAM_TYPES = [
     description: 'Dashed — uses / relies on',
     color: 'amber',
     icon: (
+      // Dashed line with open V arrowhead
       <svg viewBox="0 0 48 16" className="w-12 h-4" fill="none" stroke="currentColor" strokeWidth="1.8">
         <line x1="2" y1="8" x2="36" y2="8" strokeDasharray="5 3"/>
-        <path d="M 26 3 L 38 8 L 26 13" fill="none" strokeLinejoin="round"/>
+        <path d="M 26 3 L 38 8 L 26 13" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
       </svg>
     ),
   },
@@ -116,28 +146,31 @@ const RELATIONSHIP_TYPES = [
   {
     value: '1:1',
     label: 'One to One',
-    description: 'Each row in A links to exactly one row in B',
+    description: 'Each instance in A links to exactly one in B',
     example: 'User → Profile',
   },
   {
     value: '1:N',
     label: 'One to Many',
-    description: 'One row in A links to many rows in B',
+    description: 'One instance in A links to many in B',
     example: 'User → Orders',
   },
   {
     value: 'N:1',
     label: 'Many to One',
-    description: 'Many rows in A link to one row in B',
+    description: 'Many instances in A link to one in B',
     example: 'Orders → User',
   },
   {
     value: 'M:M',
     label: 'Many to Many',
-    description: 'Many rows in A link to many rows in B',
+    description: 'Many instances in A link to many in B',
     example: 'Students ↔ Courses',
   },
 ]
+
+// Quick-select chip values for per-end UML cardinality
+const CARDINALITY_CHIPS = ['1', '*', '0..1', '1..*', '0..*']
 
 // Light + dark classes for each diagram accent color
 const DIAGRAM_COLORS = {
@@ -146,6 +179,12 @@ const DIAGRAM_COLORS = {
     bg:     'bg-blue-50        dark:bg-blue-950',
     text:   'text-blue-600     dark:text-blue-300',
     dot:    'bg-blue-500',
+  },
+  sky: {
+    border: 'border-sky-500    dark:border-sky-700',
+    bg:     'bg-sky-50         dark:bg-sky-950',
+    text:   'text-sky-600      dark:text-sky-300',
+    dot:    'bg-sky-500',
   },
   violet: {
     border: 'border-violet-500 dark:border-violet-700',
@@ -165,6 +204,12 @@ const DIAGRAM_COLORS = {
     text:   'text-emerald-600   dark:text-emerald-300',
     dot:    'bg-emerald-500',
   },
+  teal: {
+    border: 'border-teal-500   dark:border-teal-700',
+    bg:     'bg-teal-50        dark:bg-teal-950',
+    text:   'text-teal-600     dark:text-teal-300',
+    dot:    'bg-teal-500',
+  },
   amber: {
     border: 'border-amber-500 dark:border-amber-700',
     bg:     'bg-amber-50      dark:bg-amber-950',
@@ -176,13 +221,15 @@ const DIAGRAM_COLORS = {
 export default function RelationshipEditor({ edge, onClose }) {
   const { nodes, updateEdge, deleteEdge } = useSchemaStore()
 
-  const [selectedType,  setSelectedType]  = useState('1:N')
-  const [lineStyle,     setLineStyle]     = useState('smoothstep')
-  const [diagramType,   setDiagramType]   = useState('association')
-  const [sourceLabel,   setSourceLabel]   = useState('')
-  const [targetLabel,   setTargetLabel]   = useState('')
-  const [saved,         setSaved]         = useState(false)
-  const [showDelModal,  setShowDelModal]  = useState(false)
+  const [selectedType,       setSelectedType]       = useState('1:N')
+  const [lineStyle,          setLineStyle]          = useState('smoothstep')
+  const [diagramType,        setDiagramType]        = useState('association')
+  const [sourceLabel,        setSourceLabel]        = useState('')
+  const [targetLabel,        setTargetLabel]        = useState('')
+  const [sourceCardinality,  setSourceCardinality]  = useState('')
+  const [targetCardinality,  setTargetCardinality]  = useState('')
+  const [saved,              setSaved]              = useState(false)
+  const [showDelModal,       setShowDelModal]       = useState(false)
 
   const sourceNode = nodes.find(n => n.id === edge.source)
   const targetNode = nodes.find(n => n.id === edge.target)
@@ -196,12 +243,17 @@ export default function RelationshipEditor({ edge, onClose }) {
     setDiagramType(edge.data?.diagramType || 'association')
     setSourceLabel(edge.data?.sourceLabel || '')
     setTargetLabel(edge.data?.targetLabel || '')
+    // Backward-compatible: default to empty (will derive from relationshipType in the edge component)
+    setSourceCardinality(edge.data?.sourceCardinality || '')
+    setTargetCardinality(edge.data?.targetCardinality || '')
     setSaved(false)
   }, [edge.id])
 
   const handleSave = () => {
-    const src = sourceLabel.trim()
-    const tgt = targetLabel.trim()
+    const src    = sourceLabel.trim()
+    const tgt    = targetLabel.trim()
+    const srcCrd = sourceCardinality.trim()
+    const tgtCrd = targetCardinality.trim()
     const canvasLabel = (src || tgt)
       ? `${src || '—'} [${selectedType}] ${tgt || '—'}`
       : selectedType
@@ -211,9 +263,11 @@ export default function RelationshipEditor({ edge, onClose }) {
       label: canvasLabel,
       data:  {
         ...edge.data,
-        relationshipType: selectedType,
-        sourceLabel:      src,
-        targetLabel:      tgt,
+        relationshipType:  selectedType,
+        sourceLabel:       src,
+        targetLabel:       tgt,
+        sourceCardinality: srcCrd,
+        targetCardinality: tgtCrd,
         lineStyle,
         diagramType,
       },
@@ -233,18 +287,25 @@ export default function RelationshipEditor({ edge, onClose }) {
     (KNOWN_LINE_STYLES.includes(edge.type) ? edge.type : 'smoothstep')
 
   const hasChanges =
-    selectedType !== (edge.data?.relationshipType || '1:N') ||
-    lineStyle    !== currentLineStyle ||
-    diagramType  !== (edge.data?.diagramType || 'association') ||
-    sourceLabel  !== (edge.data?.sourceLabel || '') ||
-    targetLabel  !== (edge.data?.targetLabel || '')
+    selectedType       !== (edge.data?.relationshipType  || '1:N')         ||
+    lineStyle          !== currentLineStyle                                  ||
+    diagramType        !== (edge.data?.diagramType        || 'association') ||
+    sourceLabel        !== (edge.data?.sourceLabel        || '')            ||
+    targetLabel        !== (edge.data?.targetLabel        || '')            ||
+    sourceCardinality  !== (edge.data?.sourceCardinality  || '')            ||
+    targetCardinality  !== (edge.data?.targetCardinality  || '')
 
-  const activeDiagram = DIAGRAM_TYPES.find(d => d.value === diagramType)
+  const activeDiagram       = DIAGRAM_TYPES.find(d => d.value === diagramType)
   const activeDiagramColors = DIAGRAM_COLORS[activeDiagram?.color || 'blue']
 
   // Reusable inactive-state classes for buttons
   const inactiveBtn = 'border-gray-200 dark:border-[#252a3e] bg-white dark:bg-[#1c1f2e] hover:border-gray-300 dark:hover:border-[#2d3247] hover:bg-gray-50 dark:hover:bg-[#252a3e]'
   const inputCls    = 'w-full px-3 py-2 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border border-gray-200 dark:border-[#2d3247] bg-white dark:bg-[#1c1f2e] text-gray-800 dark:text-gray-200 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-colors duration-200'
+  const chipBtn     = (active) =>
+    `text-xs px-2 py-0.5 rounded border transition-colors font-mono ` +
+    (active
+      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400'
+      : 'border-gray-200 dark:border-[#2d3247] bg-white dark:bg-[#1c1f2e] text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-[#374151]')
 
   return (
     <div className="w-80 flex flex-col h-full shadow-lg
@@ -297,11 +358,11 @@ export default function RelationshipEditor({ edge, onClose }) {
           </div>
         </div>
 
-        {/* Diagram Type */}
+        {/* UML Relationship Type */}
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide mb-2
                         text-gray-500 dark:text-gray-500">
-            Diagram Type
+            UML Relationship Type
           </p>
           <div className="space-y-1.5">
             {DIAGRAM_TYPES.map((dt) => {
@@ -365,11 +426,11 @@ export default function RelationshipEditor({ edge, onClose }) {
           </div>
         </div>
 
-        {/* Cardinality */}
+        {/* Multiplicity (single value for SQL / FK mapping) */}
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide mb-2
                         text-gray-500 dark:text-gray-500">
-            Cardinality
+            Multiplicity
           </p>
           <div className="space-y-2">
             {RELATIONSHIP_TYPES.map((type) => (
@@ -399,6 +460,93 @@ export default function RelationshipEditor({ edge, onClose }) {
                 <p className="text-xs text-gray-300 dark:text-gray-600 mt-0.5 italic">{type.example}</p>
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* UML Endpoint Cardinalities */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-1
+                        text-gray-500 dark:text-gray-500">
+            Endpoint Cardinalities{' '}
+            <span className="text-gray-300 dark:text-gray-600 font-normal normal-case">
+              (shown on line ends)
+            </span>
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">
+            Leave empty to auto-derive from multiplicity above.
+          </p>
+          <div className="space-y-3">
+            {/* Source end */}
+            <div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">
+                {sourceNode?.data?.name || 'Source'} end
+              </p>
+              <input
+                type="text"
+                value={sourceCardinality}
+                onChange={e => { setSourceCardinality(e.target.value); setSaved(false) }}
+                placeholder="auto"
+                className={inputCls}
+              />
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {CARDINALITY_CHIPS.map(v => (
+                  <button
+                    key={v}
+                    onClick={() => { setSourceCardinality(v); setSaved(false) }}
+                    className={chipBtn(sourceCardinality === v)}
+                  >
+                    {v}
+                  </button>
+                ))}
+                {sourceCardinality && (
+                  <button
+                    onClick={() => { setSourceCardinality(''); setSaved(false) }}
+                    className="text-xs px-2 py-0.5 rounded border border-gray-200 dark:border-[#2d3247]
+                               text-gray-400 dark:text-gray-500 hover:text-red-400 hover:border-red-200
+                               dark:hover:border-red-800 transition-colors"
+                    title="Clear (revert to auto)"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Target end */}
+            <div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">
+                {targetNode?.data?.name || 'Target'} end
+              </p>
+              <input
+                type="text"
+                value={targetCardinality}
+                onChange={e => { setTargetCardinality(e.target.value); setSaved(false) }}
+                placeholder="auto"
+                className={inputCls}
+              />
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {CARDINALITY_CHIPS.map(v => (
+                  <button
+                    key={v}
+                    onClick={() => { setTargetCardinality(v); setSaved(false) }}
+                    className={chipBtn(targetCardinality === v)}
+                  >
+                    {v}
+                  </button>
+                ))}
+                {targetCardinality && (
+                  <button
+                    onClick={() => { setTargetCardinality(''); setSaved(false) }}
+                    className="text-xs px-2 py-0.5 rounded border border-gray-200 dark:border-[#2d3247]
+                               text-gray-400 dark:text-gray-500 hover:text-red-400 hover:border-red-200
+                               dark:hover:border-red-800 transition-colors"
+                    title="Clear (revert to auto)"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 

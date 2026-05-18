@@ -464,7 +464,7 @@ export default function DesignerPage() {
 
   const handleFetchSuggestions = useCallback(async () => {
     if (nodes.length === 0) {
-      setAiSuggestError('Add some tables first before requesting AI suggestions.')
+      setAiSuggestError('Add some classes first before requesting AI suggestions.')
       return
     }
     setAiSuggestLoading(true)
@@ -738,7 +738,7 @@ export default function DesignerPage() {
       const res = await api.post('/ai/generate-from-image', { image: imageDataUrl, prompt, project_id: projectId })
       const schema = res.data
       if (!schema.nodes?.length) {
-        setVisionError('No tables detected. Try a clearer image or add a description.')
+        setVisionError('No classes detected. Try a clearer image or add a description.')
         return
       }
       // Remember the DB generation id
@@ -1141,7 +1141,7 @@ export default function DesignerPage() {
                          hover:bg-blue-50 dark:hover:bg-blue-950">
               <Plus className="w-4 h-4"/>
             </button>
-            <PillTooltip>Add Table · drag to place</PillTooltip>
+            <PillTooltip>Add Class · drag to place</PillTooltip>
           </div>
         )}
 
@@ -1384,7 +1384,7 @@ export default function DesignerPage() {
                       text-gray-400 dark:text-gray-600
                       bg-white/90 dark:bg-[#141620]/90
                       border border-gray-200 dark:border-[#252a3e]">
-          Click table to edit · Click relationship to change · Drag handle to connect · Del to remove · Ctrl+Z to undo
+          Click class to edit · Click relationship to change · Drag handle to connect · Del to remove · Ctrl+Z to undo
         </p>
       </div>
 
@@ -1512,7 +1512,7 @@ function AiConfirmModal({ open, onReplace, onAddToCanvas, onCancel }) {
           </div>
           <div>
             <h3 className="font-semibold text-gray-900 text-base">Apply AI schema?</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Your canvas already has tables</p>
+            <p className="text-xs text-gray-400 mt-0.5">Your canvas already has classes</p>
           </div>
         </div>
 
@@ -1537,7 +1537,7 @@ function AiConfirmModal({ open, onReplace, onAddToCanvas, onCancel }) {
             </div>
             <div>
               <div className="text-sm font-semibold text-emerald-700">Add to canvas</div>
-              <div className="text-xs text-emerald-500 mt-0.5">New tables placed beside existing ones — nothing removed</div>
+              <div className="text-xs text-emerald-500 mt-0.5">New classes placed beside existing ones — nothing removed</div>
             </div>
           </button>
 
@@ -1555,7 +1555,7 @@ function AiConfirmModal({ open, onReplace, onAddToCanvas, onCancel }) {
             </div>
             <div>
               <div className="text-sm font-semibold text-amber-700">Replace everything</div>
-              <div className="text-xs text-amber-500 mt-0.5">Current tables and relationships will be removed</div>
+              <div className="text-xs text-amber-500 mt-0.5">Current classes and relationships will be removed</div>
             </div>
           </button>
         </div>
@@ -3049,7 +3049,7 @@ function TemplatesModal({ onUseTemplate, onClose }) {
                   <h3 className="font-semibold text-gray-900 text-sm mb-1 leading-snug">{t.name}</h3>
                   <p className="text-xs text-gray-500 leading-relaxed mb-4 flex-1">{t.description}</p>
                   <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
-                    <span>{t.tableCount} tables</span>
+                    <span>{t.tableCount} classes</span>
                     <span>{t.edgeCount} relations</span>
                   </div>
                   <button

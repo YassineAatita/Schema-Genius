@@ -90,13 +90,13 @@ const FEATURES = [
   {
     icon: <Ico name="collection" size={20}/>,
     title: 'Visual Canvas',
-    desc:  'Drag-and-drop tables on an infinite canvas. Add columns, types, and constraints — no SQL needed.',
+    desc:  'Drag-and-drop classes on an infinite canvas. Add attributes, types, and constraints — no SQL needed.',
     accent: '#4f8ef7',
   },
   {
     icon: <Ico name="sparkle" size={20}/>,
     title: 'AI Generation',
-    desc:  'Describe your app in plain English and AI generates a complete schema with tables and relationships.',
+    desc:  'Describe your app in plain English and AI generates a complete class diagram with classes and relationships.',
     accent: '#7c5cfc',
   },
   {
@@ -646,9 +646,9 @@ function AISection() {
   const BULLETS = [
     { name:'pencil',   title:'Text to Schema',   desc:'Describe in plain English — full schema generated in seconds' },
     { name:'photo',    title:'Image to Schema',  desc:'Upload an ER diagram photo; AI parses it into nodes and edges' },
-    { name:'refresh',  title:'Iterative AI',     desc:'Ask AI to add or improve tables on your existing schema' },
+    { name:'refresh',  title:'Iterative AI',     desc:'Ask AI to add or improve classes on your existing schema' },
     { name:'fire',     title:'Roast My Schema',  desc:'Get brutal but helpful critique from a senior DBA AI' },
-    { name:'lightbulb',title:'AI Suggestions',   desc:'Let AI spot missing tables and improve your data model' },
+    { name:'lightbulb',title:'AI Suggestions',   desc:'Let AI spot missing classes and improve your data model' },
   ]
   return (
     <section id="ai" style={{ background:'#0a1628', padding:'96px 24px', position:'relative', overflow:'hidden' }}>
@@ -876,7 +876,7 @@ function MockSchemaCard({ name, author, initials, avatarColor, tables, dialect, 
           </div>
           <div>
             <p style={{ fontSize:'12px', fontWeight:700, color:'#0a1628', lineHeight:1.2 }}>{author}</p>
-            <p style={{ fontSize:'11px', color:'#9ca3af', lineHeight:1.2 }}>{tables} tables · {dialect}</p>
+            <p style={{ fontSize:'11px', color:'#9ca3af', lineHeight:1.2 }}>{tables} classes · {dialect}</p>
           </div>
         </div>
         <button style={{ fontSize:'11px', fontWeight:600, color:'#4f8ef7',
@@ -1072,7 +1072,7 @@ function TemplatesSection() {
                 <Ico name={t.iconKey} size={26} color={t.col}/>
               </span>
               <p style={{ fontWeight:700, fontSize:'13.5px', color:'white', marginBottom:'5px' }}>{t.name}</p>
-              <p style={{ fontSize:'11.5px', color:t.col, fontWeight:600 }}>{t.tables} tables</p>
+              <p style={{ fontSize:'11.5px', color:t.col, fontWeight:600 }}>{t.tables} classes</p>
             </div>
           ))}
         </div>
