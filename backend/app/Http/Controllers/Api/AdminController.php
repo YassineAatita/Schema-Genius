@@ -270,6 +270,8 @@ class AdminController extends Controller
                 'project_id'  => $project->id,
                 'featured_by' => $request->user()->id,
                 'note'        => $validated['note'] ?? null,
+                // is_visible omitted intentionally — new rows default TRUE via migration;
+                // existing rows keep their visibility. Use PATCH /admin/featured/visibility to control it.
             ]
         );
 

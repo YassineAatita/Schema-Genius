@@ -290,6 +290,11 @@ class ExploreController extends Controller
             ->first();
 
         if ($featured && $featured->project) {
+            // Visibility check — admin can hide the banner without removing the record
+            if (!($featured->is_visible ?? true)) {
+                return response()->json(null);
+            }
+
             $project = $featured->project;
             $project->load(['schema.currentVersion', 'forkOrigin.originalProject.owner']);
             [$starredIds, $likedIds, $forkedIds] = $this->userInteractionIds($user?->id);
@@ -326,7 +331,9 @@ class ExploreController extends Controller
             return response()->json(null);
         }
 
-        // Persist the auto-pick for this week (featured_by = null = system pick)
+        // Persist the auto-pick for this week (featured_by = null = system pick).
+        // is_visible is intentionally omitted here — new rows default to TRUE via the
+        // migration, and omitting it keeps this call safe if the migration hasn't run yet.
         FeaturedSchema::updateOrCreate(
             ['week_of' => $weekStart],
             ['project_id' => $autoProject->id, 'featured_by' => null, 'note' => 'Automatically selected by Schema Genius']

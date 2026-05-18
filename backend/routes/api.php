@@ -205,8 +205,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/collections/{id}/items/{projectId}',          [CollectionController::class, 'removeItem']);
 
     // Admin — Featured schema management (role-gated inside controller)
-    Route::post('/admin/featured',         [FeaturedSchemaController::class, 'store']);
-    Route::get('/admin/featured/history',  [FeaturedSchemaController::class, 'history']);
+    // NOTE: specific sub-routes (/current, /visibility) are declared BEFORE any
+    // future parameterised route so Laravel doesn't mistake them for a wildcard segment.
+    Route::get('/admin/featured/current',          [FeaturedSchemaController::class, 'current']);
+    Route::patch('/admin/featured/visibility',     [FeaturedSchemaController::class, 'toggleVisibility']);
+    Route::post('/admin/featured',                 [FeaturedSchemaController::class, 'store']);
+    Route::get('/admin/featured/history',          [FeaturedSchemaController::class, 'history']);
 
     // Admin — Dashboard data (role-gated inside AdminController)
     Route::get('/admin/overview',                    [AdminController::class, 'overview']);
