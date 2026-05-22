@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\Project;
 use App\Models\ProjectCollaborator;
@@ -78,6 +79,19 @@ class ForkController extends Controller
             'forked_project_id'   => $forked->id,
             'user_id'             => $user->id,
         ]);
+
+        // Activity log — wrapped in try/catch so a failure never breaks the fork
+        try {
+            ActivityLog::create([
+                'user_id'    => $user->id,
+                'project_id' => $original->id,
+                'action'     => 'forked_schema',
+                'metadata'   => [
+                    'original_name'     => $original->name,
+                    'forked_project_id' => $forked->id,
+                ],
+            ]);
+        } catch (\Throwable) {}
 
         // BUG 3 FIX — straight ASCII quotes, wrapped in try/catch so a notification
         // failure never causes a 500 and rolls back the successfully created fork.

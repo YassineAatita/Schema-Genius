@@ -63,6 +63,13 @@ export default function DashboardPage() {
   const [friendToast,         setFriendToast]         = useState(null)
   const friendSearchTimer = useRef(null)
 
+  // ── Dashboard filter / sort / view mode ──────────────────────
+  const [filterTab, setFilterTab] = useState('all')   // all | mine | shared | public
+  const [sortBy,    setSortBy]    = useState('updated') // updated | created | name
+  const [viewMode,  setViewMode]  = useState('grid')  // grid | list
+  const [activity,        setActivity]        = useState([])
+  const [activityLoading, setActivityLoading] = useState(true)
+
   // ── Bootstrap ─────────────────────────────────────────────────
   useEffect(() => {
     api.get('/auth/me')
@@ -72,6 +79,7 @@ export default function DashboardPage() {
     fetchInvitations()
     fetchNotifications()
     api.get('/friends/requests').then(r => setFriendReqCount(r.data.length)).catch(() => {})
+    api.get('/activity').then(r => { setActivity(r.data || []); setActivityLoading(false) }).catch(() => setActivityLoading(false))
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bell outside-click handler
@@ -292,13 +300,18 @@ export default function DashboardPage() {
     await updateProject(id, { name, description })
     setEditingProject(null)
   }
-  const filtered = projects.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
-  const owned    = projects.filter(p => p.is_owner).length
-  const shared   = projects.filter(p => !p.is_owner).length
+  let filtered = projects.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+  if (filterTab === 'mine')   filtered = filtered.filter(p => p.is_owner)
+  if (filterTab === 'shared') filtered = filtered.filter(p => !p.is_owner)
+  if (filterTab === 'public') filtered = filtered.filter(p => p.visibility === 'public')
+  if (sortBy === 'name')    filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name))
+  if (sortBy === 'created') filtered = [...filtered].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  const owned  = projects.filter(p => p.is_owner).length
+  const shared = projects.filter(p => !p.is_owner).length
 
   // ─────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-screen bg-[#f5f7fb] overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#f7f5f1] overflow-hidden">
 
       {/* ════════════════ TOP NAVIGATION ════════════════ */}
       <TopNav
@@ -383,7 +396,7 @@ export default function DashboardPage() {
 
       {/* ════════════════ CONTENT AREA ════════════════ */}
       <div
-        className="flex-1 overflow-y-auto px-6 md:px-8 py-7"
+        className="flex-1 overflow-y-auto px-6 md:px-8 py-7 bg-[#f7f5f1]"
         style={{ opacity: contentVisible ? 1 : 0, transition: 'opacity 0.13s ease' }}
       >
 
@@ -391,7 +404,7 @@ export default function DashboardPage() {
         {view === 'dashboard' && (
           <>
             {/* Stats row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <StatCard label="Total Projects" value={projects.length} sub="All time"         color="blue"    icon={<GridIcon/>}  />
               <StatCard label="My Projects"    value={owned}           sub="You own these"    color="violet"  icon={<UserIcon/>}  />
               <StatCard label="Shared With Me" value={shared}          sub="Collaborating"    color="emerald" icon={<ShareIcon/>} />
@@ -400,64 +413,136 @@ export default function DashboardPage() {
                 color={invitations.length > 0 ? 'amber' : 'gray'} icon={<BellIcon/>} />
             </div>
 
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-base font-bold text-gray-900">
-                  {search ? `Results for "${search}"` : 'All Projects'}
-                </h2>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {filtered.length} project{filtered.length !== 1 ? 's' : ''} found
-                </p>
+            {/* ── Two-column layout: projects left, activity sidebar right ── */}
+            <div className="flex gap-6 items-start">
+              <div className="flex-1 min-w-0">
+
+            {/* ── Filter bar ── */}
+            <div className="flex flex-wrap items-center gap-2.5 mb-5">
+              {/* Tabs */}
+              <div className="flex bg-[#ebe6dd]/60 rounded-xl p-1 gap-0.5">
+                {[
+                  { id: 'all',    label: 'All'    },
+                  { id: 'mine',   label: 'Mine'   },
+                  { id: 'shared', label: 'Shared' },
+                  { id: 'public', label: 'Public' },
+                ].map(tab => (
+                  <button key={tab.id} onClick={() => setFilterTab(tab.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap
+                      ${filterTab === tab.id
+                        ? 'bg-white text-[#161413] shadow-sm'
+                        : 'text-gray-500 hover:text-[#161413]'}`}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Sort */}
+              <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+                className="text-xs border border-[#ebe6dd] rounded-xl px-3 py-2 bg-white text-gray-600
+                           focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300
+                           cursor-pointer shadow-sm">
+                <option value="updated">Last updated</option>
+                <option value="created">Newest first</option>
+                <option value="name">Name A–Z</option>
+              </select>
+
+              {/* Result count */}
+              <span className="text-xs text-gray-400 hidden sm:block">
+                {filtered.length} project{filtered.length !== 1 ? 's' : ''}
+                {search ? ` for "${search}"` : ''}
+              </span>
+
+              {/* Grid / List toggle */}
+              <div className="ml-auto flex gap-1 bg-[#ebe6dd]/60 rounded-xl p-1">
+                <button onClick={() => setViewMode('grid')} title="Grid view"
+                  className={`p-1.5 rounded-lg transition-all
+                    ${viewMode === 'grid' ? 'bg-white shadow-sm text-[#161413]' : 'text-gray-400 hover:text-gray-600'}`}>
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5v-3z"/>
+                  </svg>
+                </button>
+                <button onClick={() => setViewMode('list')} title="List view"
+                  className={`p-1.5 rounded-lg transition-all
+                    ${viewMode === 'list' ? 'bg-white shadow-sm text-[#161413]' : 'text-gray-400 hover:text-gray-600'}`}>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                  </svg>
+                </button>
               </div>
             </div>
 
+            {/* ── Loading skeleton ── */}
             {loading && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className={viewMode === 'grid'
+                ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+                : 'space-y-2'}>
                 {[1,2,3,4,5,6].map(i => (
-                  <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse shadow-sm">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 bg-gray-100 rounded-xl"/>
+                  <div key={i} className="bg-white rounded-2xl border border-[#ebe6dd] animate-pulse shadow-sm overflow-hidden">
+                    {viewMode === 'grid' && <div className="h-28 bg-gray-100"/>}
+                    <div className={`p-4 ${viewMode === 'list' ? 'flex items-center gap-4' : ''}`}>
+                      {viewMode === 'list' && <div className="w-10 h-10 bg-gray-100 rounded-xl flex-shrink-0"/>}
                       <div className="flex-1">
                         <div className="h-3.5 bg-gray-100 rounded-lg w-3/4 mb-2"/>
                         <div className="h-2.5 bg-gray-50 rounded-lg w-1/2"/>
                       </div>
                     </div>
-                    <div className="h-2.5 bg-gray-50 rounded-lg w-full mb-2"/>
-                    <div className="h-2.5 bg-gray-50 rounded-lg w-2/3"/>
                   </div>
                 ))}
               </div>
             )}
 
-            {!loading && filtered.length === 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-16 text-center">
-                <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* ── True empty state (no projects at all) ── */}
+            {!loading && projects.length === 0 && (
+              <div className="bg-white rounded-2xl border border-[#ebe6dd] shadow-sm p-16 text-center">
+                <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                       d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"/>
                   </svg>
                 </div>
-                <h3 className="font-semibold text-gray-800 mb-1.5">
-                  {search ? 'No projects match your search' : 'No projects yet'}
-                </h3>
+                <h3 className="font-semibold text-[#161413] mb-1.5">No projects yet</h3>
                 <p className="text-gray-400 text-sm mb-6 max-w-xs mx-auto">
-                  {search ? 'Try a different keyword' : 'Create your first schema project and start designing your database visually'}
+                  Create your first schema project and start designing your database visually
                 </p>
-                {!search && (
-                  <button onClick={() => setShowModal(true)}
-                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
-                               text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-500/20 transition-all">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
-                    </svg>
-                    Create your first project
-                  </button>
-                )}
+                <button onClick={() => setShowModal(true)}
+                  className="inline-flex items-center gap-2 bg-[#161413] hover:bg-orange-600 text-white
+                             text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md transition-all">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+                  </svg>
+                  Create your first project
+                </button>
               </div>
             )}
 
-            {!loading && filtered.length > 0 && (
+            {/* ── Project grid ── */}
+            {!loading && projects.length > 0 && viewMode === 'grid' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {/* "Start new schema" dashed card — always first */}
+                <button onClick={() => setShowModal(true)}
+                  className="bg-white rounded-2xl border-2 border-dashed border-[#d4c9b8]
+                             hover:border-orange-300 hover:bg-orange-50/30 transition-all duration-200
+                             flex flex-col items-center justify-center min-h-[224px] group shadow-sm">
+                  <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100
+                                  flex items-center justify-center mb-3
+                                  group-hover:bg-orange-100 group-hover:scale-110 transition-all">
+                    <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
+                    </svg>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-400 group-hover:text-orange-600 transition-colors">
+                    Start new schema
+                  </p>
+                  <p className="text-xs text-gray-300 mt-1">Design your database</p>
+                </button>
+
+                {filtered.length === 0 && (
+                  <div className="col-span-full text-center py-10">
+                    <p className="text-sm text-gray-400">No projects match this filter.</p>
+                  </div>
+                )}
+
                 {filtered.map(project => (
                   <ProjectCard key={project.id} project={project}
                     onOpen={() => navigate(`/projects/${project.id}/designer`)}
@@ -468,6 +553,32 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
+
+            {/* ── Project list ── */}
+            {!loading && projects.length > 0 && viewMode === 'list' && (
+              <div className="space-y-2">
+                {filtered.length === 0 && (
+                  <div className="text-center py-10">
+                    <p className="text-sm text-gray-400">No projects match this filter.</p>
+                  </div>
+                )}
+                {filtered.map(project => (
+                  <ProjectListItem key={project.id} project={project}
+                    onOpen={() => navigate(`/projects/${project.id}/designer`)}
+                    onDelete={() => handleDelete(project.id, project.name)}
+                    onEdit={() => setEditingProject(project)}
+                    activeCount={projectActiveUsers[project.id] || 0}
+                  />
+                ))}
+              </div>
+            )}
+              </div>{/* end left column */}
+
+              {/* ── Activity sidebar (hidden below lg) ── */}
+              <div className="hidden lg:block w-64 xl:w-72 flex-shrink-0 sticky top-0 self-start">
+                <ActivitySidebar activity={activity} activityLoading={activityLoading} />
+              </div>
+            </div>{/* end two-column layout */}
           </>
         )}
 
@@ -1089,92 +1200,151 @@ function FriendCard({ user, actionLoading, onSend, onAccept, onDecline, onUnfrie
 
 // ── Stat card ─────────────────────────────────────────────────────
 const statColors = {
-  blue:    { bg: 'bg-blue-600',   icon: 'bg-blue-500',    text: 'text-white',       sub: 'text-blue-200',  num: 'text-white'    },
-  violet:  { bg: 'bg-white',      icon: 'bg-violet-100',  text: 'text-violet-600',  sub: 'text-gray-400',  num: 'text-gray-900' },
-  emerald: { bg: 'bg-white',      icon: 'bg-emerald-100', text: 'text-emerald-600', sub: 'text-gray-400',  num: 'text-gray-900' },
-  amber:   { bg: 'bg-white',      icon: 'bg-amber-100',   text: 'text-amber-600',   sub: 'text-gray-400',  num: 'text-gray-900' },
-  gray:    { bg: 'bg-white',      icon: 'bg-gray-100',    text: 'text-gray-500',    sub: 'text-gray-400',  num: 'text-gray-900' },
+  blue:    { bg: 'bg-white', icon: 'bg-blue-100',    text: 'text-blue-600',    sub: 'text-gray-400', num: 'text-gray-900' },
+  violet:  { bg: 'bg-white', icon: 'bg-violet-100',  text: 'text-violet-600',  sub: 'text-gray-400', num: 'text-gray-900' },
+  emerald: { bg: 'bg-white', icon: 'bg-emerald-100', text: 'text-emerald-600', sub: 'text-gray-400', num: 'text-gray-900' },
+  amber:   { bg: 'bg-white', icon: 'bg-amber-100',   text: 'text-amber-600',   sub: 'text-gray-400', num: 'text-gray-900' },
+  gray:    { bg: 'bg-white', icon: 'bg-gray-100',    text: 'text-gray-500',    sub: 'text-gray-400', num: 'text-gray-900' },
 }
 function StatCard({ label, value, sub, color, icon }) {
   const c = statColors[color]
   return (
-    <div className={`${c.bg} rounded-2xl p-5 border border-gray-100 shadow-sm ${color === 'blue' ? 'shadow-blue-200' : ''}`}>
+    <div className={`${c.bg} rounded-2xl p-5 border border-[#ebe6dd] shadow-sm`}>
       <div className="flex items-start justify-between mb-3">
         <div className={`w-9 h-9 ${c.icon} rounded-xl flex items-center justify-center`}>
           <span className={`w-4 h-4 ${c.text}`}>{icon}</span>
         </div>
-        <svg className={`w-4 h-4 ${color === 'blue' ? 'text-blue-300' : 'text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17L17 7M17 7H7M17 7v10"/>
         </svg>
       </div>
-      <p className={`text-[11px] font-medium mb-1 ${color === 'blue' ? 'text-blue-200' : 'text-gray-500'}`}>{label}</p>
+      <p className="text-[11px] font-medium mb-1 text-gray-500">{label}</p>
       <p className={`text-3xl font-bold tracking-tight ${c.num}`}>{value}</p>
       <p className={`text-[11px] mt-1 ${c.sub} flex items-center gap-1`}>
-        <span className={`inline-block w-1.5 h-1.5 rounded-full ${color === 'blue' ? 'bg-blue-300' : 'bg-gray-300'}`}/>
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-gray-300"/>
         {sub}
       </p>
     </div>
   )
 }
 
-// ── Project card ──────────────────────────────────────────────────
-const PROJECT_GRADIENTS = [
-  'from-blue-500 to-blue-600',
-  'from-violet-500 to-purple-600',
-  'from-emerald-500 to-teal-600',
-  'from-orange-400 to-rose-500',
-  'from-cyan-500 to-blue-500',
-  'from-fuchsia-500 to-pink-600',
+// ── Mini SVG schema preview ───────────────────────────────────────
+const SVG_PALETTE = {
+  blue:    { bg: '#eff6ff', rect: '#dbeafe', hdr: '#93c5fd', text: '#1d4ed8', stroke: '#3b82f6', dot: '#bfdbfe' },
+  violet:  { bg: '#f5f3ff', rect: '#ede9fe', hdr: '#c4b5fd', text: '#6d28d9', stroke: '#8b5cf6', dot: '#ddd6fe' },
+  emerald: { bg: '#ecfdf5', rect: '#d1fae5', hdr: '#6ee7b7', text: '#065f46', stroke: '#10b981', dot: '#a7f3d0' },
+  orange:  { bg: '#fff7ed', rect: '#ffedd5', hdr: '#fdba74', text: '#9a3412', stroke: '#f97316', dot: '#fed7aa' },
+  cyan:    { bg: '#ecfeff', rect: '#cffafe', hdr: '#67e8f9', text: '#164e63', stroke: '#06b6d4', dot: '#a5f3fc' },
+  rose:    { bg: '#fff1f2', rect: '#ffe4e6', hdr: '#fda4af', text: '#9f1239', stroke: '#f43f5e', dot: '#fecdd3' },
+}
+const _SVG_TABLES = ['users','orders','products','categories','posts','tags','roles','sessions','payments','reviews','items','events']
+const _SVG_FIELDS = ['id','name','email','type','status','created_at','amount','user_id','title','price','slug','uuid']
+const _SVG_LAYOUTS = [
+  [{x:6, y:14},{x:82,y:10},{x:44,y:56}],
+  [{x:4, y:8 },{x:70,y:4 },{x:70,y:54}],
+  [{x:8, y:4 },{x:82,y:22},{x:22,y:56}],
+  [{x:4, y:10},{x:68,y:8 },{x:36,y:56}],
+  [{x:10,y:6 },{x:80,y:6 },{x:44,y:56}],
+  [{x:6, y:8 },{x:74,y:20},{x:6, y:54},{x:74,y:54}],
+]
+function SchemaPreviewSVG({ projectId, colorId, thumbnailNodes = [] }) {
+  const c      = SVG_PALETTE[colorId] || SVG_PALETTE.blue
+  const layout = _SVG_LAYOUTS[projectId % _SVG_LAYOUTS.length]
+  const pid    = `dp${projectId}`
+  const W = 56, H = 33
+  return (
+    <svg viewBox="0 0 160 100" width="100%" height="100%"
+         style={{ position: 'absolute', inset: 0, background: c.bg }}>
+      <defs>
+        <pattern id={pid} x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
+          <circle cx="1" cy="1" r="0.8" fill={c.dot} fillOpacity="0.8"/>
+        </pattern>
+      </defs>
+      <rect width="160" height="100" fill={`url(#${pid})`}/>
+      {/* connector line */}
+      {layout.length >= 2 && (
+        <line x1={layout[0].x + W} y1={layout[0].y + 11}
+              x2={layout[1].x}     y2={layout[1].y + 11}
+              stroke={c.stroke} strokeOpacity="0.4" strokeWidth="1.2" strokeDasharray="4,3"/>
+      )}
+      {layout.map((pos, i) => {
+        const name = thumbnailNodes[i] || _SVG_TABLES[(projectId * 3 + i * 7) % _SVG_TABLES.length]
+        const f1   = _SVG_FIELDS[(projectId + i * 4)     % _SVG_FIELDS.length]
+        const f2   = _SVG_FIELDS[(projectId + i * 4 + 3) % _SVG_FIELDS.length]
+        return (
+          <g key={i}>
+            <rect x={pos.x} y={pos.y} width={W} height={H} rx="3"
+                  fill={c.rect} stroke={c.stroke} strokeOpacity="0.45" strokeWidth="0.8"/>
+            <rect x={pos.x} y={pos.y} width={W} height="10" rx="3" fill={c.hdr} fillOpacity="0.75"/>
+            <rect x={pos.x} y={pos.y + 7} width={W} height="3" fill={c.hdr} fillOpacity="0.75"/>
+            <text x={pos.x + 4} y={pos.y + 7.5} fontSize="5.5" fontWeight="700" fill={c.text}>{name}</text>
+            <text x={pos.x + 4} y={pos.y + 18}  fontSize="4"   fill={c.text} fillOpacity="0.7">· {f1}</text>
+            <text x={pos.x + 4} y={pos.y + 25}  fontSize="4"   fill={c.text} fillOpacity="0.7">· {f2}</text>
+            <text x={pos.x + 4} y={pos.y + 31}  fontSize="3.5" fill={c.text} fillOpacity="0.4">···</text>
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+// ── Project card (grid) ───────────────────────────────────────────
+const CARD_COLORS = [
+  { bg: 'bg-blue-50',    id: 'blue'    },
+  { bg: 'bg-violet-50',  id: 'violet'  },
+  { bg: 'bg-emerald-50', id: 'emerald' },
+  { bg: 'bg-orange-50',  id: 'orange'  },
+  { bg: 'bg-cyan-50',    id: 'cyan'    },
+  { bg: 'bg-rose-50',    id: 'rose'    },
 ]
 function ProjectCard({ project, onOpen, onDelete, onEdit, activeCount = 0 }) {
-  const date     = new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  const gradient = PROJECT_GRADIENTS[project.id % PROJECT_GRADIENTS.length]
-  const initial  = (project.name || 'P')[0].toUpperCase()
+  const card = CARD_COLORS[project.id % CARD_COLORS.length]
+  const date = new Date(project.updated_at || project.created_at)
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md
-                    hover:border-blue-200/60 transition-all duration-200 group overflow-hidden flex flex-col">
-      <div className={`h-1.5 bg-gradient-to-r ${gradient}`}/>
-      <div className="p-5 flex-1 flex flex-col">
-        <div className="flex items-start justify-between mb-4">
-          <div className={`w-10 h-10 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center shadow-md`}>
-            <span className="text-white font-bold text-sm">{initial}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {activeCount > 0 && (
-              <span className="text-[11px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full
-                               font-semibold border border-emerald-200 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block"/>
-                {activeCount} active
-              </span>
-            )}
-            {!project.is_owner && (
-              <span className="text-[11px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full font-semibold border border-violet-100">
-                Shared
-              </span>
-            )}
-            <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border
-              ${project.visibility === 'public' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
-              {project.visibility}
+    <div className="bg-white rounded-2xl border border-[#ebe6dd] shadow-sm hover:shadow-md
+                    hover:border-[#d4c9b8] transition-all duration-200 group overflow-hidden flex flex-col">
+      {/* SVG mini-canvas preview */}
+      <div className={`h-28 ${card.bg} relative overflow-hidden flex-shrink-0`}>
+        <SchemaPreviewSVG projectId={project.id} colorId={card.id} thumbnailNodes={project.thumbnail_nodes || []} />
+        <div className="absolute top-2 right-2 flex gap-1 flex-wrap justify-end">
+          {activeCount > 0 && (
+            <span className="text-[10px] bg-white/90 text-emerald-700 px-2 py-0.5 rounded-full
+                             font-semibold border border-emerald-200 flex items-center gap-1 backdrop-blur-sm shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block"/>
+              {activeCount}
             </span>
-          </div>
+          )}
+          {!project.is_owner && (
+            <span className="text-[10px] bg-white/90 text-violet-600 px-2 py-0.5 rounded-full font-semibold shadow-sm">
+              Shared
+            </span>
+          )}
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold bg-white/90 shadow-sm
+            ${project.visibility === 'public' ? 'text-emerald-600' : 'text-gray-500'}`}>
+            {project.visibility}
+          </span>
         </div>
-        <h3 className="font-bold text-gray-900 text-sm mb-1 truncate group-hover:text-blue-600 transition-colors">
+      </div>
+
+      <div className="p-4 flex-1 flex flex-col">
+        <h3 className="font-bold text-[#161413] text-sm mb-1 truncate group-hover:text-orange-600 transition-colors">
           {project.name}
         </h3>
         <p className="text-gray-400 text-xs line-clamp-2 min-h-[2rem] leading-relaxed flex-1">
           {project.description || 'No description provided'}
         </p>
-        <div className="flex items-center justify-between pt-4 mt-3 border-t border-gray-50">
-          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+        <div className="flex items-center justify-between pt-3 mt-3 border-t border-[#ebe6dd]">
+          <div className="flex items-center gap-1 text-[11px] text-gray-400">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             {date}
           </div>
           <div className="flex items-center gap-1">
             <button onClick={onOpen}
-              className="flex items-center gap-1.5 text-xs bg-gray-900 hover:bg-blue-600 text-white
+              className="flex items-center gap-1.5 text-xs bg-[#161413] hover:bg-[#3d3633] text-white
                          px-3 py-1.5 rounded-xl font-semibold transition-all duration-200">
               Open
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1184,7 +1354,7 @@ function ProjectCard({ project, onOpen, onDelete, onEdit, activeCount = 0 }) {
             {project.is_owner && (
               <>
                 <button onClick={onEdit} title="Edit project"
-                  className="p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all">
+                  className="p-1.5 text-gray-300 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-all">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                       d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -1201,6 +1371,148 @@ function ProjectCard({ project, onOpen, onDelete, onEdit, activeCount = 0 }) {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Project list item (list view) ─────────────────────────────────
+function ProjectListItem({ project, onOpen, onDelete, onEdit, activeCount = 0 }) {
+  const card = CARD_COLORS[project.id % CARD_COLORS.length]
+  const date = new Date(project.updated_at || project.created_at)
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return (
+    <div className="bg-white rounded-xl border border-[#ebe6dd] shadow-sm hover:shadow-md hover:border-[#d4c9b8]
+                    transition-all group flex items-center gap-4 p-4">
+      <div className={`w-10 h-10 ${card.bg} rounded-xl flex items-center justify-center flex-shrink-0 border border-[#ebe6dd]`}>
+        <span className="text-sm font-bold text-gray-600">{(project.name || 'P')[0].toUpperCase()}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h3 className="font-bold text-[#161413] text-sm truncate group-hover:text-orange-600 transition-colors">
+            {project.name}
+          </h3>
+          {!project.is_owner && (
+            <span className="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full font-semibold border border-violet-100">
+              Shared
+            </span>
+          )}
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border
+            ${project.visibility === 'public' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+            {project.visibility}
+          </span>
+          {activeCount > 0 && (
+            <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold border border-emerald-200 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block"/>
+              {activeCount} active
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-gray-400 truncate mt-0.5">
+          {project.description || 'No description'} · {date}
+        </p>
+      </div>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <button onClick={onOpen}
+          className="flex items-center gap-1.5 text-xs bg-[#161413] hover:bg-[#3d3633] text-white
+                     px-3 py-1.5 rounded-xl font-semibold transition-all">
+          Open
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
+        {project.is_owner && (
+          <>
+            <button onClick={onEdit} title="Edit"
+              className="p-1.5 text-gray-300 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-all">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button onClick={onDelete}
+              className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-xl transition-all">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Activity sidebar helpers ──────────────────────────────────────
+function timeAgo(dateStr) {
+  if (!dateStr) return ''
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (diff < 60)     return 'just now'
+  if (diff < 3600)   return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400)  return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+const ACTIVITY_DOTS = {
+  saved_version:        'bg-blue-400',
+  invited_collaborator: 'bg-purple-400',
+  posted_comment:       'bg-sky-400',
+  forked_schema:        'bg-orange-400',
+}
+
+function getActivityLabel(item) {
+  const first   = item.user?.name?.split(' ')[0] || 'Someone'
+  const project = item.project?.name ? `"${item.project.name}"` : 'a project'
+  return {
+    saved_version:        <><strong>{first}</strong> saved a version of <strong>{project}</strong></>,
+    invited_collaborator: <><strong>{first}</strong> invited {item.metadata?.invitee_name || 'someone'} to <strong>{project}</strong></>,
+    posted_comment:       <><strong>{first}</strong> commented on <strong>{project}</strong></>,
+    forked_schema:        <><strong>{first}</strong> forked <strong>{project}</strong></>,
+  }[item.action] || <><strong>{first}</strong> acted on <strong>{project}</strong></>
+}
+
+function ActivitySidebar({ activity = [], activityLoading = false }) {
+  return (
+    <div className="bg-white rounded-2xl border border-[#ebe6dd] shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#ebe6dd]">
+        <p className="text-[11px] font-bold text-[#161413] uppercase tracking-widest">Recent Activity</p>
+        <span className="text-[11px] text-gray-400 font-medium">Latest</span>
+      </div>
+      <div className="divide-y divide-[#ebe6dd]">
+        {activityLoading ? (
+          [1,2,3,4].map(i => (
+            <div key={i} className="px-4 py-3 flex items-start gap-2.5 animate-pulse">
+              <div className="w-2 h-2 rounded-full bg-gray-200 flex-shrink-0 mt-1.5"/>
+              <div className="flex-1">
+                <div className="h-2.5 bg-gray-100 rounded w-4/5 mb-1.5"/>
+                <div className="h-2 bg-gray-50 rounded w-1/3"/>
+              </div>
+            </div>
+          ))
+        ) : activity.length === 0 ? (
+          <div className="px-4 py-8 text-center">
+            <p className="text-xs text-gray-400">No recent activity yet</p>
+          </div>
+        ) : (
+          activity.slice(0, 10).map(item => (
+            <ActivitySidebarItem key={item.id} item={item} />
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ActivitySidebarItem({ item }) {
+  const dot = ACTIVITY_DOTS[item.action] || 'bg-gray-300'
+  return (
+    <div className="px-4 py-3 flex items-start gap-2.5 hover:bg-[#f7f5f1] transition-colors">
+      <span className={`w-2 h-2 rounded-full ${dot} flex-shrink-0 mt-[5px]`}/>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] text-[#161413] leading-snug">{getActivityLabel(item)}</p>
+        <p className="text-[10px] text-gray-400 mt-0.5">{timeAgo(item.created_at)}</p>
       </div>
     </div>
   )

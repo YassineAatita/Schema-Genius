@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\Project;
 use App\Models\SchemaComment;
@@ -62,6 +63,16 @@ class CommentController extends Controller
         ]);
 
         $comment->load('author');
+
+        // Activity log — wrapped in try/catch so a failure never discards the comment
+        try {
+            ActivityLog::create([
+                'user_id'    => $user->id,
+                'project_id' => $project->id,
+                'action'     => 'posted_comment',
+                'metadata'   => ['comment_id' => $comment->id],
+            ]);
+        } catch (\Throwable) {}
 
         // BUG 4 FIX — straight ASCII quotes, wrapped in try/catch so a notification
         // failure never causes a 500 and discards the successfully saved comment.

@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\CollectionController;
 use App\Http\Controllers\Api\FeaturedSchemaController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\ActivityController;
 
 
 // ── Public routes ────────────────────────────────────────────────
@@ -194,6 +195,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/projects/{id}/comments',  [CommentController::class, 'store']);
     Route::put('/comments/{id}',            [CommentController::class, 'update']);
     Route::delete('/comments/{id}',         [CommentController::class, 'destroy']);
+
+    // Activity feed
+    Route::get('/activity', [ActivityController::class, 'index']);
 
     // Collections
     Route::get('/collections',                                    [CollectionController::class, 'index']);

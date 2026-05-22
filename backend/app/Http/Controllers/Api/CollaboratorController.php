@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\Project;
 use App\Models\User;
@@ -73,6 +74,20 @@ class CollaboratorController extends Controller
             'status'     => 'pending',
             'invited_at' => now(),
         ]);
+
+        // Activity log — wrapped in try/catch so a failure never breaks the invitation
+        try {
+            ActivityLog::create([
+                'user_id'    => $request->user()->id,
+                'project_id' => $project->id,
+                'action'     => 'invited_collaborator',
+                'metadata'   => [
+                    'invitee_id'   => $invitee->id,
+                    'invitee_name' => $invitee->name,
+                    'role'         => $request->role,
+                ],
+            ]);
+        } catch (\Throwable) {}
 
         // Notify the invitee about the collaboration invitation
         try {

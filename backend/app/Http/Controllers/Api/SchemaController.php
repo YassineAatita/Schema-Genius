@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\Schema;
+use App\Models\ActivityLog;
 use App\Models\SchemaVersion;
 use Illuminate\Http\Request;
 
@@ -63,6 +64,16 @@ class SchemaController extends Controller
 
         // Update current version pointer
         $schema->update(['current_version_id' => $version->id]);
+
+        // Activity log — wrapped in try/catch so a failure never breaks the save
+        try {
+            ActivityLog::create([
+                'user_id'    => $user->id,
+                'project_id' => $project->id,
+                'action'     => 'saved_version',
+                'metadata'   => ['version_number' => $version->version_number],
+            ]);
+        } catch (\Throwable) {}
 
         return response()->json([
             'message' => 'Schema saved successfully.',

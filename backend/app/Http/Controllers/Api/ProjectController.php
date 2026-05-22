@@ -17,28 +17,53 @@ class ProjectController extends Controller
     {
         $user = $request->user();
 
+        // Helper: extract up to 8 node names from the current schema version.
+        // Strips the heavy schema_json from the serialised response so the payload
+        // stays lean — only the compact thumbnail_nodes array is sent to the client.
+        $extractThumbnail = function ($p): array {
+            $schemaJson = $p->schema?->currentVersion?->schema_json;
+            $thumbnailNodes = [];
+            if (is_array($schemaJson) && !empty($schemaJson['nodes'])) {
+                $rawNodes = array_slice($schemaJson['nodes'], 0, 8);
+                $thumbnailNodes = array_values(array_map(
+                    fn ($n) => $n['data']['name'] ?? 'table',
+                    $rawNodes
+                ));
+            }
+            // Prevent schema_json from appearing in the JSON response
+            if ($p->schema?->currentVersion) {
+                $p->schema->currentVersion->makeHidden(['schema_json']);
+            }
+            return $thumbnailNodes;
+        };
+
         // Projects I own
         $ownedProjects = Project::where('owner_id', $user->id)
             ->withCount('collaborators')
-            ->with('schema')
+            ->with('schema.currentVersion')
             ->latest()
             ->get()
-            ->map(fn($p) => array_merge($p->toArray(), ['is_owner' => true]));
+            ->map(function ($p) use ($extractThumbnail) {
+                return array_merge($p->toArray(), [
+                    'is_owner'        => true,
+                    'thumbnail_nodes' => $extractThumbnail($p),
+                ]);
+            });
 
         // Projects I was invited to (accepted only)
         $sharedProjects = $user->collaboratingProjects()
             ->wherePivot('status', 'accepted')
             ->withCount('collaborators')
-            ->with('schema')
+            ->with('schema.currentVersion')
             ->latest()
             ->get()
-            ->map(fn($p) => array_merge(
-                $p->toArray(),
-                [
-                    'is_owner'      => false,
-                    'my_role'       => $p->pivot->role,
-                ]
-            ));
+            ->map(function ($p) use ($extractThumbnail) {
+                return array_merge($p->toArray(), [
+                    'is_owner'        => false,
+                    'my_role'         => $p->pivot->role,
+                    'thumbnail_nodes' => $extractThumbnail($p),
+                ]);
+            });
 
         // Merge both lists
         $allProjects = $ownedProjects->concat($sharedProjects)
