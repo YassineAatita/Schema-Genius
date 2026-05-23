@@ -69,19 +69,19 @@ const ACTIVITIES = [
 ]
 
 const TEMPLATES = [
-  { name: 'Blog Platform',       tables: 4, iconKey: 'document',   col: '#4f8ef7' },
-  { name: 'E-Commerce Store',    tables: 5, iconKey: 'cart',       col: '#7c5cfc' },
-  { name: 'SaaS Platform',       tables: 5, iconKey: 'cloud',      col: '#4f8ef7' },
+  { name: 'Blog Platform',       tables: 4, iconKey: 'document',   col: '#c96b3a' },
+  { name: 'E-Commerce Store',    tables: 5, iconKey: 'cart',       col: '#a85530' },
+  { name: 'SaaS Platform',       tables: 5, iconKey: 'cloud',      col: '#c96b3a' },
   { name: 'Social Network',      tables: 6, iconKey: 'chat',       col: '#f59e0b' },
   { name: 'Job Board',           tables: 6, iconKey: 'briefcase',  col: '#10b981' },
   { name: 'Booking System',      tables: 6, iconKey: 'calendar',   col: '#ef4444' },
-  { name: 'Hospital & Clinic',   tables: 6, iconKey: 'plusCircle', col: '#7c5cfc' },
+  { name: 'Hospital & Clinic',   tables: 6, iconKey: 'plusCircle', col: '#a85530' },
   { name: 'School & University', tables: 7, iconKey: 'clipboard',  col: '#f59e0b' },
-  { name: 'Library Management',  tables: 7, iconKey: 'bookmark',   col: '#4f8ef7' },
+  { name: 'Library Management',  tables: 7, iconKey: 'bookmark',   col: '#c96b3a' },
   { name: 'Real Estate',         tables: 7, iconKey: 'home',       col: '#10b981' },
   { name: 'Food Delivery',       tables: 8, iconKey: 'location',   col: '#ef4444' },
-  { name: 'Auth & Roles',        tables: 7, iconKey: 'lock',       col: '#7c5cfc' },
-  { name: 'CMS',                 tables: 9, iconKey: 'newspaper',  col: '#4f8ef7' },
+  { name: 'Auth & Roles',        tables: 7, iconKey: 'lock',       col: '#a85530' },
+  { name: 'CMS',                 tables: 9, iconKey: 'newspaper',  col: '#c96b3a' },
   { name: 'Inventory',           tables: 7, iconKey: 'archive',    col: '#f59e0b' },
   { name: 'Multi-tenant SaaS',   tables: 8, iconKey: 'building',   col: '#10b981' },
 ]
@@ -91,13 +91,13 @@ const FEATURES = [
     icon: <Ico name="collection" size={20}/>,
     title: 'Visual Canvas',
     desc:  'Drag-and-drop classes on an infinite canvas. Add attributes, types, and constraints — no SQL needed.',
-    accent: '#4f8ef7',
+    accent: '#c96b3a',
   },
   {
     icon: <Ico name="sparkle" size={20}/>,
     title: 'AI Generation',
     desc:  'Describe your app in plain English and AI generates a complete class diagram with classes and relationships.',
-    accent: '#7c5cfc',
+    accent: '#a85530',
   },
   {
     icon: <Ico name="users" size={20}/>,
@@ -191,12 +191,12 @@ const CSS = `
     50%      { opacity:0; }
   }
   .sg-dot-grid {
-    background-image: radial-gradient(circle, rgba(79,142,247,.18) 1px, transparent 1px);
+    background-image: radial-gradient(circle, rgba(201,107,58,.18) 1px, transparent 1px);
     background-size: 28px 28px;
     animation: sgDotGrid 6s ease-in-out infinite;
   }
   .sg-light-grid {
-    background-image: radial-gradient(circle, rgba(79,142,247,.1) 1px, transparent 1px);
+    background-image: radial-gradient(circle, rgba(201,107,58,.1) 1px, transparent 1px);
     background-size: 26px 26px;
   }
   .sg-feat-card {
@@ -204,18 +204,18 @@ const CSS = `
   }
   .sg-feat-card:hover {
     transform: translateY(-6px);
-    box-shadow: 0 20px 50px rgba(79,142,247,.16), 0 4px 20px rgba(0,0,0,.05);
+    box-shadow: 0 20px 50px rgba(201,107,58,.16), 0 4px 20px rgba(0,0,0,.05);
   }
   .sg-feat-card:hover .sg-icon {
     animation: sgSlideUp .4s ease both;
   }
   .sg-cta-bg {
-    background: linear-gradient(135deg, #1e3a8a 0%, #4f8ef7 50%, #7c5cfc 100%);
+    background: linear-gradient(135deg, #7a2e12 0%, #c96b3a 50%, #e8724a 100%);
     background-size: 200% 200%;
     animation: sgGradShift 6s ease infinite;
   }
   .sg-stats-bg {
-    background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 50%, #ecfeff 100%);
+    background: linear-gradient(135deg, #faf8f4 0%, #f5efe8 50%, #faf8f4 100%);
   }
 `
 
@@ -260,9 +260,9 @@ function SectionHead({ badge, title, sub, light = false }) {
     <div ref={ref} style={{ textAlign: 'center', maxWidth: '660px', margin: '0 auto' }}>
       <span style={{
         display: 'inline-block', marginBottom: '16px',
-        background: light ? 'rgba(79,142,247,.1)' : 'rgba(255,255,255,.08)',
-        border: `1px solid ${light ? 'rgba(79,142,247,.25)' : 'rgba(255,255,255,.12)'}`,
-        color: '#4f8ef7', fontSize: '11px', fontWeight: 700,
+        background: light ? 'rgba(201,107,58,.1)' : 'rgba(255,255,255,.08)',
+        border: `1px solid ${light ? 'rgba(201,107,58,.25)' : 'rgba(255,255,255,.12)'}`,
+        color: '#c96b3a', fontSize: '11px', fontWeight: 700,
         letterSpacing: '0.1em', textTransform: 'uppercase',
         padding: '4px 14px', borderRadius: '999px',
         opacity: vis ? 1 : 0, transform: vis ? 'none' : 'translateY(14px)',
@@ -271,14 +271,14 @@ function SectionHead({ badge, title, sub, light = false }) {
       <h2 style={{
         fontSize: 'clamp(1.9rem, 3.8vw, 2.8rem)', fontWeight: 900,
         lineHeight: 1.15, marginBottom: '14px',
-        color: light ? '#0a1628' : 'white',
+        color: light ? '#161413' : 'white',
         opacity: vis ? 1 : 0, transform: vis ? 'none' : 'translateY(18px)',
         transition: 'opacity .65s ease 80ms, transform .65s ease 80ms',
       }}>{title}</h2>
       {sub && (
         <p style={{
           fontSize: '1.05rem', lineHeight: 1.65,
-          color: light ? '#4b5563' : 'rgba(191,219,254,.65)',
+          color: light ? '#5a4a3f' : 'rgba(245,225,200,.65)',
           opacity: vis ? 1 : 0, transform: vis ? 'none' : 'translateY(14px)',
           transition: 'opacity .65s ease 140ms, transform .65s ease 140ms',
         }}>{sub}</p>
@@ -321,12 +321,12 @@ function ActivityItem({ item }) {
       border: '1px solid rgba(255,255,255,.09)',
       display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px',
     }}>
-      <span style={{ color: '#93c5fd', flexShrink: 0, display: 'flex' }}>
-        <Ico name={item.iconKey} size={13} color="#93c5fd" sw={2}/>
+      <span style={{ color: '#e8b98a', flexShrink: 0, display: 'flex' }}>
+        <Ico name={item.iconKey} size={13} color="#e8b98a" sw={2}/>
       </span>
       <div style={{ minWidth: 0, flex: 1 }}>
         <span style={{ fontSize: '11px', fontWeight: 600, color: 'white' }}>{item.user} </span>
-        <span style={{ fontSize: '11px', color: 'rgba(147,197,253,.6)' }}>{item.action}</span>
+        <span style={{ fontSize: '11px', color: 'rgba(232,185,138,.6)' }}>{item.action}</span>
       </div>
       <span style={{ fontSize: '10px', color: 'rgba(255,255,255,.22)', flexShrink: 0 }}>now</span>
     </div>
@@ -394,12 +394,12 @@ function TypewriterTerminal() {
   }, [vis])
   return (
     <div ref={ref} style={{
-      background: '#060d1a', borderRadius: '16px',
+      background: '#0f0a06', borderRadius: '16px',
       border: '1px solid rgba(255,255,255,.1)',
       overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,.5)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px',
-                    padding: '10px 16px', background: '#0d1a2e',
+                    padding: '10px 16px', background: '#1a0f07',
                     borderBottom: '1px solid rgba(255,255,255,.07)' }}>
         {['rgba(239,68,68,.7)','rgba(245,158,11,.7)','rgba(16,185,129,.7)'].map((bg,i) => (
           <div key={i} style={{ width: 11, height: 11, borderRadius: '50%', background: bg }}/>
@@ -412,7 +412,7 @@ function TypewriterTerminal() {
                     lineHeight: 1.8, minHeight: '240px' }}>
         {lines.map((line, i) => (
           <div key={i} style={{ animation: 'sgTermLine .3s ease both' }}>
-            {line.type === 'prompt'   && <span style={{ color: '#4f8ef7' }}>{line.text}</span>}
+            {line.type === 'prompt'   && <span style={{ color: '#c96b3a' }}>{line.text}</span>}
             {line.type === 'thinking' && <span style={{ color: '#fbbf24' }}>{line.text}</span>}
             {line.type === 'ok'       && <span style={{ color: 'rgba(148,163,184,.8)' }}>{line.text}</span>}
             {line.type === 'success'  && <span style={{ color: '#34d399', fontWeight: 700 }}>{line.text}</span>}
@@ -420,7 +420,7 @@ function TypewriterTerminal() {
         ))}
         {lines.length > 0 && lines.length < TERMINAL_SCRIPT.length && (
           <span style={{ display: 'inline-block', width: '8px', height: '14px',
-                         background: '#4f8ef7', marginLeft: '2px', verticalAlign: 'middle',
+                         background: '#c96b3a', marginLeft: '2px', verticalAlign: 'middle',
                          animation: 'sgBlink .9s step-end infinite' }}/>
         )}
       </div>
@@ -438,22 +438,22 @@ function HeroSection({ scrollTo }) {
   const BD = 200
 
   return (
-    <section id="hero" style={{ background: '#0a1628', position: 'relative',
+    <section id="hero" style={{ background: '#1a1410', position: 'relative',
                                  minHeight: '100vh', overflow: 'hidden',
                                  display: 'flex', alignItems: 'center', paddingTop: '80px' }}>
       <div className="sg-dot-grid" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}/>
 
       {/* Blobs */}
       <div style={{ position:'absolute', width:640, height:640, borderRadius:'50%',
-                    background:'radial-gradient(circle, rgba(79,142,247,.22) 0%, transparent 70%)',
+                    background:'radial-gradient(circle, rgba(201,107,58,.22) 0%, transparent 70%)',
                     top:-160, left:-180, filter:'blur(48px)', pointerEvents:'none',
                     animation:'sgBlob1 12s ease-in-out infinite' }}/>
       <div style={{ position:'absolute', width:520, height:520, borderRadius:'50%',
-                    background:'radial-gradient(circle, rgba(124,92,252,.18) 0%, transparent 70%)',
+                    background:'radial-gradient(circle, rgba(168,85,48,.18) 0%, transparent 70%)',
                     top:60, right:-120, filter:'blur(56px)', pointerEvents:'none',
                     animation:'sgBlob2 10s ease-in-out infinite' }}/>
       <div style={{ position:'absolute', width:420, height:420, borderRadius:'50%',
-                    background:'radial-gradient(circle, rgba(6,182,212,.13) 0%, transparent 70%)',
+                    background:'radial-gradient(circle, rgba(232,114,74,.13) 0%, transparent 70%)',
                     bottom:-40, left:'42%', filter:'blur(64px)', pointerEvents:'none',
                     animation:'sgBlob3 14s ease-in-out infinite' }}/>
 
@@ -466,11 +466,11 @@ function HeroSection({ scrollTo }) {
         <div>
           <div style={{ opacity:0, animation:`sgFadeIn .6s ease .1s forwards`,
                         display:'inline-flex', alignItems:'center', gap:'8px',
-                        background:'rgba(79,142,247,.12)', border:'1px solid rgba(79,142,247,.25)',
+                        background:'rgba(201,107,58,.12)', border:'1px solid rgba(201,107,58,.25)',
                         borderRadius:'999px', padding:'5px 14px', marginBottom:'28px' }}>
-            <span style={{ width:7, height:7, borderRadius:'50%', background:'#4f8ef7',
+            <span style={{ width:7, height:7, borderRadius:'50%', background:'#c96b3a',
                            display:'inline-block', animation:'sgBlink 1.4s step-end infinite' }}/>
-            <span style={{ fontSize:'12px', fontWeight:700, color:'#93c5fd',
+            <span style={{ fontSize:'12px', fontWeight:700, color:'#e8b98a',
                            letterSpacing:'.06em', textTransform:'uppercase' }}>
               Visual database designer · AI-powered
             </span>
@@ -493,14 +493,14 @@ function HeroSection({ scrollTo }) {
               ))}
               <span style={{ display:'inline-block', marginRight:'.28em', opacity:0,
                              animation:`sgWordIn .55s ease ${BD+(W1.length+W2.length)*100}ms forwards`,
-                             background:'linear-gradient(135deg,#4f8ef7 0%,#7c5cfc 100%)',
+                             background:'linear-gradient(135deg,#c96b3a 0%,#a85530 100%)',
                              WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
                              backgroundClip:'text' }}>AI</span>
             </span>
           </h1>
 
           <p style={{ opacity:0, animation:`sgFadeIn .7s ease ${BD+700}ms forwards`,
-                      fontSize:'1.1rem', lineHeight:1.7, color:'rgba(191,219,254,.65)',
+                      fontSize:'1.1rem', lineHeight:1.7, color:'rgba(245,225,200,.65)',
                       marginBottom:'36px', maxWidth:'500px' }}>
             Schema Genius turns complex database design into a drag-and-drop experience.
             Build schemas, define relationships, and export SQL — all in your browser.
@@ -510,12 +510,12 @@ function HeroSection({ scrollTo }) {
                         display:'flex', gap:'14px', flexWrap:'wrap' }}>
             <Link to="/register" style={{
               display:'inline-flex', alignItems:'center', gap:'8px',
-              padding:'13px 28px', background:'#4f8ef7', color:'white',
+              padding:'13px 28px', background:'#c96b3a', color:'white',
               fontWeight:700, fontSize:'15px', borderRadius:'14px', textDecoration:'none',
-              boxShadow:'0 8px 30px rgba(79,142,247,.4)', transition:'all .2s ease',
+              boxShadow:'0 8px 30px rgba(201,107,58,.4)', transition:'all .2s ease',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background='#3a7de8'; e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 14px 40px rgba(79,142,247,.5)' }}
-            onMouseLeave={e => { e.currentTarget.style.background='#4f8ef7'; e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='0 8px 30px rgba(79,142,247,.4)' }}>
+            onMouseEnter={e => { e.currentTarget.style.background='#e8724a'; e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 14px 40px rgba(201,107,58,.5)' }}
+            onMouseLeave={e => { e.currentTarget.style.background='#c96b3a'; e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='0 8px 30px rgba(201,107,58,.4)' }}>
               Get Started free
               <Ico name="arrow" size={15} color="white" sw={2.5}/>
             </Link>
@@ -543,10 +543,10 @@ function HeroSection({ scrollTo }) {
         <div style={{ opacity:0, animation:`sgFadeIn .9s ease ${BD+600}ms forwards` }}>
           <div style={{ borderRadius:'16px', overflow:'hidden',
                         border:'1px solid rgba(255,255,255,.12)',
-                        boxShadow:'0 40px 100px rgba(0,0,0,.5), 0 0 0 1px rgba(79,142,247,.12)',
+                        boxShadow:'0 40px 100px rgba(0,0,0,.5), 0 0 0 1px rgba(201,107,58,.12)',
                         background:'rgba(255,255,255,.03)' }}>
             {/* Chrome */}
-            <div style={{ padding:'10px 16px', background:'rgba(10,22,40,.9)',
+            <div style={{ padding:'10px 16px', background:'rgba(26,16,8,.9)',
                           borderBottom:'1px solid rgba(255,255,255,.07)',
                           display:'flex', alignItems:'center', gap:'8px' }}>
               <div style={{ display:'flex', gap:'5px' }}>
@@ -563,15 +563,15 @@ function HeroSection({ scrollTo }) {
             </div>
             {/* Canvas */}
             <div className="sg-dot-grid" style={{ position:'relative', height:'190px',
-                                                   background:'rgba(6,11,24,.95)', overflow:'hidden' }}>
-              <MiniTable title="users"    cols={['id','name','email','role']}       x="6%"  y="12%" accent="#4f8ef7"/>
-              <MiniTable title="projects" cols={['id','title','owner_id','status']} x="48%" y="8%"  accent="#7c5cfc"/>
+                                                   background:'rgba(20,8,4,.95)', overflow:'hidden' }}>
+              <MiniTable title="users"    cols={['id','name','email','role']}       x="6%"  y="12%" accent="#c96b3a"/>
+              <MiniTable title="projects" cols={['id','title','owner_id','status']} x="48%" y="8%"  accent="#a85530"/>
               <MiniTable title="schemas"  cols={['id','project_id','version']}      x="50%" y="56%" accent="#10b981"/>
               <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%',
                             overflow:'visible', pointerEvents:'none' }}>
-                <line x1="26%" y1="30%" x2="48%" y2="20%" stroke="#4f8ef7" strokeWidth="1.5"
+                <line x1="26%" y1="30%" x2="48%" y2="20%" stroke="#c96b3a" strokeWidth="1.5"
                       strokeDasharray="4 3" opacity=".45"/>
-                <line x1="26%" y1="36%" x2="50%" y2="67%" stroke="#7c5cfc" strokeWidth="1.5"
+                <line x1="26%" y1="36%" x2="50%" y2="67%" stroke="#a85530" strokeWidth="1.5"
                       strokeDasharray="4 3" opacity=".45"/>
               </svg>
             </div>
@@ -604,12 +604,12 @@ function HeroSection({ scrollTo }) {
 /* ── Features ────────────────────────────────────────────── */
 function FeaturesSection() {
   return (
-    <section id="features" style={{ background:'#f8faff', padding:'96px 24px', position:'relative' }}>
+    <section id="features" style={{ background:'#faf8f4', padding:'96px 24px', position:'relative' }}>
       <div className="sg-light-grid" style={{ position:'absolute', inset:0, pointerEvents:'none' }}/>
       <div style={{ maxWidth:'1100px', margin:'0 auto', position:'relative' }}>
         <SectionHead
           badge="Features"
-          title={<>Everything you need to <span style={{ background:'linear-gradient(135deg,#4f8ef7,#7c5cfc)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>design faster</span></>}
+          title={<>Everything you need to <span style={{ background:'linear-gradient(135deg,#c96b3a,#a85530)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>design faster</span></>}
           sub="A complete toolkit for designing, validating, and exporting your database schemas."
           light
         />
@@ -618,7 +618,7 @@ function FeaturesSection() {
           {FEATURES.map((f, i) => (
             <Reveal key={i} delay={i * 90} className="sg-feat-card">
               <div style={{ background:'white', borderRadius:'18px', padding:'28px',
-                            border:'1px solid #e8f0fe', boxShadow:'0 2px 12px rgba(79,142,247,.06)',
+                            border:'1px solid #ebe6dd', boxShadow:'0 2px 12px rgba(201,107,58,.06)',
                             height:'100%' }}>
                 <div className="sg-icon" style={{ width:'44px', height:'44px', borderRadius:'12px',
                               background:`${f.accent}14`, border:`1px solid ${f.accent}28`,
@@ -626,8 +626,8 @@ function FeaturesSection() {
                               color:f.accent, marginBottom:'18px' }}>
                   {f.icon}
                 </div>
-                <h3 style={{ fontWeight:800, fontSize:'15px', color:'#0a1628', marginBottom:'8px' }}>{f.title}</h3>
-                <p style={{ fontSize:'13.5px', color:'#4b5563', lineHeight:1.65 }}>{f.desc}</p>
+                <h3 style={{ fontWeight:800, fontSize:'15px', color:'#161413', marginBottom:'8px' }}>{f.title}</h3>
+                <p style={{ fontSize:'13.5px', color:'#5a4a3f', lineHeight:1.65 }}>{f.desc}</p>
               </div>
             </Reveal>
           ))}
@@ -651,9 +651,9 @@ function AISection() {
     { name:'lightbulb',title:'AI Suggestions',   desc:'Let AI spot missing classes and improve your data model' },
   ]
   return (
-    <section id="ai" style={{ background:'#0a1628', padding:'96px 24px', position:'relative', overflow:'hidden' }}>
+    <section id="ai" style={{ background:'#1a1410', padding:'96px 24px', position:'relative', overflow:'hidden' }}>
       <div style={{ position:'absolute', width:500, height:500, borderRadius:'50%',
-                    background:'radial-gradient(circle, rgba(124,92,252,.18) 0%, transparent 70%)',
+                    background:'radial-gradient(circle, rgba(168,85,48,.18) 0%, transparent 70%)',
                     top:-100, right:-100, filter:'blur(60px)', pointerEvents:'none' }}/>
       <div style={{ maxWidth:'1100px', margin:'0 auto', position:'relative',
                     display:'grid', gridTemplateColumns:'1fr 1fr', gap:'72px', alignItems:'center' }}
@@ -661,18 +661,18 @@ function AISection() {
         <div>
           <Reveal>
             <span style={{ fontSize:'11px', fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase',
-                           color:'#4f8ef7', background:'rgba(79,142,247,.1)', border:'1px solid rgba(79,142,247,.22)',
+                           color:'#c96b3a', background:'rgba(201,107,58,.1)', border:'1px solid rgba(201,107,58,.22)',
                            borderRadius:'999px', padding:'4px 14px', display:'inline-block', marginBottom:'20px' }}>
               AI Features
             </span>
             <h2 style={{ fontWeight:900, fontSize:'clamp(2rem,4vw,2.8rem)', lineHeight:1.15,
                          color:'white', marginBottom:'20px' }}>
               Your AI co-designer<br/>
-              <span style={{ background:'linear-gradient(135deg,#4f8ef7,#7c5cfc)',
+              <span style={{ background:'linear-gradient(135deg,#c96b3a,#a85530)',
                              WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
                              backgroundClip:'text' }}>does the heavy lifting</span>
             </h2>
-            <p style={{ fontSize:'1rem', lineHeight:1.7, color:'rgba(191,219,254,.6)', marginBottom:'36px' }}>
+            <p style={{ fontSize:'1rem', lineHeight:1.7, color:'rgba(245,225,200,.6)', marginBottom:'36px' }}>
               Powered by Groq — the fastest inference on the planet.
               Go from a blank canvas to a production-quality schema in under 10 seconds.
             </p>
@@ -683,8 +683,8 @@ function AISection() {
                 <div style={{ display:'flex', gap:'14px', alignItems:'flex-start',
                               background:'rgba(255,255,255,.04)', borderRadius:'12px',
                               padding:'14px 16px', border:'1px solid rgba(255,255,255,.07)' }}>
-                  <span style={{ color:'#4f8ef7', marginTop:'1px', flexShrink:0 }}>
-                    <Ico name={b.name} size={18} color="#4f8ef7"/>
+                  <span style={{ color:'#c96b3a', marginTop:'1px', flexShrink:0 }}>
+                    <Ico name={b.name} size={18} color="#c96b3a"/>
                   </span>
                   <div>
                     <p style={{ fontWeight:700, fontSize:'13.5px', color:'white', marginBottom:'2px' }}>{b.title}</p>
@@ -721,11 +721,11 @@ function StatsSection() {
           <Reveal key={i} delay={i * 80}>
             <div style={{ textAlign:'center' }}>
               <div style={{ fontSize:'clamp(2.8rem,5vw,3.6rem)', fontWeight:900, lineHeight:1,
-                            color:'#4f8ef7', textShadow:'0 0 40px rgba(79,142,247,.3)', marginBottom:'8px' }}>
+                            color:'#c96b3a', textShadow:'0 0 40px rgba(201,107,58,.3)', marginBottom:'8px' }}>
                 <CountUp target={s.target} suffix={s.suffix}/>
               </div>
-              <p style={{ fontWeight:800, fontSize:'15px', color:'#0a1628', marginBottom:'3px' }}>{s.label}</p>
-              <p style={{ fontSize:'12.5px', color:'#6b7280' }}>{s.sub}</p>
+              <p style={{ fontWeight:800, fontSize:'15px', color:'#161413', marginBottom:'3px' }}>{s.label}</p>
+              <p style={{ fontSize:'12.5px', color:'#8c7b6e' }}>{s.sub}</p>
             </div>
           </Reveal>
         ))}
@@ -749,11 +749,11 @@ function HowItWorksSection() {
       iconName:'share', dir:'left' },
   ]
   return (
-    <section id="how" style={{ background:'#f8faff', padding:'96px 24px' }}>
+    <section id="how" style={{ background:'#faf8f4', padding:'96px 24px' }}>
       <div style={{ maxWidth:'800px', margin:'0 auto' }}>
         <SectionHead
           badge="How it works"
-          title={<>From idea to schema <span style={{ background:'linear-gradient(135deg,#4f8ef7,#7c5cfc)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>in minutes</span></>}
+          title={<>From idea to schema <span style={{ background:'linear-gradient(135deg,#c96b3a,#a85530)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>in minutes</span></>}
           sub="Three simple steps to go from a blank page to a production-ready database."
           light
         />
@@ -762,22 +762,22 @@ function HowItWorksSection() {
             <Reveal key={i} delay={i * 100} dir={s.dir}>
               <div style={{ display:'flex', gap:'20px', alignItems:'flex-start',
                             background:'white', borderRadius:'18px', padding:'24px 28px',
-                            border:'1px solid #e8f0fe', boxShadow:'0 2px 16px rgba(79,142,247,.07)' }}>
+                            border:'1px solid #ebe6dd', boxShadow:'0 2px 16px rgba(201,107,58,.07)' }}>
                 <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'8px', flexShrink:0 }}>
                   <div style={{ width:'52px', height:'52px', borderRadius:'14px',
-                                background:'linear-gradient(135deg,rgba(79,142,247,.12),rgba(124,92,252,.12))',
-                                border:'1px solid rgba(79,142,247,.2)',
+                                background:'linear-gradient(135deg,rgba(201,107,58,.12),rgba(168,85,48,.12))',
+                                border:'1px solid rgba(201,107,58,.2)',
                                 display:'flex', alignItems:'center', justifyContent:'center',
-                                color:'#4f8ef7' }}>
-                    <Ico name={s.iconName} size={22} color="#4f8ef7"/>
+                                color:'#c96b3a' }}>
+                    <Ico name={s.iconName} size={22} color="#c96b3a"/>
                   </div>
-                  <span style={{ fontSize:'11px', fontWeight:800, color:'#4f8ef7', letterSpacing:'.08em' }}>
+                  <span style={{ fontSize:'11px', fontWeight:800, color:'#c96b3a', letterSpacing:'.08em' }}>
                     STEP {s.n}
                   </span>
                 </div>
                 <div>
-                  <h3 style={{ fontWeight:800, fontSize:'17px', color:'#0a1628', marginBottom:'8px' }}>{s.title}</h3>
-                  <p style={{ fontSize:'14px', color:'#4b5563', lineHeight:1.65 }}>{s.desc}</p>
+                  <h3 style={{ fontWeight:800, fontSize:'17px', color:'#161413', marginBottom:'8px' }}>{s.title}</h3>
+                  <p style={{ fontSize:'14px', color:'#5a4a3f', lineHeight:1.65 }}>{s.desc}</p>
                 </div>
               </div>
             </Reveal>
@@ -807,11 +807,11 @@ function ComparisonSection() {
     'One-click SQL export for any dialect',
   ]
   return (
-    <section style={{ background:'white', padding:'96px 24px' }}>
+    <section style={{ background:'#faf8f4', padding:'96px 24px' }}>
       <div style={{ maxWidth:'900px', margin:'0 auto' }}>
         <SectionHead
           badge="Why Schema Genius"
-          title={<>Built for developers, <span style={{ background:'linear-gradient(135deg,#4f8ef7,#7c5cfc)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>not enterprise architects</span></>}
+          title={<>Built for developers, <span style={{ background:'linear-gradient(135deg,#c96b3a,#a85530)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>not enterprise architects</span></>}
           light
         />
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'24px', marginTop:'56px' }}
@@ -829,19 +829,19 @@ function ComparisonSection() {
                     <span style={{ color:'#ef4444', fontWeight:700, flexShrink:0, marginTop:'1px', lineHeight:1 }}>
                       <Ico name="xCircle" size={14} color="#ef4444" sw={2}/>
                     </span>
-                    <span style={{ fontSize:'13.5px', color:'#6b7280', lineHeight:1.4 }}>{o}</span>
+                    <span style={{ fontSize:'13.5px', color:'#8c7b6e', lineHeight:1.4 }}>{o}</span>
                   </div>
                 ))}
               </div>
             </div>
           </Reveal>
           <Reveal dir="right" delay={80}>
-            <div style={{ borderRadius:'18px', overflow:'hidden', border:'1px solid #bfdbfe', background:'#f8faff',
-                          boxShadow:'0 4px 24px rgba(79,142,247,.12)' }}>
-              <div style={{ padding:'16px 20px', background:'linear-gradient(135deg,#eff6ff,#f5f3ff)',
-                            borderBottom:'1px solid #bfdbfe', display:'flex', alignItems:'center', gap:'10px' }}>
-                <span style={{ color:'#4f8ef7', display:'flex' }}><Ico name="check" size={20} color="#4f8ef7"/></span>
-                <span style={{ fontWeight:800, fontSize:'14px', color:'#1d4ed8' }}>Schema Genius</span>
+            <div style={{ borderRadius:'18px', overflow:'hidden', border:'1px solid #d4c9b8', background:'#faf8f4',
+                          boxShadow:'0 4px 24px rgba(201,107,58,.12)' }}>
+              <div style={{ padding:'16px 20px', background:'linear-gradient(135deg,#f5ede0,#ede5d8)',
+                            borderBottom:'1px solid #d4c9b8', display:'flex', alignItems:'center', gap:'10px' }}>
+                <span style={{ color:'#c96b3a', display:'flex' }}><Ico name="check" size={20} color="#c96b3a"/></span>
+                <span style={{ fontWeight:800, fontSize:'14px', color:'#1a1008' }}>Schema Genius</span>
               </div>
               <div style={{ padding:'16px 20px', display:'flex', flexDirection:'column', gap:'10px' }}>
                 {OURS.map((o, i) => (
@@ -866,7 +866,7 @@ function ComparisonSection() {
 function MockSchemaCard({ name, author, initials, avatarColor, tables, dialect, stars, forks, comments }) {
   return (
     <div style={{ background:'white', borderRadius:'14px', padding:'16px 18px',
-                  border:'1px solid #e8f0fe', boxShadow:'0 2px 12px rgba(79,142,247,.07)' }}>
+                  border:'1px solid #ebe6dd', boxShadow:'0 2px 12px rgba(201,107,58,.07)' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
           <div style={{ width:'32px', height:'32px', borderRadius:'50%', background:avatarColor,
@@ -875,19 +875,19 @@ function MockSchemaCard({ name, author, initials, avatarColor, tables, dialect, 
             {initials}
           </div>
           <div>
-            <p style={{ fontSize:'12px', fontWeight:700, color:'#0a1628', lineHeight:1.2 }}>{author}</p>
+            <p style={{ fontSize:'12px', fontWeight:700, color:'#161413', lineHeight:1.2 }}>{author}</p>
             <p style={{ fontSize:'11px', color:'#9ca3af', lineHeight:1.2 }}>{tables} classes · {dialect}</p>
           </div>
         </div>
-        <button style={{ fontSize:'11px', fontWeight:600, color:'#4f8ef7',
-                         background:'rgba(79,142,247,.08)', border:'1px solid rgba(79,142,247,.2)',
+        <button style={{ fontSize:'11px', fontWeight:600, color:'#c96b3a',
+                         background:'rgba(201,107,58,.08)', border:'1px solid rgba(201,107,58,.2)',
                          borderRadius:'8px', padding:'4px 10px', cursor:'pointer',
                          display:'flex', alignItems:'center', gap:'5px' }}>
-          <Ico name="star" size={11} color="#4f8ef7" sw={2}/>
+          <Ico name="star" size={11} color="#c96b3a" sw={2}/>
           Star
         </button>
       </div>
-      <h4 style={{ fontSize:'14px', fontWeight:800, color:'#0a1628', marginBottom:'12px' }}>{name}</h4>
+      <h4 style={{ fontSize:'14px', fontWeight:800, color:'#161413', marginBottom:'12px' }}>{name}</h4>
       <div style={{ display:'flex', gap:'16px', alignItems:'center' }}>
         {[
           { iconName:'star',     val:stars    },
@@ -915,17 +915,17 @@ function CommunitySection() {
     { name:'userAdd',    title:'Follow Developers', desc:'Follow creators and see their new schemas in your Network feed' },
   ]
   const CARDS = [
-    { name:'E-Commerce Database',  author:'Yassine Aatita', initials:'YA', avatarColor:'#4f8ef7', tables:5, dialect:'MySQL',      stars:24, forks:8,  comments:12 },
-    { name:'Social Network Schema',author:'Fatima Z.',      initials:'FZ', avatarColor:'#7c5cfc', tables:6, dialect:'PostgreSQL', stars:18, forks:5,  comments:7  },
+    { name:'E-Commerce Database',  author:'Yassine Aatita', initials:'YA', avatarColor:'#c96b3a', tables:5, dialect:'MySQL',      stars:24, forks:8,  comments:12 },
+    { name:'Social Network Schema',author:'Fatima Z.',      initials:'FZ', avatarColor:'#a85530', tables:6, dialect:'PostgreSQL', stars:18, forks:5,  comments:7  },
     { name:'SaaS Platform',        author:'Ahmed K.',       initials:'AK', avatarColor:'#10b981', tables:5, dialect:'MySQL',      stars:31, forks:12, comments:9  },
   ]
   return (
-    <section id="community" style={{ background:'#f8faff', padding:'96px 24px', position:'relative' }}>
+    <section id="community" style={{ background:'#faf8f4', padding:'96px 24px', position:'relative' }}>
       <div className="sg-light-grid" style={{ position:'absolute', inset:0, pointerEvents:'none' }}/>
       <div style={{ maxWidth:'1100px', margin:'0 auto', position:'relative' }}>
         <SectionHead
           badge="Community"
-          title={<>Share your schemas, <span style={{ background:'linear-gradient(135deg,#4f8ef7,#7c5cfc)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>learn from others</span></>}
+          title={<>Share your schemas, <span style={{ background:'linear-gradient(135deg,#c96b3a,#a85530)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>learn from others</span></>}
           sub="A public gallery where developers share database designs, give feedback, and build on each other's work."
           light
         />
@@ -941,13 +941,13 @@ function CommunitySection() {
               {COMMUNITY_FEATURES.map((f, i) => (
                 <Reveal key={i} delay={i * 70}>
                   <div style={{ background:'white', borderRadius:'14px', padding:'16px',
-                                border:'1px solid #e8f0fe',
-                                boxShadow:'0 2px 10px rgba(79,142,247,.05)' }}>
-                    <span style={{ color:'#4f8ef7', display:'flex', marginBottom:'10px' }}>
-                      <Ico name={f.name} size={18} color="#4f8ef7"/>
+                                border:'1px solid #ebe6dd',
+                                boxShadow:'0 2px 10px rgba(201,107,58,.05)' }}>
+                    <span style={{ color:'#c96b3a', display:'flex', marginBottom:'10px' }}>
+                      <Ico name={f.name} size={18} color="#c96b3a"/>
                     </span>
-                    <p style={{ fontWeight:700, fontSize:'13px', color:'#0a1628', marginBottom:'4px' }}>{f.title}</p>
-                    <p style={{ fontSize:'12px', color:'#6b7280', lineHeight:1.5 }}>{f.desc}</p>
+                    <p style={{ fontWeight:700, fontSize:'13px', color:'#161413', marginBottom:'4px' }}>{f.title}</p>
+                    <p style={{ fontSize:'12px', color:'#8c7b6e', lineHeight:1.5 }}>{f.desc}</p>
                   </div>
                 </Reveal>
               ))}
@@ -957,24 +957,24 @@ function CommunitySection() {
               <div style={{ marginTop:'28px', display:'flex', gap:'12px', flexWrap:'wrap' }}>
                 <Link to="/register" style={{
                   display:'inline-flex', alignItems:'center', gap:'8px',
-                  padding:'11px 22px', background:'#4f8ef7', color:'white',
+                  padding:'11px 22px', background:'#c96b3a', color:'white',
                   fontWeight:700, fontSize:'14px', borderRadius:'12px', textDecoration:'none',
-                  boxShadow:'0 4px 20px rgba(79,142,247,.3)', transition:'all .2s ease',
+                  boxShadow:'0 4px 20px rgba(201,107,58,.3)', transition:'all .2s ease',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background='#3a7de8'; e.currentTarget.style.transform='translateY(-2px)' }}
-                onMouseLeave={e => { e.currentTarget.style.background='#4f8ef7'; e.currentTarget.style.transform='' }}>
+                onMouseEnter={e => { e.currentTarget.style.background='#e8724a'; e.currentTarget.style.transform='translateY(-2px)' }}
+                onMouseLeave={e => { e.currentTarget.style.background='#c96b3a'; e.currentTarget.style.transform='' }}>
                   Join the community
                   <Ico name="arrow" size={14} color="white" sw={2.5}/>
                 </Link>
                 <Link to="/register" style={{
                   display:'inline-flex', alignItems:'center', gap:'8px',
-                  padding:'11px 22px', background:'transparent', color:'#4f8ef7',
+                  padding:'11px 22px', background:'transparent', color:'#c96b3a',
                   fontWeight:600, fontSize:'14px', borderRadius:'12px', textDecoration:'none',
-                  border:'1px solid #bfdbfe', transition:'all .2s ease',
+                  border:'1px solid #d4c9b8', transition:'all .2s ease',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background='rgba(79,142,247,.06)' }}
+                onMouseEnter={e => { e.currentTarget.style.background='rgba(201,107,58,.06)' }}
                 onMouseLeave={e => { e.currentTarget.style.background='transparent' }}>
-                  <Ico name="eye" size={14} color="#4f8ef7"/>
+                  <Ico name="eye" size={14} color="#c96b3a"/>
                   Browse gallery
                 </Link>
               </div>
@@ -984,25 +984,25 @@ function CommunitySection() {
           {/* Right: mock schema cards */}
           <div>
             <div style={{ background:'white', borderRadius:'18px', padding:'20px',
-                          border:'1px solid #e8f0fe',
-                          boxShadow:'0 8px 40px rgba(79,142,247,.1)' }}>
+                          border:'1px solid #ebe6dd',
+                          boxShadow:'0 8px 40px rgba(201,107,58,.1)' }}>
               {/* Gallery header */}
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                  <span style={{ color:'#4f8ef7', display:'flex' }}><Ico name="globe" size={16} color="#4f8ef7"/></span>
-                  <span style={{ fontWeight:800, fontSize:'14px', color:'#0a1628' }}>Public Gallery</span>
+                  <span style={{ color:'#c96b3a', display:'flex' }}><Ico name="globe" size={16} color="#c96b3a"/></span>
+                  <span style={{ fontWeight:800, fontSize:'14px', color:'#161413' }}>Public Gallery</span>
                 </div>
                 <Link to="/register" style={{ display:'inline-flex', alignItems:'center', gap:'4px',
-                                               fontSize:'12px', fontWeight:600, color:'#4f8ef7',
+                                               fontSize:'12px', fontWeight:600, color:'#c96b3a',
                                                textDecoration:'none' }}>
                   Browse all
-                  <Ico name="arrow" size={12} color="#4f8ef7" sw={2.5}/>
+                  <Ico name="arrow" size={12} color="#c96b3a" sw={2.5}/>
                 </Link>
               </div>
 
               {/* Search bar (decorative) */}
               <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'16px',
-                            background:'#f8faff', border:'1px solid #e8f0fe', borderRadius:'10px',
+                            background:'#faf8f4', border:'1px solid #ebe6dd', borderRadius:'10px',
                             padding:'8px 12px' }}>
                 <Ico name="eye" size={14} color="#9ca3af"/>
                 <span style={{ fontSize:'12px', color:'#9ca3af' }}>Search schemas, templates, tags...</span>
@@ -1018,7 +1018,7 @@ function CommunitySection() {
               </div>
 
               {/* Footer row */}
-              <div style={{ marginTop:'16px', paddingTop:'14px', borderTop:'1px solid #f0f6ff',
+              <div style={{ marginTop:'16px', paddingTop:'14px', borderTop:'1px solid #f0ebe3',
                             display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <span style={{ fontSize:'12px', color:'#9ca3af' }}>3 of 240+ public schemas</span>
                 <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
@@ -1044,19 +1044,19 @@ function TemplatesSection() {
   const ALL = [...TEMPLATES, ...TEMPLATES]
   const trackRef = useRef(null)
   return (
-    <section id="templates" style={{ background:'#0a1628', padding:'96px 0', overflow:'hidden' }}>
+    <section id="templates" style={{ background:'#1a1410', padding:'96px 0', overflow:'hidden' }}>
       <div style={{ maxWidth:'1100px', margin:'0 auto', padding:'0 24px' }}>
         <SectionHead
           badge="Templates"
-          title={<>15 ready-made templates <span style={{ background:'linear-gradient(135deg,#4f8ef7,#7c5cfc)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>to jump-start any project</span></>}
+          title={<>15 ready-made templates <span style={{ background:'linear-gradient(135deg,#c96b3a,#a85530)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>to jump-start any project</span></>}
           sub="Pick a template, customise it to your needs, and export SQL — done in minutes."
         />
       </div>
       <div style={{ marginTop:'56px', overflow:'hidden', position:'relative' }}>
         <div style={{ position:'absolute', left:0, top:0, bottom:0, width:'80px', zIndex:2, pointerEvents:'none',
-                      background:'linear-gradient(to right, #0a1628, transparent)' }}/>
+                      background:'linear-gradient(to right, #1a1410, transparent)' }}/>
         <div style={{ position:'absolute', right:0, top:0, bottom:0, width:'80px', zIndex:2, pointerEvents:'none',
-                      background:'linear-gradient(to left, #0a1628, transparent)' }}/>
+                      background:'linear-gradient(to left, #1a1410, transparent)' }}/>
         <div ref={trackRef}
           style={{ display:'flex', gap:'16px', width:'max-content',
                    animation:'sgAutoScroll 36s linear infinite', padding:'8px 0' }}
@@ -1081,15 +1081,15 @@ function TemplatesSection() {
         <Reveal>
           <Link to="/register" style={{
             display:'inline-flex', alignItems:'center', gap:'8px',
-            padding:'12px 28px', background:'rgba(79,142,247,.15)',
-            color:'#93c5fd', fontWeight:600, fontSize:'14px',
+            padding:'12px 28px', background:'rgba(201,107,58,.15)',
+            color:'#e8b98a', fontWeight:600, fontSize:'14px',
             borderRadius:'12px', textDecoration:'none',
-            border:'1px solid rgba(79,142,247,.25)', transition:'all .2s ease',
+            border:'1px solid rgba(201,107,58,.25)', transition:'all .2s ease',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background='rgba(79,142,247,.25)'; e.currentTarget.style.transform='translateY(-2px)' }}
-          onMouseLeave={e => { e.currentTarget.style.background='rgba(79,142,247,.15)'; e.currentTarget.style.transform='' }}>
+          onMouseEnter={e => { e.currentTarget.style.background='rgba(201,107,58,.25)'; e.currentTarget.style.transform='translateY(-2px)' }}
+          onMouseLeave={e => { e.currentTarget.style.background='rgba(201,107,58,.15)'; e.currentTarget.style.transform='' }}>
             Browse all templates
-            <Ico name="arrow" size={13} color="#93c5fd" sw={2.5}/>
+            <Ico name="arrow" size={13} color="#e8b98a" sw={2.5}/>
           </Link>
         </Reveal>
       </div>
@@ -1122,14 +1122,14 @@ function CTASection() {
         </p>
         <Link to="/register" style={{
           display:'inline-flex', alignItems:'center', gap:'10px',
-          padding:'15px 36px', background:'white', color:'#1d4ed8',
+          padding:'15px 36px', background:'white', color:'#1a1008',
           fontWeight:800, fontSize:'16px', borderRadius:'16px', textDecoration:'none',
           boxShadow:'0 8px 40px rgba(0,0,0,.25)', transition:'all .2s ease',
         }}
         onMouseEnter={e => { e.currentTarget.style.transform='translateY(-3px) scale(1.02)'; e.currentTarget.style.boxShadow='0 16px 50px rgba(0,0,0,.3)' }}
         onMouseLeave={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='0 8px 40px rgba(0,0,0,.25)' }}>
           Get Started — it&apos;s free
-          <Ico name="arrow" size={17} color="#1d4ed8" sw={2.5}/>
+          <Ico name="arrow" size={17} color="#1a1008" sw={2.5}/>
         </Link>
       </div>
     </section>
@@ -1139,7 +1139,7 @@ function CTASection() {
 /* ── Footer ──────────────────────────────────────────────── */
 function FooterSection() {
   return (
-    <footer style={{ background:'#060e1d', borderTop:'1px solid rgba(255,255,255,.07)', padding:'56px 24px 40px' }}>
+    <footer style={{ background:'#0a0705', borderTop:'1px solid rgba(255,255,255,.07)', padding:'56px 24px 40px' }}>
       <div style={{ maxWidth:'1100px', margin:'0 auto' }}>
         <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', gap:'48px', marginBottom:'48px' }}
              className="footer-grid">
@@ -1191,11 +1191,8 @@ function FooterSection() {
             &copy; {new Date().getFullYear()} Schema Genius &middot;{' '}
             <span style={{ color:'rgba(148,163,184,.5)' }}>Yassine Aatita &amp; Fatima Zahra Aknioune</span>
           </p>
-          <p style={{ fontSize:'12px', color:'rgba(148,163,184,.3)',
-                      display:'flex', alignItems:'center', gap:'5px' }}>
-            Made with
-            <span style={{ color:'#f87171', display:'inline-flex' }}><Ico name="heart" size={12} color="#f87171" sw={2}/></span>
-            and a lot of late nights
+          <p style={{ fontSize:'12px', color:'rgba(148,163,184,.35)', fontStyle:'italic' }}>
+            With gratitude to Dr. Ahmed Zellou, for his invaluable guidance.
           </p>
         </div>
       </div>
@@ -1237,10 +1234,10 @@ export default function LandingPage() {
       {/* ── NAVBAR ──────────────────────────────────────────────── */}
       <nav style={{
         position:'fixed', top:0, left:0, right:0, zIndex:50, transition:'all .3s ease',
-        background: scrolled ? 'rgba(255,255,255,.97)' : 'transparent',
+        background: scrolled ? 'rgba(250,248,244,.97)' : 'transparent',
         backdropFilter: scrolled ? 'blur(20px)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(79,142,247,.12)' : '1px solid transparent',
-        boxShadow: scrolled ? '0 2px 20px rgba(79,142,247,.08)' : 'none',
+        borderBottom: scrolled ? '1px solid rgba(201,107,58,.12)' : '1px solid transparent',
+        boxShadow: scrolled ? '0 2px 20px rgba(201,107,58,.08)' : 'none',
       }}>
         <div style={{ maxWidth:'1200px', margin:'0 auto', padding:'0 24px',
                       height:'64px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
@@ -1261,7 +1258,7 @@ export default function LandingPage() {
                 color: scrolled ? '#374151' : 'rgba(255,255,255,.75)',
                 transition:'all .15s ease',
               }}
-              onMouseEnter={e => { e.currentTarget.style.color=scrolled?'#4f8ef7':'white'; e.currentTarget.style.background=scrolled?'rgba(79,142,247,.08)':'rgba(255,255,255,.08)' }}
+              onMouseEnter={e => { e.currentTarget.style.color=scrolled?'#c96b3a':'white'; e.currentTarget.style.background=scrolled?'rgba(201,107,58,.08)':'rgba(255,255,255,.08)' }}
               onMouseLeave={e => { e.currentTarget.style.color=scrolled?'#374151':'rgba(255,255,255,.75)'; e.currentTarget.style.background='none' }}>
                 {label}
               </button>
@@ -1274,18 +1271,18 @@ export default function LandingPage() {
               color: scrolled ? '#374151' : 'rgba(255,255,255,.75)',
               textDecoration:'none', transition:'color .15s ease',
             }}
-            onMouseEnter={e => e.currentTarget.style.color=scrolled?'#4f8ef7':'white'}
+            onMouseEnter={e => e.currentTarget.style.color=scrolled?'#c96b3a':'white'}
             onMouseLeave={e => e.currentTarget.style.color=scrolled?'#374151':'rgba(255,255,255,.75)'}>
               Sign in
             </Link>
             <Link to="/register" style={{
-              padding:'9px 20px', background:'#4f8ef7', color:'white',
+              padding:'9px 20px', background:'#c96b3a', color:'white',
               fontSize:'14px', fontWeight:700, borderRadius:'12px',
               textDecoration:'none', transition:'all .15s ease',
-              boxShadow:'0 4px 14px rgba(79,142,247,.35)',
+              boxShadow:'0 4px 14px rgba(201,107,58,.35)',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background='#3a7de8'; e.currentTarget.style.transform='translateY(-1px)' }}
-            onMouseLeave={e => { e.currentTarget.style.background='#4f8ef7'; e.currentTarget.style.transform='' }}>
+            onMouseEnter={e => { e.currentTarget.style.background='#e8724a'; e.currentTarget.style.transform='translateY(-1px)' }}
+            onMouseLeave={e => { e.currentTarget.style.background='#c96b3a'; e.currentTarget.style.transform='' }}>
               Get Started
             </Link>
           </div>
@@ -1306,8 +1303,8 @@ export default function LandingPage() {
         {menuOpen && (
           <div style={{
             padding:'16px 20px 20px',
-            background: scrolled ? 'rgba(255,255,255,.98)' : 'rgba(10,22,40,.98)',
-            borderTop: `1px solid ${scrolled ? 'rgba(79,142,247,.12)' : 'rgba(255,255,255,.08)'}`,
+            background: scrolled ? 'rgba(250,248,244,.98)' : 'rgba(26,16,8,.98)',
+            borderTop: `1px solid ${scrolled ? 'rgba(201,107,58,.12)' : 'rgba(255,255,255,.08)'}`,
           }}>
             {NAV.map(([label, id]) => (
               <button key={label} onClick={() => scrollTo(id)} style={{
@@ -1317,16 +1314,16 @@ export default function LandingPage() {
                 color: scrolled ? '#374151' : 'rgba(209,213,219,1)',
               }}>{label}</button>
             ))}
-            <div style={{ marginTop:'12px', borderTop:`1px solid ${scrolled?'#e8f0fe':'rgba(255,255,255,.08)'}`, paddingTop:'12px', display:'flex', flexDirection:'column', gap:'8px' }}>
+            <div style={{ marginTop:'12px', borderTop:`1px solid ${scrolled?'#ebe6dd':'rgba(255,255,255,.08)'}`, paddingTop:'12px', display:'flex', flexDirection:'column', gap:'8px' }}>
               <Link to="/login" onClick={() => setMenuOpen(false)} style={{
                 display:'block', textAlign:'center', padding:'11px', fontSize:'14px', fontWeight:600,
-                borderRadius:'12px', border:`1px solid ${scrolled?'#bfdbfe':'rgba(255,255,255,.12)'}`,
+                borderRadius:'12px', border:`1px solid ${scrolled?'#d4c9b8':'rgba(255,255,255,.12)'}`,
                 color: scrolled ? '#374151' : 'rgba(209,213,219,1)',
                 textDecoration:'none', background:'transparent',
               }}>Sign in</Link>
               <Link to="/register" onClick={() => setMenuOpen(false)} style={{
                 display:'block', textAlign:'center', padding:'11px', fontSize:'14px', fontWeight:700,
-                borderRadius:'12px', background:'#4f8ef7', color:'white', textDecoration:'none',
+                borderRadius:'12px', background:'#c96b3a', color:'white', textDecoration:'none',
               }}>Get Started</Link>
             </div>
           </div>

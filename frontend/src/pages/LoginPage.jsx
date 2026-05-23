@@ -84,7 +84,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f1117] flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#0f0d0b' }}>
 
       {/* ── Top bar ── */}
       <div className="px-6 py-4 flex items-center justify-between border-b border-white/10">
@@ -119,22 +119,22 @@ export default function LoginPage() {
               <div className={`mb-5 p-4 rounded-xl border flex items-start gap-3
                 ${logoutBanner === 'session_conflict'
                   ? 'bg-amber-500/10 border-amber-500/25'
-                  : 'bg-blue-500/10 border-blue-500/25'}`}>
+                  : 'bg-[#c96b3a]/10 border-[#c96b3a]/25'}`}>
                 <svg className={`w-5 h-5 flex-shrink-0 mt-0.5
-                  ${logoutBanner === 'session_conflict' ? 'text-amber-400' : 'text-blue-400'}`}
+                  ${logoutBanner === 'session_conflict' ? 'text-amber-400' : 'text-[#e8724a]'}`}
                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 <div>
                   <p className={`text-sm font-semibold mb-0.5
-                    ${logoutBanner === 'session_conflict' ? 'text-amber-300' : 'text-blue-300'}`}>
+                    ${logoutBanner === 'session_conflict' ? 'text-amber-300' : 'text-[#f0a070]'}`}>
                     {logoutBanner === 'session_conflict'
                       ? 'Signed in from another browser'
                       : 'Session expired'}
                   </p>
                   <p className={`text-xs
-                    ${logoutBanner === 'session_conflict' ? 'text-amber-400/80' : 'text-blue-400/80'}`}>
+                    ${logoutBanner === 'session_conflict' ? 'text-amber-400/80' : 'text-[#e8724a]/80'}`}>
                     {logoutBanner === 'session_conflict'
                       ? 'Your account was signed in from another browser. Please sign in again to continue.'
                       : 'You were logged out due to inactivity. Please sign in again.'}
@@ -208,8 +208,8 @@ export default function LoginPage() {
                   placeholder="you@example.com"
                   className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl
                              text-sm text-white placeholder:text-gray-600
-                             focus:outline-none focus:ring-2 focus:ring-blue-500/50
-                             focus:border-blue-500/50 transition-all"
+                             focus:outline-none focus:ring-2 focus:ring-[#c96b3a]/30
+                             focus:border-[#c96b3a]/40 transition-all"
                 />
                 {errors.email && (
                   <p className="mt-1.5 text-xs text-red-400">{errors.email.message}</p>
@@ -223,7 +223,7 @@ export default function LoginPage() {
                   </label>
                   <Link
                     to="/forgot-password"
-                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                    className="text-xs text-[#e8724a] hover:text-[#f0a070] transition-colors"
                   >
                     Forgot password?
                   </Link>
@@ -235,8 +235,8 @@ export default function LoginPage() {
                     placeholder="Your password"
                     className="w-full px-4 py-2.5 pr-10 bg-white/5 border border-white/10 rounded-xl
                                text-sm text-white placeholder:text-gray-600
-                               focus:outline-none focus:ring-2 focus:ring-blue-500/50
-                               focus:border-blue-500/50 transition-all"
+                               focus:outline-none focus:ring-2 focus:ring-[#c96b3a]/30
+                               focus:border-[#c96b3a]/40 transition-all"
                   />
                   <button
                     type="button"
@@ -254,9 +254,9 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50
+                className="w-full bg-[#c96b3a] hover:bg-[#e8724a] disabled:bg-[#c96b3a]/50
                            disabled:cursor-not-allowed text-white font-semibold py-2.5
-                           rounded-xl text-sm transition-all shadow-lg shadow-blue-900/30
+                           rounded-xl text-sm transition-all shadow-lg shadow-[#c96b3a]/20
                            flex items-center justify-center gap-2 mt-2"
               >
                 {loading ? (
@@ -275,7 +275,7 @@ export default function LoginPage() {
 
             <p className="mt-6 text-center text-sm text-gray-600">
               No account yet?{' '}
-              <Link to="/register" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+              <Link to="/register" className="text-[#e8724a] hover:text-[#f0a070] font-medium transition-colors">
                 Create one free
               </Link>
             </p>

@@ -78,20 +78,20 @@ export default function SharedSchemaPage() {
 
   // ── Loading state ─────────────────────────────────────────────────────────
   if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-gray-50">
+    <div className="h-screen flex items-center justify-center bg-[#f7f5f1]">
       <div className="flex flex-col items-center gap-4">
-        <svg className="animate-spin w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24">
+        <svg className="animate-spin w-8 h-8 text-[#c96b3a]" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
         </svg>
-        <p className="text-sm text-gray-400 font-medium">Loading schema…</p>
+        <p className="text-sm text-[#8c7b6e] font-medium">Loading schema…</p>
       </div>
     </div>
   )
 
   // ── Error state ───────────────────────────────────────────────────────────
   if (error) return (
-    <div className="h-screen flex items-center justify-center bg-gray-50 p-6">
+    <div className="h-screen flex items-center justify-center bg-[#f7f5f1] p-6">
       <div className="text-center max-w-sm">
         <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <svg className="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,10 +99,10 @@ export default function SharedSchemaPage() {
               d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
         </div>
-        <h1 className="text-lg font-bold text-gray-900 mb-2">Schema not available</h1>
-        <p className="text-sm text-gray-500 mb-6">{error}</p>
+        <h1 className="text-lg font-bold text-[#161413] mb-2">Schema not available</h1>
+        <p className="text-sm text-[#8c7b6e] mb-6">{error}</p>
         <Link to="/login"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#c96b3a] hover:bg-[#e8724a]
                      text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
           Sign in to Schema Genius
         </Link>
@@ -117,8 +117,8 @@ export default function SharedSchemaPage() {
       return (
         <Link
           to={`/login?next=/s/${projectId}`}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-blue-700
-                     hover:bg-blue-50 rounded-lg text-xs font-semibold transition-colors shadow-sm">
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#e8724a] hover:bg-[#c96b3a]
+                     text-white rounded-lg text-xs font-semibold transition-colors shadow-sm">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
@@ -133,8 +133,8 @@ export default function SharedSchemaPage() {
       return (
         <Link
           to={`/projects/${projectId}/designer`}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-blue-700
-                     hover:bg-blue-50 rounded-lg text-xs font-semibold transition-colors shadow-sm">
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#e8724a] hover:bg-[#c96b3a]
+                     text-white rounded-lg text-xs font-semibold transition-colors shadow-sm">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -163,8 +163,8 @@ export default function SharedSchemaPage() {
         <button
           onClick={handleRequestAccess}
           disabled={requestSending}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-blue-700
-                     hover:bg-blue-50 rounded-lg text-xs font-semibold transition-colors shadow-sm
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#e8724a] hover:bg-[#c96b3a]
+                     text-white rounded-lg text-xs font-semibold transition-colors shadow-sm
                      disabled:opacity-60 disabled:cursor-wait">
           {requestSending ? (
             <>
@@ -197,21 +197,23 @@ export default function SharedSchemaPage() {
       <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
 
         {/* ── CTA Banner ── */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white
-                        px-4 py-2.5 flex items-center justify-between flex-shrink-0 shadow-md">
+        <div className="px-4 py-2.5 flex items-center justify-between flex-shrink-0 shadow-md"
+             style={{ backgroundColor: '#1a1410' }}>
           <div className="flex items-center gap-3 min-w-0">
             {/* Logo mark */}
-            <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
-              <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+                 style={{ backgroundColor: 'rgba(245,225,200,.12)' }}>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                   style={{ color: '#e8c9a0' }}>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M4 7v10c0 1.1.9 2 2 2h12a2 2 0 002-2V7M4 7l8-4 8 4M4 7h16"/>
               </svg>
             </div>
             <div className="min-w-0">
-              <span className="text-white font-semibold text-sm truncate block">
+              <span className="font-semibold text-sm truncate block" style={{ color: '#f5e1c8' }}>
                 {project?.name}
               </span>
-              <span className="text-blue-200 text-xs">
+              <span className="text-xs" style={{ color: '#c4a882' }}>
                 by {project?.owner} · read-only view
               </span>
             </div>
@@ -222,8 +224,10 @@ export default function SharedSchemaPage() {
             {isAuthenticated && (
               <Link
                 to="/dashboard"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25
-                           rounded-lg text-xs font-medium text-white transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                style={{ backgroundColor: 'rgba(245,225,200,.10)', color: '#e8c9a0' }}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(245,225,200,.18)'}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(245,225,200,.10)'}>
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
                 </svg>
@@ -234,8 +238,10 @@ export default function SharedSchemaPage() {
             <button
               onClick={copyLink}
               title="Copy shareable link"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25
-                         rounded-lg text-xs font-medium text-white transition-colors">
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border"
+              style={{ backgroundColor: 'transparent', color: '#e8c9a0', borderColor: 'rgba(245,225,200,.25)' }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(245,225,200,.10)'; e.currentTarget.style.borderColor = 'rgba(245,225,200,.4)' }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'rgba(245,225,200,.25)' }}>
               {copied ? (
                 <>
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -48,7 +48,7 @@ function StepDots({ step }) {
             className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
               transition-all duration-300
               ${s < step ? 'bg-green-500 text-white' :
-                s === step ? 'bg-blue-600 text-white ring-4 ring-blue-600/30' :
+                s === step ? 'bg-[#c96b3a] text-white ring-4 ring-[#c96b3a]/30' :
                 'bg-white/10 text-gray-500'}`}
           >
             {s < step ? '✓' : s}
@@ -77,7 +77,7 @@ function Field({ label, error, children }) {
 
 const inputCls = `w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl
   text-sm text-white placeholder:text-gray-600
-  focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all`
+  focus:outline-none focus:ring-2 focus:ring-[#c96b3a]/30 focus:border-[#c96b3a]/40 transition-all`
 
 /* ═══════════════════════════════════════════════════════════════ */
 export default function RegisterPage() {
@@ -205,7 +205,7 @@ export default function RegisterPage() {
 
   /* ═══ Render ═══ */
   return (
-    <div className="min-h-screen bg-[#0f1117] flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#0f0d0b' }}>
 
       {/* Top bar */}
       <div className="px-6 py-4 flex items-center justify-between border-b border-white/10">
@@ -298,8 +298,8 @@ export default function RegisterPage() {
                 </Field>
 
                 <button onClick={next}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5
-                             rounded-xl text-sm transition-all shadow-lg shadow-blue-900/30 mt-2">
+                  className="w-full bg-[#c96b3a] hover:bg-[#e8724a] text-white font-semibold py-2.5
+                             rounded-xl text-sm transition-all shadow-lg shadow-[#c96b3a]/20 mt-2">
                   Continue →
                 </button>
               </div>
@@ -316,7 +316,7 @@ export default function RegisterPage() {
                       onClick={() => setUserType(t.value)}
                       className={`flex items-center gap-4 p-4 rounded-xl border text-left transition-all
                         ${userType === t.value
-                          ? 'border-blue-500 bg-blue-600/15 ring-1 ring-blue-500/40'
+                          ? 'border-[#c96b3a] bg-[#c96b3a]/12 ring-1 ring-[#c96b3a]/30'
                           : 'border-white/10 bg-white/3 hover:border-white/25 hover:bg-white/5'}`}
                     >
                       <span className="text-2xl">{t.emoji}</span>
@@ -325,7 +325,7 @@ export default function RegisterPage() {
                         <p className="text-xs text-gray-500 mt-0.5">{t.desc}</p>
                       </div>
                       <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all
-                        ${userType === t.value ? 'border-blue-500 bg-blue-500' : 'border-gray-600'}`}>
+                        ${userType === t.value ? 'border-[#c96b3a] bg-[#c96b3a]' : 'border-gray-600'}`}>
                         {userType === t.value && (
                           <div className="w-full h-full rounded-full flex items-center justify-center">
                             <div className="w-1.5 h-1.5 bg-white rounded-full" />
@@ -357,8 +357,8 @@ export default function RegisterPage() {
                     ← Back
                   </button>
                   <button onClick={next}
-                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5
-                               rounded-xl text-sm transition-all shadow-lg shadow-blue-900/30">
+                    className="flex-1 bg-[#c96b3a] hover:bg-[#e8724a] text-white font-semibold py-2.5
+                               rounded-xl text-sm transition-all shadow-lg shadow-[#c96b3a]/20">
                     Continue →
                   </button>
                 </div>
@@ -375,12 +375,12 @@ export default function RegisterPage() {
                     <div
                       onClick={() => fileRef.current.click()}
                       className="w-20 h-20 rounded-full border-2 border-dashed border-white/20
-                                 group-hover:border-blue-500/60 transition-all cursor-pointer overflow-hidden
+                                 group-hover:border-[#c96b3a]/60 transition-all cursor-pointer overflow-hidden
                                  flex items-center justify-center bg-white/5"
                     >
                       {avatarPreview
                         ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
-                        : <svg className="w-8 h-8 text-gray-600 group-hover:text-blue-400 transition-colors"
+                        : <svg className="w-8 h-8 text-gray-600 group-hover:text-[#e8724a] transition-colors"
                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                               d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
@@ -389,8 +389,8 @@ export default function RegisterPage() {
                     </div>
                     <div
                       onClick={() => fileRef.current.click()}
-                      className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 rounded-full
-                                 flex items-center justify-center cursor-pointer hover:bg-blue-500 transition-colors"
+                      className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#c96b3a] rounded-full
+                                 flex items-center justify-center cursor-pointer hover:bg-[#e8724a] transition-colors"
                     >
                       <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -423,8 +423,8 @@ export default function RegisterPage() {
                         type="button"
                         onClick={enhanceBio}
                         disabled={!bio.trim() || aiLoading}
-                        className="flex items-center gap-1.5 text-xs text-purple-400
-                                   hover:text-purple-300 disabled:opacity-40 disabled:cursor-not-allowed
+                        className="flex items-center gap-1.5 text-xs text-[#e8724a]
+                                   hover:text-[#f0a070] disabled:opacity-40 disabled:cursor-not-allowed
                                    transition-colors"
                       >
                         {aiLoading
@@ -462,9 +462,9 @@ export default function RegisterPage() {
                   <button
                     onClick={submit}
                     disabled={loading}
-                    className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50
+                    className="flex-1 bg-[#c96b3a] hover:bg-[#e8724a] disabled:bg-[#c96b3a]/50
                                disabled:cursor-not-allowed text-white font-semibold py-2.5
-                               rounded-xl text-sm transition-all shadow-lg shadow-blue-900/30
+                               rounded-xl text-sm transition-all shadow-lg shadow-[#c96b3a]/20
                                flex items-center justify-center gap-2"
                   >
                     {loading ? (
@@ -484,7 +484,7 @@ export default function RegisterPage() {
             {step === 1 && (
               <p className="mt-6 text-center text-sm text-gray-600">
                 Already have an account?{' '}
-                <Link to="/login" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+                <Link to="/login" className="text-[#e8724a] hover:text-[#f0a070] font-medium transition-colors">
                   Sign in
                 </Link>
               </p>
