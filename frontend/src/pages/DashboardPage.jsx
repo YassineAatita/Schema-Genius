@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { Sunrise, Sun, Moon } from 'lucide-react'
 import useAuthStore from '../store/useAuthStore'
 import useProjectStore from '../store/useProjectStore'
 import api from '../services/api'
@@ -13,6 +14,14 @@ function getGreeting() {
   if (h < 12) return 'Good morning'
   if (h < 17) return 'Good afternoon'
   return 'Good evening'
+}
+
+// Returns the icon + colour that matches the current greeting
+function GreetingIcon() {
+  const h = new Date().getHours()
+  if (h < 12) return <Sunrise className="w-[1.1em] h-[1.1em] text-orange-400" strokeWidth={1.75}/>
+  if (h < 17) return <Sun      className="w-[1.1em] h-[1.1em] text-amber-400" strokeWidth={1.75}/>
+  return              <Moon    className="w-[1.1em] h-[1.1em] text-indigo-400" strokeWidth={1.75}/>
 }
 
 export default function DashboardPage() {
@@ -346,7 +355,10 @@ export default function DashboardPage() {
         <div>
           {view === 'dashboard' ? (
             <>
-              <h1 className="text-lg font-bold text-gray-900">{getGreeting()}, {user?.name?.split(' ')[0]} 👋</h1>
+              <h1 className="text-lg font-bold text-gray-900 flex items-center gap-1.5">
+                {getGreeting()}, {user?.name?.split(' ')[0]}
+                <GreetingIcon/>
+              </h1>
               <p className="text-xs text-gray-400 mt-0.5">Here's an overview of your schema projects</p>
             </>
           ) : view === 'friends' ? (
@@ -382,9 +394,8 @@ export default function DashboardPage() {
                            bg-gray-50 transition-all"/>
             </div>
             <button onClick={() => setShowModal(true)}
-              className="flex items-center gap-1.5 sm:gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold
-                         px-3 sm:px-4 py-2 rounded-xl shadow-md shadow-blue-500/20 transition-all
-                         hover:shadow-blue-500/30 hover:-translate-y-px active:translate-y-0 whitespace-nowrap">
+              className="flex items-center gap-1.5 sm:gap-2 bg-[#161413] hover:bg-[#3d3633] text-white text-sm font-semibold
+                         px-3 sm:px-4 py-2 rounded-xl transition-all whitespace-nowrap">
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
               </svg>

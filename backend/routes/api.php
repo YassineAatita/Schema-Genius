@@ -152,9 +152,10 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/users/{id}', [ProfileController::class, 'publicProfile']);
 
 // ── Explore — public endpoints (guests allowed) ───────────────────────────────
-Route::get('/explore',                      [ExploreController::class, 'index']);    // Discover all public schemas
-Route::get('/explore/featured',             [ExploreController::class, 'featured']); // Current featured schema
-Route::get('/explore/projects/{id}',        [ExploreController::class, 'show']);     // Single public project detail
+Route::get('/explore',                             [ExploreController::class, 'index']);      // Discover all public schemas
+Route::get('/explore/featured',                    [ExploreController::class, 'featured']);   // Current featured schema
+Route::get('/explore/projects/{id}',               [ExploreController::class, 'show']);       // Single public project detail
+Route::get('/explore/projects/{id}/schema',        [ExploreController::class, 'schemaJson']); // Full schema JSON for read-only canvas preview
 
 // Comments are readable by guests
 Route::get('/projects/{id}/comments', [CommentController::class, 'index']);

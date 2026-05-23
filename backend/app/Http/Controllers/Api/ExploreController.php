@@ -370,4 +370,26 @@ class ExploreController extends Controller
 
         return response()->json($this->formatCard($project, $starredIds, $likedIds, $forkedIds, $featuredId));
     }
+
+    // ── GET /api/explore/projects/{id}/schema — Full schema JSON for read-only preview ──
+    // Public endpoint — no auth required. Returns the raw nodes + edges arrays from the
+    // current schema version so the frontend can render a read-only React Flow canvas.
+
+    public function schemaJson($id)
+    {
+        $project = Project::where('visibility', 'public')
+            ->with('schema.currentVersion')
+            ->findOrFail($id);
+
+        $schemaJson = $project->schema?->currentVersion?->schema_json;
+
+        if (!$schemaJson || !is_array($schemaJson)) {
+            return response()->json(['nodes' => [], 'edges' => []]);
+        }
+
+        return response()->json([
+            'nodes' => $schemaJson['nodes'] ?? [],
+            'edges' => $schemaJson['edges'] ?? [],
+        ]);
+    }
 }

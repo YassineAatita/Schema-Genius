@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../../services/api'
 import useAuthStore from '../../store/useAuthStore'
 import useProjectStore from '../../store/useProjectStore'
+import SchemaPreviewOverlay from './SchemaPreviewOverlay'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PALETTE = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#f97316']
@@ -22,6 +23,25 @@ function nameColor(name = '') {
   let h = 0
   for (let i = 0; i < name.length; i++) { h = ((h << 5) - h) + name.charCodeAt(i); h |= 0 }
   return PALETTE[Math.abs(h) % PALETTE.length]
+}
+
+// ── Topic inference ───────────────────────────────────────────────────────────
+const TOPIC_RULES = [
+  { tag: 'E-commerce',  keywords: ['shop', 'store', 'product', 'cart', 'order', 'payment', 'ecommerce', 'commerce', 'checkout'] },
+  { tag: 'Blog',        keywords: ['blog', 'post', 'article', 'author', 'category', 'tag', 'content', 'cms'] },
+  { tag: 'Social',      keywords: ['social', 'friend', 'follow', 'profile', 'feed', 'like', 'comment', 'network', 'community'] },
+  { tag: 'Finance',     keywords: ['bank', 'finance', 'account', 'transaction', 'payment', 'invoice', 'ledger', 'budget', 'wallet'] },
+  { tag: 'Healthcare',  keywords: ['health', 'patient', 'doctor', 'medical', 'hospital', 'appointment', 'clinic', 'nurse'] },
+  { tag: 'Education',   keywords: ['school', 'course', 'student', 'teacher', 'class', 'learn', 'grade', 'exam', 'quiz', 'lesson'] },
+  { tag: 'Analytics',   keywords: ['analytics', 'metric', 'event', 'tracking', 'stat', 'report', 'dashboard', 'log'] },
+  { tag: 'Auth',        keywords: ['auth', 'login', 'user', 'role', 'permission', 'session', 'token', 'password', 'oauth'] },
+  { tag: 'SaaS',        keywords: ['saas', 'subscription', 'plan', 'billing', 'tenant', 'workspace', 'organization'] },
+  { tag: 'Gaming',      keywords: ['game', 'player', 'score', 'level', 'achievement', 'inventory', 'character', 'quest'] },
+]
+
+function inferTags(card) {
+  const haystack = `${card.name || ''} ${card.description || ''}`.toLowerCase()
+  return TOPIC_RULES.filter(r => r.keywords.some(kw => haystack.includes(kw))).map(r => r.tag)
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -55,6 +75,12 @@ const LockIcon = () => (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" strokeWidth={2}/>
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11V7a5 5 0 0110 0v4"/>
+  </svg>
+)
+const EyeIcon = () => (
+  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
   </svg>
 )
 const Spinner = ({ cls = '' }) => (
@@ -292,8 +318,46 @@ function PublishModal({ card, onClose, onConfirm }) {
   )
 }
 
+// ── Topic pills ───────────────────────────────────────────────────────────────
+function TopicPills({ cards, topicFilter, setTopicFilter }) {
+  const allTags = useMemo(() => {
+    const tagSet = new Set()
+    cards.forEach(c => inferTags(c).forEach(t => tagSet.add(t)))
+    return [...tagSet].slice(0, 10)
+  }, [cards])
+
+  if (allTags.length === 0) return null
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap mb-5">
+      <span className="text-[11px] text-[#8c7b6e] font-medium flex-shrink-0">Topics:</span>
+      {allTags.map(tag => (
+        <button
+          key={tag}
+          onClick={() => setTopicFilter(prev => prev === tag ? null : tag)}
+          className={`text-[11px] px-2.5 py-1 rounded-full border font-medium transition-all ${
+            topicFilter === tag
+              ? 'bg-[#161413] text-white border-[#161413]'
+              : 'bg-white text-[#5a4a3f] border-[#ebe6dd] hover:border-[#d4c9b8] hover:bg-[#f0ebe3]'
+          }`}
+        >
+          {tag}
+        </button>
+      ))}
+      {topicFilter && (
+        <button
+          onClick={() => setTopicFilter(null)}
+          className="text-[10px] text-[#8c7b6e] hover:text-[#161413] transition-colors underline ml-1"
+        >
+          Clear filter
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ── Schema card ───────────────────────────────────────────────────────────────
-function SchemaCard({ card: initialCard, onStar, onLike, onFork, onOpen, isOwn, onToggleVisibility, onPublish }) {
+function SchemaCard({ card: initialCard, onStar, onLike, onFork, onOpen, onPreview, isOwn, onToggleVisibility, onPublish }) {
   const [card,     setCard]     = useState(initialCard)
   const [starring, setStarring] = useState(false)
   const [liking,   setLiking]   = useState(false)
@@ -341,19 +405,30 @@ function SchemaCard({ card: initialCard, onStar, onLike, onFork, onOpen, isOwn, 
   return (
     <>
       <div onClick={() => onOpen(card)}
-           className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md
-                      hover:border-blue-200/60 transition-all duration-200 cursor-pointer
+           className="bg-white rounded-2xl border border-[#ebe6dd] shadow-sm hover:shadow-md
+                      hover:border-[#d4c9b8] transition-all duration-200 cursor-pointer
                       overflow-hidden flex flex-col">
 
         {/* Thumbnail */}
-        <div className="relative bg-gradient-to-br from-slate-50 to-gray-100
-                        flex items-center justify-center py-3 border-b border-gray-100">
+        <div className="relative bg-[#f7f5f1] flex items-center justify-center py-3 border-b border-[#ebe6dd] group">
           <SchemaThumbnail
             thumbnailNodes={card.thumbnail_nodes}
             tableCount={card.stats?.tables || 0}
             edgeCount={card.stats?.edges || 0}
             projectId={card.id}
           />
+          {/* Preview overlay — appears on hover */}
+          <div
+            className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100
+                       transition-opacity bg-black/10 rounded-t-2xl"
+            onClick={e => { e.stopPropagation(); onPreview && onPreview(card) }}
+          >
+            <span className="bg-white/95 text-[#161413] text-xs font-semibold px-3 py-1.5 rounded-xl
+                             shadow-sm flex items-center gap-1.5 border border-[#ebe6dd]">
+              <EyeIcon/>
+              Preview
+            </span>
+          </div>
           {card.is_featured && (
             <span className="absolute top-2 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full
                              bg-amber-400 text-amber-900 shadow-sm">★ Featured</span>
@@ -366,12 +441,12 @@ function SchemaCard({ card: initialCard, onStar, onLike, onFork, onOpen, isOwn, 
 
         {/* Body */}
         <div className="px-4 pt-3 pb-4 flex-1 flex flex-col">
-          <h3 className="font-bold text-gray-900 text-sm truncate mb-0.5">{card.name}</h3>
-          <p className="text-[11px] text-gray-400 line-clamp-2 mb-2 leading-relaxed flex-1 min-h-[2.2rem]">
+          <h3 className="font-bold text-[#161413] text-sm truncate mb-0.5">{card.name}</h3>
+          <p className="text-[11px] text-[#8c7b6e] line-clamp-2 mb-2 leading-relaxed flex-1 min-h-[2.2rem]">
             {card.description || 'No description'}
           </p>
 
-          <div className="flex items-center gap-3 text-[11px] text-gray-400 mb-2.5">
+          <div className="flex items-center gap-3 text-[11px] text-[#8c7b6e] mb-2.5">
             <span>{card.stats?.tables || 0} classes</span>
             <span>·</span>
             <span>{card.stats?.edges || 0} relations</span>
@@ -382,21 +457,21 @@ function SchemaCard({ card: initialCard, onStar, onLike, onFork, onOpen, isOwn, 
             <div className="flex items-center gap-1.5 mb-3" onClick={e => e.stopPropagation()}>
               <Link to={`/u/${card.owner.id}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
                 <Avatar url={card.owner.avatar_url} name={card.owner.name}/>
-                <span className="text-[11px] text-gray-500 truncate hover:text-blue-500 transition-colors">{card.owner.name}</span>
+                <span className="text-[11px] text-[#5a4a3f] truncate hover:text-blue-500 transition-colors">{card.owner.name}</span>
               </Link>
             </div>
           )}
 
           {/* Footer */}
-          <div className="flex items-center justify-between pt-2.5 border-t border-gray-50">
+          <div className="flex items-center justify-between pt-2.5 border-t border-[#ebe6dd]">
             <div className="flex items-center gap-2.5 text-[11px]">
-              <span className={`flex items-center gap-0.5 ${card.is_starred ? 'text-amber-500' : 'text-gray-400'}`}>
+              <span className={`flex items-center gap-0.5 ${card.is_starred ? 'text-amber-500' : 'text-[#8c7b6e]'}`}>
                 <StarIcon filled={card.is_starred}/> {card.stats?.stars || 0}
               </span>
-              <span className={`flex items-center gap-0.5 ${card.is_liked ? 'text-red-400' : 'text-gray-400'}`}>
+              <span className={`flex items-center gap-0.5 ${card.is_liked ? 'text-red-400' : 'text-[#8c7b6e]'}`}>
                 <HeartIcon filled={card.is_liked}/> {card.stats?.likes || 0}
               </span>
-              <span className="flex items-center gap-0.5 text-gray-400">
+              <span className="flex items-center gap-0.5 text-[#8c7b6e]">
                 <GitForkIcon/> {card.stats?.forks || 0}
               </span>
             </div>
@@ -407,21 +482,21 @@ function SchemaCard({ card: initialCard, onStar, onLike, onFork, onOpen, isOwn, 
                   className={`p-1.5 rounded-lg transition-colors
                     ${card.is_starred
                       ? 'text-amber-500 bg-amber-50 hover:bg-amber-100'
-                      : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'}`}>
+                      : 'text-[#8c7b6e] hover:text-amber-500 hover:bg-amber-50'}`}>
                   {starring ? <Spinner/> : <StarIcon filled={card.is_starred}/>}
                 </button>
                 <button disabled={liking} onClick={doLike}
                   className={`p-1.5 rounded-lg transition-colors
                     ${card.is_liked
                       ? 'text-red-400 bg-red-50 hover:bg-red-100'
-                      : 'text-gray-400 hover:text-red-400 hover:bg-red-50'}`}>
+                      : 'text-[#8c7b6e] hover:text-red-400 hover:bg-red-50'}`}>
                   {liking ? <Spinner/> : <HeartIcon filled={card.is_liked}/>}
                 </button>
                 <button disabled={forking || card.is_forked} onClick={doFork}
                   className={`p-1.5 rounded-lg transition-colors
                     ${card.is_forked
                       ? 'text-violet-500 bg-violet-50 cursor-default'
-                      : 'text-gray-400 hover:text-violet-500 hover:bg-violet-50'}`}>
+                      : 'text-[#8c7b6e] hover:text-violet-500 hover:bg-violet-50'}`}>
                   {forking ? <Spinner/> : <GitForkIcon/>}
                 </button>
               </div>
@@ -962,65 +1037,88 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, use
   )
 }
 
-// ── Featured banner ───────────────────────────────────────────────────────────
-function FeaturedBanner({ featured, onOpen }) {
+// ── Featured banner — two-panel hero ─────────────────────────────────────────
+function FeaturedBanner({ featured, onOpen, onPreview }) {
   if (!featured) return null
   const stats = featured.stats ?? {}
   return (
-    <div className="relative bg-gradient-to-r from-amber-500/10 via-orange-400/5 to-amber-400/10
-                    border border-amber-200/60 rounded-2xl p-5 mb-6 overflow-hidden">
-      <div className="absolute inset-0 opacity-[0.04]"
-           style={{ backgroundImage: 'radial-gradient(circle, #f59e0b 1px, transparent 1px)', backgroundSize: '24px 24px' }}/>
-      <div className="relative flex items-center gap-5">
-        <div className="flex-shrink-0">
+    <div className="rounded-2xl overflow-hidden border border-[#ebe6dd] mb-8 shadow-sm flex flex-col sm:flex-row">
+      {/* Left: dark panel with info + actions */}
+      <div className="bg-[#161413] flex-1 p-6 flex flex-col justify-between min-w-0">
+        <div>
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400 text-amber-900">
+              ★ Schema of the Week
+            </span>
+            {featured.featured_week_of && (
+              <span className="text-[10px] text-amber-400 font-medium">
+                Week of {new Date(featured.featured_week_of).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
+            )}
+          </div>
+          <h3 className="font-bold text-white text-lg truncate mb-1">{featured.name}</h3>
+          <p className="text-sm text-[#a89484] line-clamp-2 mb-2 leading-relaxed">
+            {featured.description || 'No description'}
+          </p>
+          {featured.featured_note && (
+            <p className="text-xs text-amber-400/80 italic mb-2">"{featured.featured_note}"</p>
+          )}
+        </div>
+        <div>
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+            {featured.owner && (
+              <Link to={`/u/${featured.owner.id}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+                <Avatar url={featured.owner.avatar_url} name={featured.owner.name}/>
+                <span className="text-xs text-[#c4b5a8] font-medium">{featured.owner.name}</span>
+              </Link>
+            )}
+            <span className="text-xs text-[#7a6a60]">
+              {stats.stars ?? 0} stars · {stats.forks ?? 0} forks
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => onPreview && onPreview(featured)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-[#f0ebe3]
+                         text-[#161413] text-sm font-semibold rounded-xl transition-colors"
+            >
+              <EyeIcon/>
+              Preview
+            </button>
+            <button
+              onClick={() => onOpen(featured)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600
+                         text-white text-sm font-semibold rounded-xl transition-colors"
+            >
+              Details
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Right: light cream panel with large SVG thumbnail */}
+      <div className="bg-[#f7f5f1] flex items-center justify-center p-6
+                      sm:w-64 xl:w-80 flex-shrink-0
+                      border-t sm:border-t-0 sm:border-l border-[#ebe6dd]">
+        <div className="flex flex-col items-center gap-2">
           <SchemaThumbnail
             thumbnailNodes={featured.thumbnail_nodes}
             tableCount={stats.tables ?? 0}
             edgeCount={stats.edges   ?? 0}
             projectId={featured.id}
-            width={148}
-            height={84}
+            width={200}
+            height={120}
           />
+          <button
+            onClick={() => onPreview && onPreview(featured)}
+            className="text-[10px] text-[#8c7b6e] hover:text-[#161413] transition-colors font-medium"
+          >
+            Click to preview canvas →
+          </button>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400 text-amber-900">
-              ★ Schema of the Week
-            </span>
-            {featured.featured_week_of && (
-              <span className="text-[10px] text-amber-600 font-medium">
-                Week of {new Date(featured.featured_week_of).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </span>
-            )}
-          </div>
-          <h3 className="font-bold text-gray-900 text-base truncate">{featured.name}</h3>
-          <p className="text-sm text-gray-500 line-clamp-1 mb-1">{featured.description || 'No description'}</p>
-          {featured.featured_note && (
-            <p className="text-xs text-amber-700/70 italic">"{featured.featured_note}"</p>
-          )}
-          <div className="flex items-center gap-2 mt-1.5">
-            {featured.owner && (
-              <>
-                <Link to={`/u/${featured.owner.id}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-                  <Avatar url={featured.owner.avatar_url} name={featured.owner.name}/>
-                  <span className="text-xs text-gray-600 font-medium hover:text-blue-600 transition-colors">{featured.owner.name}</span>
-                </Link>
-                <span className="text-gray-300">·</span>
-              </>
-            )}
-            <span className="text-xs text-gray-400">
-              {stats.stars ?? 0} stars · {stats.forks ?? 0} forks
-            </span>
-          </div>
-        </div>
-        <button onClick={() => onOpen(featured)}
-          className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600
-                     text-white text-sm font-semibold rounded-xl shadow-sm transition-colors">
-          View
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-          </svg>
-        </button>
       </div>
     </div>
   )
@@ -1030,11 +1128,11 @@ function FeaturedBanner({ featured, onOpen }) {
 function EmptyState({ icon, title, subtitle }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 text-gray-400">
+      <div className="w-14 h-14 rounded-2xl bg-[#f0ebe3] flex items-center justify-center mb-4 text-[#8c7b6e]">
         {icon}
       </div>
-      <p className="text-sm font-semibold text-gray-500 mb-1">{title}</p>
-      <p className="text-xs text-gray-400 max-w-xs leading-relaxed">{subtitle}</p>
+      <p className="text-sm font-semibold text-[#5a4a3f] mb-1">{title}</p>
+      <p className="text-xs text-[#8c7b6e] max-w-xs leading-relaxed">{subtitle}</p>
     </div>
   )
 }
@@ -1042,16 +1140,16 @@ function EmptyState({ icon, title, subtitle }) {
 // ── Skeleton card ─────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
-      <div className="h-24 bg-gray-100"/>
+    <div className="bg-white rounded-2xl border border-[#ebe6dd] overflow-hidden animate-pulse">
+      <div className="h-24 bg-[#f0ebe3]"/>
       <div className="p-4 space-y-2.5">
-        <div className="h-4 bg-gray-100 rounded-lg w-3/4"/>
-        <div className="h-3 bg-gray-100 rounded-lg w-full"/>
-        <div className="h-3 bg-gray-100 rounded-lg w-5/6"/>
-        <div className="h-3 bg-gray-100 rounded-lg w-1/2 mt-4"/>
-        <div className="flex justify-between items-center pt-2 border-t border-gray-50 mt-2">
-          <div className="h-3 bg-gray-100 rounded-lg w-1/3"/>
-          <div className="h-6 bg-gray-100 rounded-lg w-20"/>
+        <div className="h-4 bg-[#f0ebe3] rounded-lg w-3/4"/>
+        <div className="h-3 bg-[#f0ebe3] rounded-lg w-full"/>
+        <div className="h-3 bg-[#f0ebe3] rounded-lg w-5/6"/>
+        <div className="h-3 bg-[#f0ebe3] rounded-lg w-1/2 mt-4"/>
+        <div className="flex justify-between items-center pt-2 border-t border-[#ebe6dd] mt-2">
+          <div className="h-3 bg-[#f0ebe3] rounded-lg w-1/3"/>
+          <div className="h-6 bg-[#f0ebe3] rounded-lg w-20"/>
         </div>
       </div>
     </div>
@@ -1064,17 +1162,25 @@ export default function ExploreView() {
   const { fetchProjects } = useProjectStore()
   const { toast, show: showToast } = useToast()
 
-  const [tab,      setTab]      = useState('discover')
-  const [cards,    setCards]    = useState([])
-  const [featured, setFeatured] = useState(null)
-  const [loading,  setLoading]  = useState(false)
-  const [meta,     setMeta]     = useState({ current_page: 1, last_page: 1, total: 0 })
-  const [search,   setSearch]   = useState('')
-  const [sort,     setSort]     = useState('recent')
-  const [detail,   setDetail]   = useState(null)   // card being shown in detail modal
-  const [detailIsOwner, setDetailIsOwner] = useState(false) // BUG 4 FIX
+  const [tab,          setTab]          = useState('discover')
+  const [cards,        setCards]        = useState([])
+  const [featured,     setFeatured]     = useState(null)
+  const [loading,      setLoading]      = useState(false)
+  const [meta,         setMeta]         = useState({ current_page: 1, last_page: 1, total: 0 })
+  const [search,       setSearch]       = useState('')
+  const [sort,         setSort]         = useState('recent')
+  const [detail,       setDetail]       = useState(null)         // card shown in detail modal
+  const [detailIsOwner, setDetailIsOwner] = useState(false)       // BUG 4 FIX
+  const [previewCard,  setPreviewCard]  = useState(null)         // card shown in canvas overlay
+  const [topicFilter,  setTopicFilter]  = useState(null)         // active topic pill filter
 
   const searchTimer = useRef(null)
+
+  // ── Filtered cards (topic pills) ─────────────────────────────────
+  const filteredCards = useMemo(() => {
+    if (!topicFilter) return cards
+    return cards.filter(c => inferTags(c).includes(topicFilter))
+  }, [cards, topicFilter])
 
   // ── Data fetching ────────────────────────────────────────────────
   const fetchCards = useCallback(async (page = 1, reset = true) => {
@@ -1100,8 +1206,11 @@ export default function ExploreView() {
     setLoading(false)
   }, [tab, search, sort])
 
-  // Reload on tab/sort change
-  useEffect(() => { fetchCards(1, true) }, [tab, sort])
+  // Reload on tab/sort change; clear topic filter on tab switch
+  useEffect(() => {
+    setTopicFilter(null)
+    fetchCards(1, true)
+  }, [tab, sort])
 
   // Debounced search
   useEffect(() => {
@@ -1226,6 +1335,10 @@ export default function ExploreView() {
     )
   }, [tab, user])
 
+  const handlePreview = useCallback((card) => {
+    setPreviewCard(card)
+  }, [])
+
   // ── Tabs ─────────────────────────────────────────────────────────
   const TABS = [
     ['discover',    'Discover'],
@@ -1243,47 +1356,73 @@ export default function ExploreView() {
 
   return (
     <div>
-      {/* Controls row */}
+      {/* ── Page title (discover tab only) ─────────────────────── */}
+      {tab === 'discover' && (
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-[#161413] leading-tight">
+            Schemas,{' '}
+            <em style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic' }}>
+              shared.
+            </em>
+          </h1>
+          <p className="text-sm text-[#8c7b6e] mt-1">
+            Explore public database schemas from the community
+          </p>
+        </div>
+      )}
+
+      {/* ── Controls row ─────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div className="flex items-center bg-gray-100 p-1 rounded-xl gap-0.5">
+        {/* Tab pills */}
+        <div className="flex items-center bg-[#ebe6dd] p-1 rounded-xl gap-0.5">
           {TABS.map(([id, label]) => (
             <button key={id} onClick={() => { setTab(id); setSearch('') }}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all
                 ${tab === id
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'}`}>
+                  ? 'bg-white text-[#161413] shadow-sm'
+                  : 'text-[#5a4a3f] hover:text-[#161413]'}`}>
               {label}
             </button>
           ))}
         </div>
 
+        {/* Search + sort (discover only) */}
         {tab === 'discover' && (
           <div className="flex items-center gap-2">
             <div className="relative">
-              <svg className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              <svg className="w-3.5 h-3.5 text-[#8c7b6e] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
               </svg>
               <input value={search} onChange={e => setSearch(e.target.value)}
                 type="text" placeholder="Search schemas…"
-                className="pl-8 pr-4 py-2 text-sm border border-gray-200 rounded-xl w-48
-                           focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400
-                           bg-gray-50 transition-all"/>
+                className="pl-8 pr-4 py-2 text-sm border border-[#ebe6dd] rounded-xl w-48
+                           focus:outline-none focus:ring-2 focus:ring-[#161413]/10 focus:border-[#d4c9b8]
+                           bg-white text-[#161413] placeholder-[#8c7b6e] transition-all"/>
             </div>
             <select value={sort} onChange={e => setSort(e.target.value)}
-              className="py-2 pl-3 pr-8 text-sm border border-gray-200 rounded-xl bg-gray-50
-                         focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400
-                         text-gray-600 transition-all">
+              className="py-2 pl-3 pr-8 text-sm border border-[#ebe6dd] rounded-xl bg-white
+                         focus:outline-none focus:ring-2 focus:ring-[#161413]/10 focus:border-[#d4c9b8]
+                         text-[#5a4a3f] transition-all">
               {SORT_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
         )}
       </div>
 
+      {/* Topic pills — discover tab only, when we have cards */}
+      {tab === 'discover' && cards.length > 0 && (
+        <TopicPills cards={cards} topicFilter={topicFilter} setTopicFilter={setTopicFilter}/>
+      )}
+
       {/* Featured banner — only rendered when a featured schema exists */}
       {tab === 'discover' && featured && (
-        <FeaturedBanner featured={featured} onOpen={handleOpenDetail}/>
+        <FeaturedBanner
+          featured={featured}
+          onOpen={handleOpenDetail}
+          onPreview={handlePreview}
+        />
       )}
 
       {/* Card grid */}
@@ -1291,8 +1430,22 @@ export default function ExploreView() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {Array.from({ length: 6 }, (_, i) => <SkeletonCard key={i}/>)}
         </div>
-      ) : cards.length === 0 ? (
-        tab === 'discover' ? (
+      ) : filteredCards.length === 0 ? (
+        topicFilter ? (
+          /* Topic filter returned no results */
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-[#f0ebe3] flex items-center justify-center mb-4 text-[#8c7b6e]">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+              </svg>
+            </div>
+            <p className="text-sm font-semibold text-[#5a4a3f] mb-1">No schemas tagged "{topicFilter}"</p>
+            <button onClick={() => setTopicFilter(null)}
+              className="text-xs text-[#8c7b6e] hover:text-[#161413] transition-colors underline mt-1">
+              Clear filter
+            </button>
+          </div>
+        ) : tab === 'discover' ? (
           <EmptyState
             icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/></svg>}
             title={search ? 'No schemas match your search' : 'No public schemas yet'}
@@ -1314,7 +1467,7 @@ export default function ExploreView() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {cards.map(card => (
+            {filteredCards.map(card => (
               <SchemaCard
                 key={card.id}
                 card={card}
@@ -1322,6 +1475,7 @@ export default function ExploreView() {
                 onLike={handleLikeSync}
                 onFork={handleFork}
                 onOpen={handleOpenDetail}
+                onPreview={handlePreview}
                 isOwn={tab === 'my-schemas'}
                 onToggleVisibility={handleToggleVisibility}
                 onPublish={handlePublish}
@@ -1329,13 +1483,14 @@ export default function ExploreView() {
             ))}
           </div>
 
-          {meta.current_page < meta.last_page && (
+          {/* Load-more (only when not topic-filtered, to avoid paginating filtered subsets) */}
+          {!topicFilter && meta.current_page < meta.last_page && (
             <div className="flex justify-center mt-8">
               <button onClick={() => fetchCards(meta.current_page + 1, false)} disabled={loading}
-                className="flex items-center gap-2 px-6 py-2.5 border border-gray-200 text-sm font-medium
-                           text-gray-500 rounded-xl hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50
-                           transition-all disabled:opacity-40">
-                {loading && <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>}
+                className="flex items-center gap-2 px-6 py-2.5 border border-[#ebe6dd] text-sm font-medium
+                           text-[#5a4a3f] rounded-xl hover:border-[#d4c9b8] hover:text-[#161413] hover:bg-white
+                           transition-all disabled:opacity-40 bg-transparent">
+                {loading && <div className="w-4 h-4 border-2 border-[#8c7b6e] border-t-transparent rounded-full animate-spin"/>}
                 Load more · {meta.total - cards.length} remaining
               </button>
             </div>
@@ -1353,6 +1508,16 @@ export default function ExploreView() {
           onFork={handleFork}
           user={user}
           isOwner={detailIsOwner}
+        />
+      )}
+
+      {/* Canvas preview overlay */}
+      {previewCard && (
+        <SchemaPreviewOverlay
+          card={previewCard}
+          onClose={() => setPreviewCard(null)}
+          onFork={handleFork}
+          user={user}
         />
       )}
 
