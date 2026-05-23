@@ -1,35 +1,33 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/YassineAatita/Schema-Genius/main/frontend/public/logo_black.svg" alt="Schema Genius Logo" width="120" />
+<img src="https://raw.githubusercontent.com/YassineAatita/Schema-Genius/main/frontend/public/logo_black.png" alt="Schema Genius Logo" width="110" />
 
-# Schema Genius
+<h1>Schema Genius</h1>
 
-### Visual Database Schema Designer · AI-Powered · Real-time Collaborative
+<p><em>Visual database schema design — AI-powered, real-time collaborative, beautifully crafted.</em></p>
 
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=white)](https://reactjs.org)
-[![Vite](https://img.shields.io/badge/Vite-7-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?style=flat-square&logo=laravel&logoColor=white)](https://laravel.com)
-[![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://mysql.com)
-[![Groq](https://img.shields.io/badge/AI-Groq%20Llama%204-F55036?style=flat-square)](https://groq.com)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+<p>
+  <img src="https://img.shields.io/badge/React-18-c96b3a?style=flat-square&logo=react&logoColor=white" alt="React"/>
+  <img src="https://img.shields.io/badge/Vite-7-a85530?style=flat-square&logo=vite&logoColor=white" alt="Vite"/>
+  <img src="https://img.shields.io/badge/Tailwind-4-c96b3a?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind"/>
+  <img src="https://img.shields.io/badge/Laravel-12-a85530?style=flat-square&logo=laravel&logoColor=white" alt="Laravel"/>
+  <img src="https://img.shields.io/badge/MySQL-8-c96b3a?style=flat-square&logo=mysql&logoColor=white" alt="MySQL"/>
+  <img src="https://img.shields.io/badge/AI-Groq%20Llama%204-a85530?style=flat-square" alt="Groq"/>
+  <img src="https://img.shields.io/badge/License-MIT-8b5e3c?style=flat-square" alt="License"/>
+</p>
 
 <br/>
 
-> Design, share, and version your database schemas visually.  
+> Design, share, and version your database schemas visually.
 > Generate them with AI. Collaborate on them in real-time.
 
 <br/>
-
-![Schema Genius Demo](https://user-images.githubusercontent.com/placeholder/demo.gif)
-
-*← Drag tables, draw relationships, and let AI do the heavy lifting*
 
 </div>
 
 ---
 
-## ✨ What is Schema Genius?
+## ☕ What is Schema Genius?
 
 **Schema Genius** is a full-stack SaaS platform that transforms how developers, students, and teams design relational databases. Instead of writing DDL by hand or fighting ERD desktop tools, you get a **live canvas** where tables snap into place, relationships are drawn with a single drag, and an AI assistant can generate your entire schema from a plain-English description — or even a photograph of a whiteboard.
 
@@ -51,14 +49,15 @@ Everything saves automatically, every change is versioned, and your whole team e
 
 ---
 
-## 🚀 Feature Highlights
+## 🌿 Feature Highlights
 
 ### 🎨 Visual Designer
+
 | Feature | Details |
 |---|---|
 | **Drag-and-drop canvas** | Powered by React Flow — pan, zoom, snap to grid |
 | **Table editor** | Add / rename / delete columns with full type picker |
-| **Column types** | 22 types in 5 groups — Numeric (`INT`, `BIGINT`, `SMALLINT`, `TINYINT`, `DECIMAL`, `FLOAT`, `DOUBLE`) · String (`VARCHAR`, `CHAR`, `TEXT`, `LONGTEXT`, `ENUM`) · Date/Time (`DATE`, `TIME`, `DATETIME`, `TIMESTAMP`) · Binary (`BLOB`, `MEDIUMBLOB`, `LONGBLOB`) · Other (`BOOLEAN`, `JSON`, `UUID`) |
+| **Column types** | 22 types across 5 groups — Numeric (`INT`, `BIGINT`, `SMALLINT`, `TINYINT`, `DECIMAL`, `FLOAT`, `DOUBLE`) · String (`VARCHAR`, `CHAR`, `TEXT`, `LONGTEXT`, `ENUM`) · Date/Time (`DATE`, `TIME`, `DATETIME`, `TIMESTAMP`) · Binary (`BLOB`, `MEDIUMBLOB`, `LONGBLOB`) · Other (`BOOLEAN`, `JSON`, `UUID`) |
 | **Column flags** | PK (single-PK enforced per table) · FK with sub-form (reference table/column, On Delete & On Update actions) · Unique · Nullable · Auto-Increment · Index · Default value |
 | **Deletion safety** | Deleting a column warns if it is referenced as a FK in another table (lists all `table.column` pairs) or is the last PK; on confirm, all orphaned FK references are auto-cleared across the canvas |
 | **Relationship drawing** | Drag from any handle to connect two tables |
@@ -70,6 +69,7 @@ Everything saves automatically, every change is versioned, and your whole team e
 | **Dark mode** | Toggle Sun/Moon — preference saved to `localStorage` |
 
 ### 🤖 AI Features
+
 | Feature | Details |
 |---|---|
 | **Text → Schema** | Describe your data model; full schema appears on canvas |
@@ -77,10 +77,11 @@ Everything saves automatically, every change is versioned, and your whole team e
 | **Add to Canvas** | Merge AI output alongside your existing tables (no overwrite) |
 | **Schema Suggest** | Ask AI to add missing tables or improve an existing schema |
 | **Roast My Schema 🔥** | AI acts as a brutally honest senior DBA and critiques your design — severity-coded `critical / bad / meh` feedback cards |
-| **AI Bio Polish** | One-click enhancement for profile bios |
+| **AI Bio Polish** | One-click enhancement for profile bios during registration |
 | Powered by | **Groq API** — `llama-4-scout-17b` (fast, free-tier friendly) |
 
 ### 🔄 Schema Management
+
 | Feature | Details |
 |---|---|
 | **Auto-save** | Every manual save creates a new version in `schema_versions` |
@@ -88,12 +89,13 @@ Everything saves automatically, every change is versioned, and your whole team e
 | **Schema diff viewer** | Color-coded side-by-side diff for tables, columns, and relationships between any two versions |
 | **SQL export** | Download a `.sql` file in MySQL, PostgreSQL, or SQLite dialect — supports all 22 column types, column-level FK constraints (`ON DELETE` / `ON UPDATE`), and `CREATE INDEX` statements |
 | **Copy SQL** | One-click clipboard copy of the generated SQL |
-| **Export Models (ORM)** | Generate framework model code from the current canvas — **Laravel** (Eloquent PHP classes with `$fillable`, `$casts`, `belongsTo`, `hasMany`, `belongsToMany`), **Django** (Python models with field mapping and `on_delete`), **Prisma** (full schema with scalar fields, `@relation`, reverse stubs, and M:N implicit tables) — copy to clipboard or download individual files |
+| **ORM Export** | Generate framework model code from the current canvas — **Laravel** (Eloquent PHP classes with `$fillable`, `$casts`, `belongsTo`, `hasMany`, `belongsToMany`), **Django** (Python models with field mapping and `on_delete`), **Prisma** (full schema with scalar fields, `@relation`, reverse stubs, and M:N implicit tables) — copy to clipboard or download individual files |
 | **Import from SQL** | Paste or upload a `.sql` file to reverse-engineer a visual schema |
 | **Schema validation** | Client-side panel catches duplicate names, missing PKs, reserved words, empty tables |
 | **Unsaved changes guard** | Browser-close warning + custom confirm modal |
 
 ### 👥 Real-time Collaboration
+
 | Feature | Details |
 |---|---|
 | **Live cursors** | Every collaborator's mouse shown with name label and unique colour |
@@ -104,6 +106,7 @@ Everything saves automatically, every change is versioned, and your whole team e
 | Transport | **Laravel Reverb** (native WebSockets) + **Laravel Echo** presence channels |
 
 ### 🌐 Community & Explore
+
 | Feature | Details |
 |---|---|
 | **Public gallery** | Browse all public schemas with search and tag filter |
@@ -115,8 +118,10 @@ Everything saves automatically, every change is versioned, and your whole team e
 | **Collections** | Curate named lists of your favourite schemas |
 | **Follow users** | Build a personal network; see their schemas in your Network feed |
 | **Friend system** | Send/accept/decline friend requests; invite friends to projects |
+| **Activity feed** | Real-time ticker of community actions on the landing page |
 
 ### 🔐 Auth & User Management
+
 | Feature | Details |
 |---|---|
 | **Email verification** | New accounts must verify before logging in |
@@ -124,9 +129,10 @@ Everything saves automatically, every change is versioned, and your whole team e
 | **Branded emails** | Clean Notion-inspired HTML for verification and reset |
 | **Account suspension** | Admins can suspend/reactivate any user |
 | **Role-based access** | `admin`, `user` via Spatie Laravel Permission |
-| **Token auth** | Laravel Sanctum — stateless API tokens |
+| **Token auth** | Laravel Sanctum — stateless API tokens (30-day expiry) |
 
 ### 🛡️ Admin Dashboard
+
 | Feature | Details |
 |---|---|
 | **Overview stats** | Total users, projects, schemas, AI generation counts |
@@ -137,29 +143,29 @@ Everything saves automatically, every change is versioned, and your whole team e
 | **Featured schema** | Set and rotate the Explore spotlight with history log |
 
 ### 🔒 Security Hardening
+
 | Protection | Details |
 |---|---|
 | **Rate limiting — auth** | Login `10/min`, register `5/min`, forgot-password `3/min`, reset `5/min`, resend-verification `3/min` — per IP |
 | **Rate limiting — AI** | Generate `20/min`, image `10/min`, suggest `20/min`, roast `20/min`, enhance-bio `10/min` — prevents Groq API drain |
-| **IDOR prevention** | `GET /schemas/{id}` and `GET /schemas/{id}/export/sql` verify ownership or accepted-collaborator status before responding |
+| **IDOR prevention** | `GET /schemas/{id}` and `GET /schemas/{id}/export/sql` verify ownership or accepted-collaborator status |
 | **Schema payload cap** | AI suggest & roast reject schemas exceeding 150 nodes / 300 edges — stops billing-amplification attacks |
-| **Image MIME validation** | `generate-from-image` validates data-URL prefix before forwarding to Groq (JPEG, PNG, GIF, WebP only) |
+| **Image MIME validation** | `generate-from-image` validates data-URL prefix before forwarding to Groq |
 | **Project ownership check** | AI generate endpoints verify the caller owns / has editor access on the supplied `project_id` |
 | **Token expiration** | Sanctum tokens expire after 30 days (configurable via `SANCTUM_TOKEN_EXPIRATION`) |
-| **Fork tree visibility** | `GET /projects/{id}/fork-tree` requires the root project to be public; private forks are excluded from all traversal output |
-| **Email PII protection** | User search results never expose a stranger's email address — only visible once a friendship exists |
-| **Security response headers** | Every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` |
+| **Fork tree visibility** | Private forks are excluded from all traversal output |
+| **Email PII protection** | User search never exposes a stranger's email — only visible once a friendship exists |
+| **Security headers** | Every response carries `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` |
 | **CORS via env** | `CORS_ALLOWED_ORIGINS` env variable — no hardcoded `localhost` in production |
-| **Safe env defaults** | `.env.example` ships with `APP_DEBUG=false`; all security-sensitive variables documented with warnings |
 
 ---
 
 ## 📚 Schema Templates
 
-Jump-start any project with one of **15 pre-built templates** — loaded with tables, columns, data types, and labelled relationships, ready to customise.
+**15 pre-built templates** — tables, columns, data types, and labelled relationships, ready to customise in one click.
 
 | # | Template | Tables | Description |
-|---|---|:---:|---|
+|:---:|---|:---:|---|
 | 1 | **Blog Platform** | 4 | Posts, categories, tags, comments |
 | 2 | **E-Commerce Store** | 5 | Products, orders, carts, payments |
 | 3 | **SaaS Platform** | 5 | Subscriptions, plans, billing |
@@ -227,6 +233,7 @@ Jump-start any project with one of **15 pre-built templates** — loaded with ta
 │  comments           │
 │  collections        │
 │  notifications      │
+│  activity_logs      │
 └─────────────────────┘
 ```
 
@@ -235,7 +242,7 @@ Jump-start any project with one of **15 pre-built templates** — loaded with ta
 ## 🛠️ Tech Stack
 
 | Layer | Technology | Version |
-|---|---|---|
+|---|---|:---:|
 | Frontend Framework | React | 18 |
 | Build Tool | Vite | 7 |
 | Styling | Tailwind CSS | 4 |
@@ -256,9 +263,9 @@ Jump-start any project with one of **15 pre-built templates** — loaded with ta
 
 ## ⚡ Quick Start
 
-### Option A — Docker (recommended, no local PHP/Node/MySQL needed)
+### Option A — Docker (recommended)
 
-> **Full guide:** [`README-DOCKER.md`](README-DOCKER.md)
+> Full guide: [`README-DOCKER.md`](README-DOCKER.md)
 
 ```bash
 git clone https://github.com/YassineAatita/Schema-Genius.git
@@ -370,9 +377,7 @@ cd backend && php artisan reverb:start   # ws://localhost:8080
 cd frontend && npm run dev               # http://localhost:5173
 ```
 
----
-
-### Default Admin Account
+#### Default Admin Account
 
 ```
 Email:    admin@schema-genius.com
@@ -401,10 +406,11 @@ Schema-Genius/
 │   │   │   │   ├── CollectionController
 │   │   │   │   ├── NotificationController
 │   │   │   │   ├── ProfileController
+│   │   │   │   ├── ActivityController
 │   │   │   │   ├── FeaturedSchemaController
 │   │   │   │   └── AdminController
 │   │   │   └── Middleware/
-│   │   │       └── SecurityHeaders     X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy
+│   │   │       └── SecurityHeaders     X-Content-Type-Options, X-Frame-Options, etc.
 │   │   ├── Models/                     User, Project, Schema, SchemaVersion,
 │   │   │                               AiGeneration, Collaborator, ...
 │   │   ├── Notifications/              VerifyEmailNotification, ResetPasswordNotification
@@ -428,30 +434,34 @@ Schema-Genius/
 │   │   │   │   └── RelationshipEditor.jsx Edge type + labels panel
 │   │   │   └── ui/
 │   │   │       ├── ConfirmModal.jsx    Reusable confirm dialog
-│   │   │       └── OrmExportModal.jsx  Laravel / Django / Prisma code export modal
+│   │   │       └── OrmExportModal.jsx  Laravel / Django / Prisma export modal
 │   │   ├── data/
 │   │   │   └── schemaTemplates.jsx     All 15 pre-built templates
 │   │   ├── pages/
-│   │   │   ├── LandingPage.jsx         Dark marketing homepage
-│   │   │   ├── LoginPage.jsx           Auth page
-│   │   │   ├── RegisterPage.jsx        Auth page
-│   │   │   ├── DashboardPage.jsx       Projects list + stats
-│   │   │   ├── DesignerPage.jsx        ★ Main canvas + all toolbar logic
+│   │   │   ├── LandingPage.jsx         Warm-toned marketing homepage
+│   │   │   ├── LoginPage.jsx           Dark auth page (warm brown theme)
+│   │   │   ├── RegisterPage.jsx        Dark multi-step registration
+│   │   │   ├── DashboardPage.jsx       Projects list, friends, stats (cream theme)
+│   │   │   ├── DesignerPage.jsx        Main canvas + all toolbar logic
 │   │   │   ├── ExplorePage.jsx         Community gallery
-│   │   │   ├── ProfilePage.jsx         Public / own profile
+│   │   │   ├── PublicProfilePage.jsx   Public user profile (cream theme)
+│   │   │   ├── SharedSchemaPage.jsx    Read-only share link view
 │   │   │   └── AdminPage.jsx           Admin dashboard
 │   │   ├── services/
 │   │   │   ├── api.js                  Axios instance (base URL + token + interceptors)
-│   │   │   └── websocket.js            Laravel Echo + Reverb WebSocket init + authorizer
+│   │   │   └── websocket.js            Laravel Echo + Reverb init + authorizer
 │   │   ├── store/
 │   │   │   ├── useAuthStore.js         Auth state (user, token)
 │   │   │   └── useSchemaStore.js       Canvas state + undo/redo + collab emit
 │   │   └── utils/
 │   │       ├── validateSchema.js       Client-side schema linter
 │   │       ├── parseSql.js             SQL → nodes/edges parser
-│   │       └── ormGenerator.js         Pure-JS ORM code generators (Laravel, Django, Prisma)
+│   │       └── ormGenerator.js         ORM code generators (Laravel, Django, Prisma)
 │   └── index.html
 │
+├── docker-compose.yml                  Dev containers
+├── docker-compose.prod.yml             Production containers
+├── Makefile                            Convenience commands
 └── README.md
 ```
 
@@ -460,7 +470,7 @@ Schema-Genius/
 ## 🔌 API Reference
 
 <details>
-<summary><strong>Auth endpoints</strong></summary>
+<summary><strong>🔑 Auth endpoints</strong></summary>
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|:----:|-------------|
@@ -476,7 +486,7 @@ Schema-Genius/
 </details>
 
 <details>
-<summary><strong>Projects & Schemas</strong></summary>
+<summary><strong>📐 Projects & Schemas</strong></summary>
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|:----:|-------------|
@@ -497,7 +507,7 @@ Schema-Genius/
 </details>
 
 <details>
-<summary><strong>AI endpoints</strong></summary>
+<summary><strong>🤖 AI endpoints</strong></summary>
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|:----:|-------------|
@@ -511,7 +521,7 @@ Schema-Genius/
 </details>
 
 <details>
-<summary><strong>Explore & Community</strong></summary>
+<summary><strong>🌐 Explore & Community</strong></summary>
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|:----:|-------------|
@@ -531,7 +541,7 @@ Schema-Genius/
 </details>
 
 <details>
-<summary><strong>Collections, Social & Notifications</strong></summary>
+<summary><strong>📦 Collections, Social & Notifications</strong></summary>
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|:----:|-------------|
@@ -550,11 +560,12 @@ Schema-Genius/
 | `GET` | `/api/notifications` | ✓ | Notification list |
 | `POST` | `/api/notifications/read-all` | ✓ | Mark all read |
 | `DELETE` | `/api/notifications/clear` | ✓ | Clear all |
+| `GET` | `/api/activity` | ✓ | Personal activity feed |
 
 </details>
 
 <details>
-<summary><strong>Collaborators & Invitations</strong></summary>
+<summary><strong>🤝 Collaborators & Invitations</strong></summary>
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|:----:|-------------|
@@ -571,7 +582,7 @@ Schema-Genius/
 </details>
 
 <details>
-<summary><strong>Admin endpoints</strong></summary>
+<summary><strong>🛡️ Admin endpoints</strong></summary>
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -621,22 +632,22 @@ Schema Genius uses **Laravel Reverb** presence channels and client whispers for 
 
 ### ✅ Completed
 
-- [x] Auth: register · email verify · login · logout · forgot/reset password · branded emails
+- [x] Auth — register · email verify · login · logout · forgot/reset password · branded emails
 - [x] Projects CRUD with auto-created versioned schema
-- [x] Visual designer: drag-drop canvas, TableNode, RelationshipEditor
-- [x] 22 column types across 5 groups (Numeric, String, Date/Time, Binary, Other — incl. TINYINT, DOUBLE, CHAR, TIME, BLOB, MEDIUMBLOB, LONGBLOB, JSON, UUID)
-- [x] Column flags — PK (single-PK enforced), FK sub-form (ref table/column + On Delete/Update), Unique, Nullable, Auto-Increment, Index, Default
-- [x] Column deletion safety — FK reference warnings + last-PK advisory + auto-cleanup of orphaned FK refs
+- [x] Visual designer — drag-drop canvas, TableNode, RelationshipEditor
+- [x] 22 column types across 5 groups (Numeric, String, Date/Time, Binary, Other)
+- [x] Column flags — PK, FK sub-form (ref table/column + On Delete/Update), Unique, Nullable, Auto-Increment, Index, Default
+- [x] Column deletion safety — FK reference warnings + last-PK advisory + auto-cleanup
 - [x] ORM export — Laravel Eloquent · Django models · Prisma schema (copy / download)
 - [x] Relationship types (1:1, 1:N, N:1, M:M) with UML role-name labels
 - [x] Line style switcher (Curved · Elbow · Step · Straight)
 - [x] Table annotations (sticky notes, real-time synced)
 - [x] Undo / Redo — 50-step history
 - [x] Multi-select bulk delete
-- [x] Schema validation panel (duplicate names, missing PKs, reserved words)
+- [x] Schema validation panel
 - [x] Version history browser + restore
 - [x] Schema diff viewer (compare any two versions)
-- [x] SQL export — MySQL / PostgreSQL / SQLite (all 22 types, column-level FK constraints, CREATE INDEX)
+- [x] SQL export — MySQL / PostgreSQL / SQLite
 - [x] Copy SQL to clipboard
 - [x] Import from SQL (paste or file upload)
 - [x] AI text → schema (Groq Llama 4 Scout)
@@ -658,9 +669,10 @@ Schema Genius uses **Laravel Reverb** presence channels and client whispers for 
 - [x] Access requests with owner approve/decline flow
 - [x] Notification centre with read/clear
 - [x] User profiles (public + edit + avatar upload)
+- [x] Activity heatmap on profile
 - [x] Admin dashboard — users · projects · AI monitoring · moderation
-- [x] Security hardening — rate limiting on all auth + AI endpoints, IDOR fixes, token expiration, security headers, CORS via env, schema payload caps, image MIME validation, email PII protection, fork tree visibility enforcement
-- [x] **Deployment** — Docker Compose (dev + prod), Nginx reverse proxy, Laravel Reverb WebSocket server, mobile-responsive UI, production `.env` guide, GCP / VPS deployment walkthrough
+- [x] Security hardening — rate limiting, IDOR fixes, token expiry, security headers, schema payload caps
+- [x] Deployment — Docker Compose (dev + prod), Nginx reverse proxy, GCP / VPS walkthrough
 
 ### 🔜 Up Next
 
@@ -688,14 +700,20 @@ Please follow the existing code style and include a brief description of your ch
 
 **Yassine Aatita** · **Fatima Zahra Aknioune**
 
-Final Year Engineering Project — Visual Database Schema Designer
+*Final Year Engineering Project — Visual Database Schema Designer*
+
+---
+
+## 🙏 Acknowledgement
+
+*With gratitude to **Dr. Ahmed Zellou**, for his invaluable guidance.*
 
 ---
 
 <div align="center">
 
-Made with ❤️ and way too much ☕
+<img src="https://img.shields.io/badge/Schema_Genius-built_with_purpose-c96b3a?style=for-the-badge" alt="built with purpose"/>
 
-⭐ Star this repo if Schema Genius saved you from writing DDL by hand!
+⭐ Star this repo if Schema Genius saved you from writing DDL by hand.
 
 </div>
