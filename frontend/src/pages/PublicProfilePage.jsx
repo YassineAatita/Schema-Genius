@@ -69,7 +69,7 @@ function useToast() {
 function Toast({ toast }) {
   if (!toast) return null
   const colors = {
-    info:    'bg-gray-900 text-white',
+    info:    'bg-[#161413] text-white',
     error:   'bg-red-600 text-white',
     warning: 'bg-amber-500 text-white',
     success: 'bg-emerald-600 text-white',
@@ -129,10 +129,10 @@ function SchemaThumbnail({ thumbnailNodes = [], tableCount = 0, edgeCount = 0, p
 
     return (
       <svg width={W} height={H} className="rounded-xl overflow-hidden">
-        <rect width={W} height={H} fill="#f8fafc" rx={8}/>
+        <rect width={W} height={H} fill="#f0ebe3" rx={8}/>
         {edgeLines.map((l, i) => (
           <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
-                stroke="#94a3b8" strokeWidth={0.8} strokeDasharray="2,2" opacity={0.4}/>
+                stroke="#c4b8a8" strokeWidth={0.8} strokeDasharray="2,2" opacity={0.5}/>
         ))}
         {placed.map((n, i) => {
           const label = n.name.length > Math.max(4, Math.floor(cellW / 5.5))
@@ -161,8 +161,8 @@ function SchemaThumbnail({ thumbnailNodes = [], tableCount = 0, edgeCount = 0, p
   if (count === 0) {
     return (
       <svg width={W} height={H} className="rounded-xl">
-        <rect width={W} height={H} fill="#f1f5f9" rx={8}/>
-        <text x={W / 2} y={H / 2 + 4} textAnchor="middle" fill="#94a3b8"
+        <rect width={W} height={H} fill="#f0ebe3" rx={8}/>
+        <text x={W / 2} y={H / 2 + 4} textAnchor="middle" fill="#8c7b6e"
               fontSize={9} fontFamily="system-ui, sans-serif">No schema yet</text>
       </svg>
     )
@@ -179,7 +179,7 @@ function SchemaThumbnail({ thumbnailNodes = [], tableCount = 0, edgeCount = 0, p
   }))
   return (
     <svg width={W} height={H} className="rounded-xl overflow-hidden">
-      <rect width={W} height={H} fill="#f8fafc" rx={8}/>
+      <rect width={W} height={H} fill="#f0ebe3" rx={8}/>
       {gridNodes.map((n, i) => (
         <g key={i}>
           <rect x={n.x} y={n.y} width={cellW} height={cellH} rx={3} fill={n.color} opacity={0.12}/>
@@ -193,16 +193,16 @@ function SchemaThumbnail({ thumbnailNodes = [], tableCount = 0, edgeCount = 0, p
 // ── Skeleton card ─────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
-      <div className="h-24 bg-gray-100"/>
+    <div className="bg-white rounded-2xl border border-[#ebe6dd] overflow-hidden animate-pulse">
+      <div className="h-24 bg-[#f0ebe3]"/>
       <div className="p-4 space-y-2.5">
-        <div className="h-4 bg-gray-100 rounded-lg w-3/4"/>
-        <div className="h-3 bg-gray-100 rounded-lg w-full"/>
-        <div className="h-3 bg-gray-100 rounded-lg w-5/6"/>
-        <div className="h-3 bg-gray-100 rounded-lg w-1/2 mt-4"/>
-        <div className="flex justify-between items-center pt-2 border-t border-gray-50 mt-2">
-          <div className="h-3 bg-gray-100 rounded-lg w-1/3"/>
-          <div className="h-6 bg-gray-100 rounded-lg w-20"/>
+        <div className="h-4 bg-[#f0ebe3] rounded-lg w-3/4"/>
+        <div className="h-3 bg-[#f0ebe3] rounded-lg w-full"/>
+        <div className="h-3 bg-[#f0ebe3] rounded-lg w-5/6"/>
+        <div className="h-3 bg-[#f0ebe3] rounded-lg w-1/2 mt-4"/>
+        <div className="flex justify-between items-center pt-2 border-t border-[#f0ebe3] mt-2">
+          <div className="h-3 bg-[#f0ebe3] rounded-lg w-1/3"/>
+          <div className="h-6 bg-[#f0ebe3] rounded-lg w-20"/>
         </div>
       </div>
     </div>
@@ -212,21 +212,21 @@ function SkeletonCard() {
 // ── Profile skeleton ──────────────────────────────────────────────────────────
 function ProfileSkeleton() {
   return (
-    <div className="animate-pulse">
+    <div className="animate-pulse bg-white rounded-2xl border border-[#ebe6dd] shadow-sm p-6 sm:p-8 mb-8">
       <div className="flex flex-col sm:flex-row items-start gap-6 mb-8">
-        <div className="w-24 h-24 rounded-2xl bg-gray-200 flex-shrink-0"/>
+        <div className="w-24 h-24 rounded-2xl bg-[#ebe6dd] flex-shrink-0"/>
         <div className="flex-1 space-y-3 pt-1">
-          <div className="h-7 bg-gray-200 rounded-lg w-48"/>
-          <div className="h-4 bg-gray-100 rounded-lg w-32"/>
-          <div className="h-3 bg-gray-100 rounded-lg w-full max-w-md"/>
-          <div className="h-3 bg-gray-100 rounded-lg w-3/4 max-w-sm"/>
+          <div className="h-7 bg-[#ebe6dd] rounded-lg w-48"/>
+          <div className="h-4 bg-[#f0ebe3] rounded-lg w-32"/>
+          <div className="h-3 bg-[#f0ebe3] rounded-lg w-full max-w-md"/>
+          <div className="h-3 bg-[#f0ebe3] rounded-lg w-3/4 max-w-sm"/>
         </div>
       </div>
-      <div className="flex gap-6 mb-8">
+      <div className="flex gap-6 pt-6 border-t border-[#ebe6dd]">
         {[1,2,3,4].map(i => (
           <div key={i} className="text-center">
-            <div className="h-7 bg-gray-200 rounded w-10 mx-auto mb-1"/>
-            <div className="h-3 bg-gray-100 rounded w-16"/>
+            <div className="h-7 bg-[#ebe6dd] rounded w-10 mx-auto mb-1"/>
+            <div className="h-3 bg-[#f0ebe3] rounded w-16"/>
           </div>
         ))}
       </div>
@@ -270,13 +270,13 @@ function ProfileSchemaCard({ card: initialCard, viewer, onStar, onLike, onFork, 
 
   return (
     <div onClick={() => onOpen(card)}
-         className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md
-                    hover:border-blue-200/60 transition-all duration-200 cursor-pointer
+         className="bg-white rounded-2xl border border-[#ebe6dd] shadow-sm hover:shadow-md
+                    hover:border-[#d4c9b8] transition-all duration-200 cursor-pointer
                     overflow-hidden flex flex-col">
 
       {/* Thumbnail */}
-      <div className="relative bg-gradient-to-br from-slate-50 to-gray-100
-                      flex items-center justify-center py-3 border-b border-gray-100">
+      <div className="relative bg-[#f7f5f1]
+                      flex items-center justify-center py-3 border-b border-[#ebe6dd]">
         <SchemaThumbnail
           thumbnailNodes={card.thumbnail_nodes}
           tableCount={card.stats?.tables || 0}
@@ -295,12 +295,12 @@ function ProfileSchemaCard({ card: initialCard, viewer, onStar, onLike, onFork, 
 
       {/* Body */}
       <div className="px-4 pt-3 pb-4 flex-1 flex flex-col">
-        <h3 className="font-bold text-gray-900 text-sm truncate mb-0.5">{card.name}</h3>
-        <p className="text-[11px] text-gray-400 line-clamp-2 mb-2 leading-relaxed flex-1 min-h-[2.2rem]">
+        <h3 className="font-bold text-[#161413] text-sm truncate mb-0.5">{card.name}</h3>
+        <p className="text-[11px] text-[#8c7b6e] line-clamp-2 mb-2 leading-relaxed flex-1 min-h-[2.2rem]">
           {card.description || 'No description'}
         </p>
 
-        <div className="flex items-center gap-3 text-[11px] text-gray-400 mb-2.5">
+        <div className="flex items-center gap-3 text-[11px] text-[#8c7b6e] mb-2.5">
           <span>{card.stats?.tables || 0} classes</span>
           <span>·</span>
           <span>{card.stats?.edges || 0} relations</span>
@@ -309,15 +309,15 @@ function ProfileSchemaCard({ card: initialCard, viewer, onStar, onLike, onFork, 
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-2.5 border-t border-gray-50">
+        <div className="flex items-center justify-between pt-2.5 border-t border-[#f0ebe3]">
           <div className="flex items-center gap-2.5 text-[11px]">
-            <span className={`flex items-center gap-0.5 ${card.is_starred ? 'text-amber-500' : 'text-gray-400'}`}>
+            <span className={`flex items-center gap-0.5 ${card.is_starred ? 'text-amber-500' : 'text-[#8c7b6e]'}`}>
               <StarIcon filled={card.is_starred}/> {card.stats?.stars || 0}
             </span>
-            <span className={`flex items-center gap-0.5 ${card.is_liked ? 'text-red-400' : 'text-gray-400'}`}>
+            <span className={`flex items-center gap-0.5 ${card.is_liked ? 'text-red-400' : 'text-[#8c7b6e]'}`}>
               <HeartIcon filled={card.is_liked}/> {card.stats?.likes || 0}
             </span>
-            <span className="flex items-center gap-0.5 text-gray-400">
+            <span className="flex items-center gap-0.5 text-[#8c7b6e]">
               <GitForkIcon/> {card.stats?.forks || 0}
             </span>
           </div>
@@ -328,28 +328,28 @@ function ProfileSchemaCard({ card: initialCard, viewer, onStar, onLike, onFork, 
                 className={`p-1.5 rounded-lg transition-colors
                   ${card.is_starred
                     ? 'text-amber-500 bg-amber-50 hover:bg-amber-100'
-                    : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'}`}>
+                    : 'text-[#8c7b6e] hover:text-amber-500 hover:bg-amber-50'}`}>
                 {starring ? <Spinner/> : <StarIcon filled={card.is_starred}/>}
               </button>
               <button disabled={liking} onClick={doLike}
                 className={`p-1.5 rounded-lg transition-colors
                   ${card.is_liked
                     ? 'text-red-400 bg-red-50 hover:bg-red-100'
-                    : 'text-gray-400 hover:text-red-400 hover:bg-red-50'}`}>
+                    : 'text-[#8c7b6e] hover:text-red-400 hover:bg-red-50'}`}>
                 {liking ? <Spinner/> : <HeartIcon filled={card.is_liked}/>}
               </button>
               <button disabled={forking || card.is_forked} onClick={doFork}
                 className={`p-1.5 rounded-lg transition-colors
                   ${card.is_forked
                     ? 'text-violet-500 bg-violet-50 cursor-default'
-                    : 'text-gray-400 hover:text-violet-500 hover:bg-violet-50'}`}>
+                    : 'text-[#8c7b6e] hover:text-violet-500 hover:bg-violet-50'}`}>
                 {forking ? <Spinner/> : <GitForkIcon/>}
               </button>
             </div>
           )}
 
           {isOwn && (
-            <span className="text-[10px] text-blue-500 font-medium bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+            <span className="text-[10px] text-[#5a4a3f] font-medium bg-[#f0ebe3] px-2 py-0.5 rounded-full border border-[#ebe6dd]">
               Your schema
             </span>
           )}
@@ -429,14 +429,14 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, vie
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
          style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-[#ebe6dd]">
 
         {/* Header */}
-        <div className="px-6 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
+        <div className="px-6 pt-5 pb-4 border-b border-[#ebe6dd] flex-shrink-0">
           <div className="flex items-start justify-between mb-2">
             <div className="flex-1 min-w-0 pr-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-bold text-gray-900 truncate">{card.name}</h2>
+                <h2 className="text-lg font-bold text-[#161413] truncate">{card.name}</h2>
                 {card.is_featured && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
                     ★ Featured
@@ -448,17 +448,17 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, vie
                   </span>
                 )}
               </div>
-              <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{card.description || 'No description'}</p>
+              <p className="text-sm text-[#5a4a3f] mt-0.5 line-clamp-2">{card.description || 'No description'}</p>
             </div>
             <button onClick={onClose}
-              className="text-gray-300 hover:text-gray-500 p-1.5 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0">
+              className="text-[#d4c9b8] hover:text-[#5a4a3f] p-1.5 rounded-lg hover:bg-[#f0ebe3] transition-colors flex-shrink-0">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
               </svg>
             </button>
           </div>
 
-          <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400 flex-wrap">
+          <div className="flex items-center gap-3 mt-1.5 text-xs text-[#8c7b6e] flex-wrap">
             <span>{stats.tables ?? 0} classes · {stats.edges ?? 0} relations</span>
             <span>·</span>
             <span>{timeAgo(card.created_at)}</span>
@@ -470,7 +470,7 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, vie
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all
                   ${card.is_starred
                     ? 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100'
-                    : 'border-gray-200 text-gray-500 hover:border-amber-200 hover:text-amber-600 hover:bg-amber-50'}`}>
+                    : 'border-[#ebe6dd] text-[#8c7b6e] hover:border-amber-200 hover:text-amber-600 hover:bg-amber-50'}`}>
                 {starring ? <Spinner/> : <StarIcon filled={card.is_starred}/>}
                 {card.is_starred ? 'Starred' : 'Star'} · {stats.stars ?? 0}
               </button>
@@ -478,7 +478,7 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, vie
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all
                   ${card.is_liked
                     ? 'bg-red-50 border-red-200 text-red-500 hover:bg-red-100'
-                    : 'border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-500 hover:bg-red-50'}`}>
+                    : 'border-[#ebe6dd] text-[#8c7b6e] hover:border-red-200 hover:text-red-500 hover:bg-red-50'}`}>
                 {liking ? <Spinner/> : <HeartIcon filled={card.is_liked}/>}
                 {card.is_liked ? 'Liked' : 'Like'} · {stats.likes ?? 0}
               </button>
@@ -486,7 +486,7 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, vie
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all
                   ${card.is_forked
                     ? 'bg-violet-50 border-violet-200 text-violet-600 cursor-default'
-                    : 'border-gray-200 text-gray-500 hover:border-violet-200 hover:text-violet-600 hover:bg-violet-50'}`}>
+                    : 'border-[#ebe6dd] text-[#8c7b6e] hover:border-violet-200 hover:text-violet-600 hover:bg-violet-50'}`}>
                 {forking ? <Spinner/> : <GitForkIcon/>}
                 {card.is_forked ? 'Forked' : 'Fork'} · {stats.forks ?? 0}
               </button>
@@ -494,10 +494,10 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, vie
           )}
           {viewer && isOwner && (
             <div className="mt-3 flex items-center gap-2">
-              <span className="text-[11px] px-2.5 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 font-medium">
+              <span className="text-[11px] px-2.5 py-1 rounded-full bg-[#f0ebe3] border border-[#ebe6dd] text-[#5a4a3f] font-medium">
                 Your schema
               </span>
-              <span className="text-[11px] text-gray-400">
+              <span className="text-[11px] text-[#8c7b6e]">
                 {stats.stars ?? 0} stars · {stats.likes ?? 0} likes · {stats.forks ?? 0} forks
               </span>
             </div>
@@ -505,11 +505,11 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, vie
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-0.5 px-6 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center gap-0.5 px-6 border-b border-[#ebe6dd] flex-shrink-0">
           {tabs.map(([id, label]) => (
             <button key={id} onClick={() => setActiveTab(id)}
               className={`px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors
-                ${activeTab === id ? 'text-blue-600 border-blue-500' : 'text-gray-500 border-transparent hover:text-gray-700'}`}>
+                ${activeTab === id ? 'text-[#161413] border-[#161413]' : 'text-[#8c7b6e] border-transparent hover:text-[#5a4a3f]'}`}>
               {label}
             </button>
           ))}
@@ -519,8 +519,8 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, vie
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'overview' && (
             <div>
-              <div className="bg-gradient-to-br from-slate-50 to-gray-100 rounded-2xl p-8
-                              flex items-center justify-center mb-6 border border-gray-100">
+              <div className="bg-[#f7f5f1] rounded-2xl p-8
+                              flex items-center justify-center mb-6 border border-[#ebe6dd]">
                 <SchemaThumbnail
                   thumbnailNodes={card.thumbnail_nodes}
                   tableCount={stats.tables ?? 0}
@@ -534,7 +534,7 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, vie
                   { label: 'Stars',    value: stats.stars    ?? 0, bg: 'bg-amber-50',  border: 'border-amber-100',  text: 'text-amber-600',  sub: 'text-amber-400' },
                   { label: 'Likes',    value: stats.likes    ?? 0, bg: 'bg-red-50',    border: 'border-red-100',    text: 'text-red-500',    sub: 'text-red-300' },
                   { label: 'Forks',    value: stats.forks    ?? 0, bg: 'bg-violet-50', border: 'border-violet-100', text: 'text-violet-600', sub: 'text-violet-400' },
-                  { label: 'Comments', value: stats.comments ?? 0, bg: 'bg-blue-50',   border: 'border-blue-100',   text: 'text-blue-600',   sub: 'text-blue-400' },
+                  { label: 'Comments', value: stats.comments ?? 0, bg: 'bg-[#f0ebe3]', border: 'border-[#ebe6dd]',  text: 'text-[#5a4a3f]',  sub: 'text-[#8c7b6e]' },
                 ].map(({ label, value, bg, border, text, sub }) => (
                   <div key={label} className={`${bg} ${border} border rounded-xl p-3 text-center`}>
                     <p className={`text-2xl font-bold ${text}`}>{value}</p>
@@ -547,18 +547,19 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, vie
 
           {activeTab === 'comments' && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-4">Comments ({comments.length})</p>
+              <p className="text-sm font-semibold text-[#161413] mb-4">Comments ({comments.length})</p>
               {viewer && (
                 <div className="mb-5">
                   <textarea value={commentText} onChange={e => setCommentText(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && e.ctrlKey) postComment() }}
                     rows={2} placeholder="Write a comment… (Ctrl+Enter to post)"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl resize-none
-                               bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30
-                               focus:border-blue-400 transition-all"/>
+                    className="w-full px-3 py-2 text-sm border border-[#ebe6dd] rounded-xl resize-none
+                               bg-[#f7f5f1] text-[#161413] placeholder:text-[#8c7b6e]
+                               focus:outline-none focus:ring-2 focus:ring-[#161413]/10
+                               focus:border-[#d4c9b8] transition-all"/>
                   <div className="flex justify-end mt-1.5">
                     <button onClick={postComment} disabled={!commentText.trim() || posting}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold
+                      className="px-3 py-1.5 bg-[#161413] hover:bg-[#3d3633] text-white text-xs font-semibold
                                  rounded-lg transition-colors disabled:opacity-40">
                       {posting ? 'Posting…' : 'Post'}
                     </button>
@@ -567,26 +568,26 @@ function SchemaDetailModal({ card: initial, onClose, onStar, onLike, onFork, vie
               )}
               {commLoading ? (
                 <div className="flex justify-center py-8">
-                  <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>
+                  <div className="w-5 h-5 border-2 border-[#161413] border-t-transparent rounded-full animate-spin"/>
                 </div>
               ) : comments.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-6">No comments yet. Be the first!</p>
+                <p className="text-xs text-[#8c7b6e] text-center py-6">No comments yet. Be the first!</p>
               ) : (
                 <div className="space-y-3">
                   {comments.map(c => (
                     <div key={c.id} className="flex gap-2.5">
                       <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center
-                                      font-bold text-white overflow-hidden bg-blue-500 text-[10px]">
+                                      font-bold text-white overflow-hidden bg-[#161413] text-[10px]">
                         {c.author?.avatar_url
                           ? <img src={c.author.avatar_url} alt="" className="w-full h-full object-cover"/>
                           : (c.author?.name || '?')[0].toUpperCase()}
                       </div>
-                      <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2">
+                      <div className="flex-1 bg-[#f7f5f1] rounded-xl px-3 py-2">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-semibold text-gray-800">{c.author?.name}</span>
-                          <span className="text-[10px] text-gray-400">{timeAgo(c.created_at)}</span>
+                          <span className="text-xs font-semibold text-[#161413]">{c.author?.name}</span>
+                          <span className="text-[10px] text-[#8c7b6e]">{timeAgo(c.created_at)}</span>
                         </div>
-                        <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{c.content}</p>
+                        <p className="text-xs text-[#5a4a3f] leading-relaxed whitespace-pre-wrap">{c.content}</p>
                       </div>
                     </div>
                   ))}
@@ -606,15 +607,15 @@ function StatPill({ value, label, onClick }) {
   if (onClick) {
     return (
       <button onClick={onClick} className={`${base} group`}>
-        <p className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{value}</p>
-        <p className="text-xs text-gray-500 group-hover:text-blue-500 transition-colors">{label}</p>
+        <p className="text-xl font-bold text-[#161413] group-hover:text-[#3d3633] transition-colors">{value}</p>
+        <p className="text-xs text-[#8c7b6e] group-hover:text-[#5a4a3f] transition-colors">{label}</p>
       </button>
     )
   }
   return (
     <div className={base}>
-      <p className="text-xl font-bold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-500">{label}</p>
+      <p className="text-xl font-bold text-[#161413]">{value}</p>
+      <p className="text-xs text-[#8c7b6e]">{label}</p>
     </div>
   )
 }
@@ -751,32 +752,31 @@ export default function PublicProfilePage() {
   // ── 404 state ─────────────────────────────────────────────────────────────
   if (notFound) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] flex flex-col">
-        <nav className="bg-white border-b border-gray-100 px-6 py-3.5 flex items-center justify-between">
+      <div className="min-h-screen bg-[#f7f5f1] flex flex-col">
+        <nav className="bg-white border-b border-[#ebe6dd] px-6 py-3.5 flex items-center justify-between">
           <Link to="/" className="flex items-center">
-            <img src="/logo_white.svg" alt="Schema Genius"
-                 className="h-7 w-auto"
-                 style={{ filter: 'invert(1) brightness(0) saturate(100%) invert(28%) sepia(45%) saturate(700%) hue-rotate(200deg)' }}/>
+            <img src="/logo_black.svg" alt="Schema Genius" className="h-7 w-auto"/>
           </Link>
           <button onClick={() => navigate('/dashboard')}
-            className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+            className="text-sm font-semibold text-white bg-[#161413] hover:bg-[#3d3633]
+                       px-4 py-1.5 rounded-xl transition-colors">
             Dashboard
           </button>
         </nav>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-sm px-4">
-            <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-5">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 rounded-2xl bg-[#f0ebe3] flex items-center justify-center mx-auto mb-5">
+              <svg className="w-8 h-8 text-[#8c7b6e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
               </svg>
             </div>
-            <h1 className="text-xl font-bold text-gray-900 mb-2">User not found</h1>
-            <p className="text-sm text-gray-500 mb-6">
+            <h1 className="text-xl font-bold text-[#161413] mb-2">User not found</h1>
+            <p className="text-sm text-[#5a4a3f] mb-6">
               This profile doesn't exist or may have been removed.
             </p>
             <button onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-700
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#161413] hover:bg-[#3d3633]
                          text-sm text-white font-semibold rounded-xl transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
@@ -794,17 +794,16 @@ export default function PublicProfilePage() {
 
   // ── Main render ───────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
+    <div className="min-h-screen bg-[#f7f5f1]">
 
       {/* Top nav */}
-      <nav className="bg-white border-b border-gray-100 px-6 py-3.5 flex items-center justify-between sticky top-0 z-10">
+      <nav className="bg-white border-b border-[#ebe6dd] px-6 py-3.5 flex items-center justify-between sticky top-0 z-10">
         <Link to="/" className="flex items-center">
-          <img src="/logo_white.svg" alt="Schema Genius"
-               className="h-7 w-auto"
-               style={{ filter: 'invert(1) brightness(0) saturate(100%) invert(28%) sepia(45%) saturate(700%) hue-rotate(200deg)' }}/>
+          <img src="/logo_black.svg" alt="Schema Genius" className="h-7 w-auto"/>
         </Link>
         <button onClick={() => navigate('/dashboard')}
-          className="text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors">
+          className="text-sm font-semibold text-white bg-[#161413] hover:bg-[#3d3633]
+                     px-4 py-1.5 rounded-xl transition-colors">
           Dashboard
         </button>
       </nav>
@@ -815,7 +814,7 @@ export default function PublicProfilePage() {
         {loading ? (
           <ProfileSkeleton/>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8 mb-8">
+          <div className="bg-white rounded-2xl border border-[#ebe6dd] shadow-sm p-6 sm:p-8 mb-8">
             <div className="flex flex-col sm:flex-row items-start gap-6">
 
               {/* Avatar */}
@@ -835,21 +834,21 @@ export default function PublicProfilePage() {
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-start gap-3 mb-1">
-                  <h1 className="text-2xl font-bold text-gray-900">{u?.name}</h1>
+                  <h1 className="text-2xl font-bold text-[#161413]">{u?.name}</h1>
                   {u?.user_type && (
-                    <span className="mt-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50
-                                     text-blue-600 border border-blue-100">
+                    <span className="mt-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-[#f0ebe3]
+                                     text-[#5a4a3f] border border-[#ebe6dd]">
                       {USER_TYPE_LABELS[u.user_type] || u.user_type}
                     </span>
                   )}
                 </div>
                 {u?.headline && (
-                  <p className="text-sm text-gray-600 font-medium mb-2">{u.headline}</p>
+                  <p className="text-sm text-[#5a4a3f] font-medium mb-2">{u.headline}</p>
                 )}
                 {u?.bio && (
-                  <p className="text-sm text-gray-500 leading-relaxed mb-3 max-w-xl">{u.bio}</p>
+                  <p className="text-sm text-[#6f6863] leading-relaxed mb-3 max-w-xl">{u.bio}</p>
                 )}
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-[#8c7b6e]">
                   Member since {new Date(u?.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </p>
               </div>
@@ -859,7 +858,7 @@ export default function PublicProfilePage() {
                 {isOwnProfile ? (
                   <button onClick={() => navigate('/dashboard')}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-semibold
-                               border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50
+                               border border-[#ebe6dd] rounded-xl text-[#161413] hover:bg-[#f0ebe3]
                                transition-colors">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -872,8 +871,8 @@ export default function PublicProfilePage() {
                     className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl
                                 transition-all disabled:opacity-60
                       ${isFollowing
-                        ? 'border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-500 hover:border-red-200'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-200'}`}>
+                        ? 'border border-[#ebe6dd] text-[#5a4a3f] hover:bg-red-50 hover:text-red-500 hover:border-red-200'
+                        : 'bg-[#161413] hover:bg-[#3d3633] text-white shadow-sm'}`}>
                     {followLoading ? (
                       <Spinner cls="w-4 h-4"/>
                     ) : isFollowing ? (
@@ -898,7 +897,7 @@ export default function PublicProfilePage() {
             </div>
 
             {/* Stats row */}
-            <div className="flex items-center gap-6 sm:gap-10 mt-6 pt-6 border-t border-gray-100 flex-wrap">
+            <div className="flex items-center gap-6 sm:gap-10 mt-6 pt-6 border-t border-[#ebe6dd] flex-wrap">
               <StatPill value={stats?.public_schemas ?? 0} label="Public schemas"/>
               <StatPill value={stats?.followers ?? 0} label="Followers"/>
               <StatPill value={stats?.following ?? 0} label="Following"/>
@@ -914,24 +913,24 @@ export default function PublicProfilePage() {
         {!loading && (
           <>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-bold text-gray-900">
+              <h2 className="text-base font-bold text-[#161413]">
                 Public schemas
                 {meta.total > 0 && (
-                  <span className="ml-2 text-sm font-normal text-gray-400">({meta.total})</span>
+                  <span className="ml-2 text-sm font-normal text-[#8c7b6e]">({meta.total})</span>
                 )}
               </h2>
             </div>
 
             {schemas.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-white rounded-2xl border border-[#ebe6dd] shadow-sm py-16 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-[#f0ebe3] flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-[#8c7b6e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-gray-500 mb-1">No public schemas yet</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-sm font-medium text-[#5a4a3f] mb-1">No public schemas yet</p>
+                <p className="text-xs text-[#8c7b6e]">
                   {isOwnProfile
                     ? 'Make one of your projects public to show it here.'
                     : `${u?.name} hasn't published any schemas yet.`}
@@ -956,11 +955,11 @@ export default function PublicProfilePage() {
                 {meta.current_page < meta.last_page && (
                   <div className="flex justify-center mt-8">
                     <button onClick={loadMore} disabled={schemasLoading}
-                      className="flex items-center gap-2 px-6 py-2.5 border border-gray-200 text-sm font-medium
-                                 text-gray-500 rounded-xl hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50
+                      className="flex items-center gap-2 px-6 py-2.5 border border-[#ebe6dd] text-sm font-medium
+                                 text-[#5a4a3f] rounded-xl hover:border-[#d4c9b8] hover:text-[#161413] hover:bg-[#f0ebe3]
                                  transition-all disabled:opacity-40">
                       {schemasLoading && (
-                        <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>
+                        <div className="w-4 h-4 border-2 border-[#161413] border-t-transparent rounded-full animate-spin"/>
                       )}
                       Load more · {meta.total - schemas.length} remaining
                     </button>

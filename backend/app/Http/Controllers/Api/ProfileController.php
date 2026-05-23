@@ -79,6 +79,12 @@ class ProfileController extends Controller
             ->where('projects.visibility', 'public')
             ->count();
 
+        // Total forks received (anyone who forked this user's public schemas)
+        $totalForks = DB::table('project_forks')
+            ->join('projects', 'project_forks.original_project_id', '=', 'projects.id')
+            ->where('projects.owner_id', $user->id)
+            ->count();
+
         // ── is_following ──────────────────────────────────────────────────────
         $isFollowing = false;
         if ($viewer && $viewer->id !== $user->id) {
@@ -182,6 +188,7 @@ class ProfileController extends Controller
                 'followers'      => $followersCount,
                 'following'      => $followingCount,
                 'total_stars'    => $totalStars,
+                'total_forks'    => $totalForks,
             ],
             'is_following' => $isFollowing,
             'schemas'      => [
@@ -214,6 +221,32 @@ class ProfileController extends Controller
         );
 
         return response()->json($prefs);
+    }
+
+    // GET /api/profile/heatmap
+    // Returns activity counts keyed by date (YYYY-MM-DD) for the last 30 days.
+    // Only counts actions performed by the authenticated user themselves.
+    public function heatmap(Request $request)
+    {
+        $user = $request->user();
+        $from = now()->startOfDay()->subDays(29);
+
+        $rows = DB::table('activity_logs')
+            ->where('user_id', $user->id)
+            ->where('created_at', '>=', $from)
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->groupBy('date')
+            ->get()
+            ->keyBy('date');
+
+        // Build a complete 30-entry array so the front-end always gets 30 squares
+        $days = [];
+        for ($i = 0; $i < 30; $i++) {
+            $date        = $from->copy()->addDays($i)->toDateString();
+            $days[$date] = isset($rows[$date]) ? (int) $rows[$date]->count : 0;
+        }
+
+        return response()->json($days);
     }
 
     // PUT /api/profile/notification-preferences

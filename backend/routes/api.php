@@ -112,6 +112,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile',                              [ProfileController::class, 'show']);
     Route::put('/profile',                              [ProfileController::class, 'update']);
     Route::post('/profile/avatar',                      [ProfileController::class, 'uploadAvatar']);
+    Route::get('/profile/heatmap',                      [ProfileController::class, 'heatmap']);
     Route::get('/profile/notification-preferences',     [ProfileController::class, 'getNotificationPreferences']);
     Route::put('/profile/notification-preferences',     [ProfileController::class, 'updateNotificationPreferences']);
 

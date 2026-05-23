@@ -595,143 +595,213 @@ export default function DashboardPage() {
 
         {/* ════════ FRIENDS VIEW ════════ */}
         {view === 'friends' && (
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex gap-8 items-start">
 
-            {/* Search bar */}
-            <div className="relative mb-5">
-              <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-              </svg>
-              <input type="text" placeholder="Search by name or email…"
-                value={friendSearch}
-                onChange={e => { setFriendSearch(e.target.value); if (e.target.value.length >= 2) setFriendsTab('search') }}
-                className="w-full pl-10 pr-4 py-3 text-sm border border-gray-200 rounded-xl bg-white
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                           placeholder:text-gray-400 shadow-sm"/>
-              {friendSearching && (
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>
+              {/* ── Main column ── */}
+              <div className="flex-1 min-w-0">
+
+                {/* Personality title */}
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-[#161413] tracking-tight leading-snug">
+                    People you{' '}
+                    <em style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontStyle: 'italic', fontWeight: 600 }}>
+                      build with.
+                    </em>
+                  </h2>
+                  <p className="text-sm text-[#8c7b6e] mt-1.5 max-w-md">
+                    Invite collaborators, accept requests, and discover engineers who share your taste in schemas.
+                  </p>
                 </div>
-              )}
-            </div>
 
-            {/* Tabs */}
-            <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl">
-              {[
-                { id: 'friends',  label: 'Friends',     count: friendsList.length },
-                { id: 'requests', label: 'Requests',    count: friendRequests.length, badge: friendRequests.length > 0 },
-                { id: 'search',   label: 'Find People', count: null },
-              ].map(t => (
-                <button key={t.id} onClick={() => setFriendsTab(t.id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all
-                    ${friendsTab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                  {t.label}
-                  {t.count !== null && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold
-                      ${friendsTab === t.id
-                        ? t.badge ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'
-                        : t.badge ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
-                      {t.count}
-                    </span>
+                {/* Search bar */}
+                <div className="relative mb-4">
+                  <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8c7b6e]"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  </svg>
+                  <input type="text" placeholder="Search by name or email…"
+                    value={friendSearch}
+                    onChange={e => { setFriendSearch(e.target.value); if (e.target.value.length >= 2) setFriendsTab('search') }}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-[#ebe6dd] rounded-xl bg-white
+                               focus:outline-none focus:ring-2 focus:ring-[#161413]/10 focus:border-[#d4c9b8]
+                               placeholder:text-[#8c7b6e] text-[#161413]"/>
+                  {friendSearching && (
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                      <div className="w-4 h-4 border-2 border-[#161413] border-t-transparent rounded-full animate-spin"/>
+                    </div>
                   )}
-                </button>
-              ))}
-            </div>
+                </div>
 
-            {/* ── Search tab ── */}
-            {friendsTab === 'search' && (
-              <div className="space-y-2">
-                {friendSearch.length < 2 && !friendSearchDone ? (
-                  <div className="text-center py-16">
-                    <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <svg className="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                      </svg>
-                    </div>
-                    <p className="text-gray-500 font-medium text-sm">Find people to connect with</p>
-                    <p className="text-xs text-gray-400 mt-1">Type a name or email address above</p>
-                  </div>
-                ) : friendSearchDone && friendSearchRes.length === 0 ? (
-                  <div className="text-center py-16">
-                    <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                      </svg>
-                    </div>
-                    <p className="text-gray-600 font-medium text-sm">No account found</p>
-                    <p className="text-xs text-gray-400 mt-1">Nobody matches "<span className="font-medium">{friendSearch}</span>"</p>
-                  </div>
-                ) : friendSearchRes.map(u => (
-                  <FriendCard key={u.id} user={u} actionLoading={friendActionLoading}
-                    onSend={handleFriendSend} onAccept={handleFriendAccept}
-                    onDecline={handleFriendDecline} onUnfriend={handleFriendUnfriend} />
-                ))}
-              </div>
-            )}
+                {/* Tabs */}
+                <div className="flex gap-1 mb-5 bg-[#ebe6dd] p-1 rounded-xl">
+                  {[
+                    { id: 'friends',  label: 'Friends',     count: friendsList.length },
+                    { id: 'requests', label: 'Requests',    count: friendRequests.length, badge: friendRequests.length > 0 },
+                    { id: 'search',   label: 'Find People', count: null },
+                  ].map(t => (
+                    <button key={t.id} onClick={() => setFriendsTab(t.id)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all
+                        ${friendsTab === t.id
+                          ? 'bg-white text-[#161413] shadow-sm'
+                          : 'text-[#8c7b6e] hover:text-[#5a4a3f]'}`}>
+                      {t.label}
+                      {t.count !== null && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold
+                          ${friendsTab === t.id
+                            ? t.badge ? 'bg-orange-100 text-orange-600' : 'bg-[#f0ebe3] text-[#8c7b6e]'
+                            : t.badge ? 'bg-orange-500 text-white'      : 'bg-[#d4c9b8] text-[#5a4a3f]'}`}>
+                          {t.count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
 
-            {/* ── Friends tab ── */}
-            {friendsTab === 'friends' && (
-              <div className="space-y-2">
-                {friendsList.length === 0 ? (
-                  <div className="text-center py-16">
-                    <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <svg className="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                      </svg>
-                    </div>
-                    <p className="text-gray-600 font-medium text-sm">No friends yet</p>
-                    <p className="text-xs text-gray-400 mt-1">Use the search bar above to find teammates</p>
-                    <button onClick={() => setFriendsTab('search')}
-                      className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">Find people →</button>
+                {/* ── Search tab ── */}
+                {friendsTab === 'search' && (
+                  <div className="space-y-2">
+                    {friendSearch.length < 2 && !friendSearchDone ? (
+                      <div className="text-center py-16">
+                        <div className="w-14 h-14 bg-[#f0ebe3] rounded-2xl flex items-center justify-center mx-auto mb-3">
+                          <svg className="w-7 h-7 text-[#8c7b6e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                          </svg>
+                        </div>
+                        <p className="text-[#5a4a3f] font-medium text-sm">Find people to connect with</p>
+                        <p className="text-xs text-[#8c7b6e] mt-1">Type a name or email address above</p>
+                      </div>
+                    ) : friendSearchDone && friendSearchRes.length === 0 ? (
+                      <div className="text-center py-16">
+                        <div className="w-14 h-14 bg-[#f0ebe3] rounded-2xl flex items-center justify-center mx-auto mb-3">
+                          <svg className="w-7 h-7 text-[#8c7b6e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                          </svg>
+                        </div>
+                        <p className="text-[#5a4a3f] font-medium text-sm">No account found</p>
+                        <p className="text-xs text-[#8c7b6e] mt-1">Nobody matches "<span className="font-medium text-[#161413]">{friendSearch}</span>"</p>
+                      </div>
+                    ) : friendSearchRes.map(u => (
+                      <FriendCard key={u.id} user={u} actionLoading={friendActionLoading}
+                        onSend={handleFriendSend} onAccept={handleFriendAccept}
+                        onDecline={handleFriendDecline} onUnfriend={handleFriendUnfriend} />
+                    ))}
                   </div>
-                ) : friendsList.map(f => (
-                  <FriendCard key={f.friendship_id}
-                    user={{ ...f, friendship_status: 'friends', friendship_id: f.friendship_id }}
-                    actionLoading={friendActionLoading}
-                    onSend={handleFriendSend} onAccept={handleFriendAccept}
-                    onDecline={handleFriendDecline} onUnfriend={handleFriendUnfriend} />
-                ))}
-              </div>
-            )}
+                )}
 
-            {/* ── Requests tab ── */}
-            {friendsTab === 'requests' && (
-              <div className="space-y-2">
-                {friendRequests.length === 0 ? (
-                  <div className="text-center py-16">
-                    <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <svg className="w-7 h-7 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                      </svg>
-                    </div>
-                    <p className="text-gray-600 font-medium text-sm">No pending requests</p>
-                    <p className="text-xs text-gray-400 mt-1">Friend requests will appear here</p>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 px-1">
-                      {friendRequests.length} incoming request{friendRequests.length !== 1 ? 's' : ''}
-                    </p>
-                    {friendRequests.map(r => (
-                      <FriendCard key={r.friendship_id}
-                        user={{ ...r, friendship_status: 'request_received', friendship_id: r.friendship_id }}
+                {/* ── Friends tab ── */}
+                {friendsTab === 'friends' && (
+                  <div className="space-y-2">
+                    {friendsList.length === 0 ? (
+                      <div className="text-center py-16">
+                        <div className="w-14 h-14 bg-[#f0ebe3] rounded-2xl flex items-center justify-center mx-auto mb-3">
+                          <svg className="w-7 h-7 text-[#8c7b6e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                          </svg>
+                        </div>
+                        <p className="text-[#5a4a3f] font-medium text-sm">No friends yet</p>
+                        <p className="text-xs text-[#8c7b6e] mt-1">Use the search bar above to find teammates</p>
+                        <button onClick={() => setFriendsTab('search')}
+                          className="mt-3 text-sm text-[#161413] hover:text-[#3d3633] font-semibold underline underline-offset-2">
+                          Find people →
+                        </button>
+                      </div>
+                    ) : friendsList.map(f => (
+                      <FriendCard key={f.friendship_id}
+                        user={{ ...f, friendship_status: 'friends', friendship_id: f.friendship_id }}
                         actionLoading={friendActionLoading}
                         onSend={handleFriendSend} onAccept={handleFriendAccept}
                         onDecline={handleFriendDecline} onUnfriend={handleFriendUnfriend} />
                     ))}
-                  </>
+                  </div>
                 )}
+
+                {/* ── Requests tab ── */}
+                {friendsTab === 'requests' && (
+                  <div className="space-y-2">
+                    {friendRequests.length === 0 ? (
+                      <div className="text-center py-16">
+                        <div className="w-14 h-14 bg-[#f0ebe3] rounded-2xl flex items-center justify-center mx-auto mb-3">
+                          <svg className="w-7 h-7 text-[#8c7b6e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                          </svg>
+                        </div>
+                        <p className="text-[#5a4a3f] font-medium text-sm">No pending requests</p>
+                        <p className="text-xs text-[#8c7b6e] mt-1">Friend requests will appear here</p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-[10px] font-semibold text-[#8c7b6e] uppercase tracking-widest mb-3 px-1">
+                          {friendRequests.length} incoming request{friendRequests.length !== 1 ? 's' : ''}
+                        </p>
+                        {friendRequests.map(r => (
+                          <FriendCard key={r.friendship_id}
+                            user={{ ...r, friendship_status: 'request_received', friendship_id: r.friendship_id }}
+                            actionLoading={friendActionLoading}
+                            onSend={handleFriendSend} onAccept={handleFriendAccept}
+                            onDecline={handleFriendDecline} onUnfriend={handleFriendUnfriend} />
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+
+              </div>{/* end main column */}
+
+              {/* ── At a glance sidebar ── */}
+              <div className="hidden xl:block w-52 flex-shrink-0 sticky top-4 self-start">
+                <div className="bg-white border border-[#ebe6dd] rounded-2xl p-4 space-y-4">
+                  <p className="text-[10px] font-semibold text-[#8c7b6e] uppercase tracking-widest">At a glance</p>
+
+                  {/* Friends count */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-[#161413] leading-none">{friendsList.length}</p>
+                      <p className="text-[11px] text-[#8c7b6e] mt-0.5">Friends</p>
+                    </div>
+                  </div>
+
+                  {/* Requests count */}
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0
+                      ${friendRequests.length > 0 ? 'bg-orange-50' : 'bg-[#f0ebe3]'}`}>
+                      <svg className={`w-4 h-4 ${friendRequests.length > 0 ? 'text-orange-500' : 'text-[#8c7b6e]'}`}
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className={`text-lg font-bold leading-none ${friendRequests.length > 0 ? 'text-orange-500' : 'text-[#161413]'}`}>
+                        {friendRequests.length}
+                      </p>
+                      <p className="text-[11px] text-[#8c7b6e] mt-0.5">Pending</p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[#f0ebe3] pt-3">
+                    <p className="text-[11px] text-[#8c7b6e] leading-relaxed">
+                      Collaborators can be invited directly from a project's settings panel.
+                    </p>
+                  </div>
+                </div>
               </div>
-            )}
+
+            </div>{/* end flex row */}
 
             {/* Toast */}
             {friendToast && (
               <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5
                                px-5 py-3 rounded-xl shadow-lg text-sm font-medium
-                               ${friendToast.type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-900 text-white'}`}>
+                               ${friendToast.type === 'error' ? 'bg-red-600 text-white' : 'bg-[#161413] text-white'}`}>
                 {friendToast.type === 'error'
                   ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
                   : <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
@@ -811,7 +881,7 @@ function TopNav({
   }
 
   return (
-    <nav className="bg-white border-b border-gray-200 flex-shrink-0 z-40" ref={mobileRef}>
+    <nav className="bg-white border-b border-[#ebe6dd] flex-shrink-0 z-40" ref={mobileRef}>
       <div className="px-4 sm:px-6 md:px-8 h-16 flex items-center justify-between">
 
         {/* ── Logo ── */}
@@ -825,8 +895,8 @@ function TopNav({
             <button key={link.id} onClick={() => handleNavClick(link.id)}
               className={`relative h-16 flex items-center gap-2 px-4 text-sm font-medium transition-colors
                 ${view === link.id
-                  ? 'text-blue-600'
-                  : 'text-gray-500 hover:text-gray-800'}`}>
+                  ? 'text-[#161413]'
+                  : 'text-[#8c7b6e] hover:text-[#161413]'}`}>
               {link.label}
               {link.badge != null && (
                 <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
@@ -835,7 +905,7 @@ function TopNav({
               )}
               {/* Active underline indicator */}
               {view === link.id && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#161413] rounded-full" />
               )}
             </button>
           ))}
@@ -847,8 +917,8 @@ function TopNav({
           {/* Bell */}
           <div className="relative" ref={bellRef}>
             <button onClick={() => setShowBell(v => !v)}
-              className="relative w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200
-                         bg-white hover:bg-gray-50 text-gray-500 hover:text-blue-600 transition-all shadow-sm">
+              className="relative w-9 h-9 flex items-center justify-center rounded-xl border border-[#ebe6dd]
+                         bg-white hover:bg-[#f7f5f1] text-[#5a4a3f] hover:text-[#161413] transition-all shadow-sm">
               <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
@@ -862,23 +932,23 @@ function TopNav({
             </button>
 
             {showBell && (
-              <div className="absolute right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden"
+              <div className="absolute right-0 mt-2 bg-white rounded-2xl shadow-xl border border-[#ebe6dd] z-50 overflow-hidden"
                    style={{ width: 'min(340px, calc(100vw - 1rem))' }}>
                 {/* Tabs */}
-                <div className="flex border-b border-gray-100">
+                <div className="flex border-b border-[#ebe6dd]">
                   <button onClick={() => setBellTab('invitations')}
                     className={`flex-1 py-2.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5
-                      ${bellTab === 'invitations' ? 'text-blue-600 border-b-2 border-blue-500' : 'text-gray-400 hover:text-gray-600'}`}>
+                      ${bellTab === 'invitations' ? 'text-[#161413] border-b-2 border-[#161413]' : 'text-[#8c7b6e] hover:text-[#5a4a3f]'}`}>
                     Invitations
                     {(invitations.length + friendRequestsBell.length) > 0 && (
-                      <span className="bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
+                      <span className="bg-[#f0ebe3] text-[#5a4a3f] px-1.5 py-0.5 rounded-full text-[10px] font-bold">
                         {invitations.length + friendRequestsBell.length}
                       </span>
                     )}
                   </button>
                   <button onClick={() => { setBellTab('notifications'); markAllRead() }}
                     className={`flex-1 py-2.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5
-                      ${bellTab === 'notifications' ? 'text-blue-600 border-b-2 border-blue-500' : 'text-gray-400 hover:text-gray-600'}`}>
+                      ${bellTab === 'notifications' ? 'text-[#161413] border-b-2 border-[#161413]' : 'text-[#8c7b6e] hover:text-[#5a4a3f]'}`}>
                     Notifications
                     {unreadCount > 0 && (
                       <span className="bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
@@ -892,22 +962,22 @@ function TopNav({
                 {bellTab === 'invitations' && (
                   <>
                     {invitations.length === 0 && friendRequestsBell.length === 0
-                      ? <div className="px-4 py-10 text-center text-sm text-gray-400">No pending invitations</div>
-                      : <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+                      ? <div className="px-4 py-10 text-center text-sm text-[#8c7b6e]">No pending invitations</div>
+                      : <div className="max-h-72 overflow-y-auto divide-y divide-[#f0ebe3]">
                           {invitations.map(inv => (
                             <div key={`inv-${inv.project_id}`} className="px-4 py-3">
-                              <p className="text-sm font-medium text-gray-900 truncate">{inv.project_name}</p>
-                              <p className="text-xs text-gray-400 mb-2.5">
-                                by {inv.owner?.name} · <span className="font-medium text-gray-600">{inv.role}</span>
+                              <p className="text-sm font-medium text-[#161413] truncate">{inv.project_name}</p>
+                              <p className="text-xs text-[#8c7b6e] mb-2.5">
+                                by {inv.owner?.name} · <span className="font-medium text-[#5a4a3f]">{inv.role}</span>
                               </p>
                               <div className="flex gap-2">
                                 <button onClick={() => handleAccept(inv.project_id)}
-                                  className="flex-1 text-xs bg-blue-600 hover:bg-blue-700 text-white py-1.5 rounded-lg font-medium transition-colors">
+                                  className="flex-1 text-xs bg-[#161413] hover:bg-[#3d3633] text-white py-1.5 rounded-lg font-medium transition-colors">
                                   Accept
                                 </button>
                                 <button onClick={() => handleDecline(inv.project_id)}
-                                  className="flex-1 text-xs border border-gray-200 hover:bg-red-50 hover:border-red-200
-                                             hover:text-red-500 text-gray-500 py-1.5 rounded-lg font-medium transition-colors">
+                                  className="flex-1 text-xs border border-[#ebe6dd] hover:bg-red-50 hover:border-red-200
+                                             hover:text-red-500 text-[#5a4a3f] py-1.5 rounded-lg font-medium transition-colors">
                                   Decline
                                 </button>
                               </div>
@@ -917,17 +987,17 @@ function TopNav({
                             <div key={`fr-${req.friendship_id}`} className="px-4 py-3">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-base">🤝</span>
-                                <p className="text-sm font-medium text-gray-900 truncate">{req.name}</p>
+                                <p className="text-sm font-medium text-[#161413] truncate">{req.name}</p>
                               </div>
-                              <p className="text-xs text-gray-400 mb-2.5">Sent you a friend request</p>
+                              <p className="text-xs text-[#8c7b6e] mb-2.5">Sent you a friend request</p>
                               <div className="flex gap-2">
                                 <button onClick={() => handleBellFriendAccept(req)}
-                                  className="flex-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 rounded-lg font-medium transition-colors">
+                                  className="flex-1 text-xs bg-[#161413] hover:bg-[#3d3633] text-white py-1.5 rounded-lg font-medium transition-colors">
                                   Accept
                                 </button>
                                 <button onClick={() => handleBellFriendDecline(req)}
-                                  className="flex-1 text-xs border border-gray-200 hover:bg-red-50 hover:border-red-200
-                                             hover:text-red-500 text-gray-500 py-1.5 rounded-lg font-medium transition-colors">
+                                  className="flex-1 text-xs border border-[#ebe6dd] hover:bg-red-50 hover:border-red-200
+                                             hover:text-red-500 text-[#5a4a3f] py-1.5 rounded-lg font-medium transition-colors">
                                   Decline
                                 </button>
                               </div>
@@ -942,25 +1012,25 @@ function TopNav({
                 {bellTab === 'notifications' && (
                   <>
                     {notifications.length === 0
-                      ? <div className="px-4 py-10 text-center text-sm text-gray-400">No notifications yet</div>
+                      ? <div className="px-4 py-10 text-center text-sm text-[#8c7b6e]">No notifications yet</div>
                       : <>
-                          <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+                          <div className="max-h-72 overflow-y-auto divide-y divide-[#f0ebe3]">
                             {notifications.map(n => (
                               <div key={n.id}
-                                className={`px-4 py-3 flex items-start gap-3 ${!n.read ? 'bg-blue-50/50' : ''}`}>
+                                className={`px-4 py-3 flex items-start gap-3 ${!n.read ? 'bg-[#f7f5f1]' : ''}`}>
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm
                                   ${n.type === 'invitation_accepted'      ? 'bg-emerald-100' :
                                     n.type === 'project_starred'          ? 'bg-amber-100'   :
                                     n.type === 'project_liked'            ? 'bg-red-100'     :
                                     n.type === 'project_forked'           ? 'bg-violet-100'  :
-                                    n.type === 'new_comment'              ? 'bg-blue-100'    :
+                                    n.type === 'new_comment'              ? 'bg-[#f0ebe3]'   :
                                     n.type === 'new_follower'             ? 'bg-teal-100'    :
                                     n.type === 'friend_request_received'  ? 'bg-pink-100'    :
                                     n.type === 'friend_request_accepted'  ? 'bg-emerald-100' :
                                     n.type === 'access_requested'         ? 'bg-violet-100'  :
                                     n.type === 'access_request_approved'  ? 'bg-emerald-100' :
                                     n.type === 'access_request_declined'  ? 'bg-red-100'     :
-                                    'bg-gray-100'}`}>
+                                    'bg-[#f0ebe3]'}`}>
                                   {n.type === 'invitation_accepted'      ? '✓'  :
                                    n.type === 'project_starred'          ? '★'  :
                                    n.type === 'project_liked'            ? '♥'  :
@@ -975,9 +1045,9 @@ function TopNav({
                                    '🔔'}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-semibold text-gray-800">{n.title}</p>
-                                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{n.message}</p>
-                                  <p className="text-[10px] text-gray-400 mt-1">
+                                  <p className="text-xs font-semibold text-[#161413]">{n.title}</p>
+                                  <p className="text-xs text-[#5a4a3f] mt-0.5 leading-relaxed">{n.message}</p>
+                                  <p className="text-[10px] text-[#8c7b6e] mt-1">
                                     {new Date(n.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
                                   </p>
                                   {/* Accept / Decline buttons for access requests */}
@@ -986,25 +1056,25 @@ function TopNav({
                                       <button
                                         onClick={() => handleApproveRequest(n)}
                                         className="flex-1 py-1 text-[11px] font-semibold rounded-lg
-                                                   bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+                                                   bg-[#161413] hover:bg-[#3d3633] text-white transition-colors">
                                         Accept
                                       </button>
                                       <button
                                         onClick={() => handleDeclineRequest(n)}
                                         className="flex-1 py-1 text-[11px] font-semibold rounded-lg
-                                                   bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors">
+                                                   bg-[#f0ebe3] hover:bg-[#ebe6dd] text-[#5a4a3f] transition-colors">
                                         Decline
                                       </button>
                                     </div>
                                   )}
                                 </div>
-                                {!n.read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1 flex-shrink-0"/>}
+                                {!n.read && <div className="w-2 h-2 bg-[#161413] rounded-full mt-1 flex-shrink-0"/>}
                               </div>
                             ))}
                           </div>
-                          <div className="px-4 py-2 border-t border-gray-100 flex justify-end">
+                          <div className="px-4 py-2 border-t border-[#ebe6dd] flex justify-end">
                             <button onClick={clearNotifications}
-                              className="text-[11px] text-gray-400 hover:text-red-500 transition-colors font-medium">
+                              className="text-[11px] text-[#8c7b6e] hover:text-red-500 transition-colors font-medium">
                               Clear all
                             </button>
                           </div>
@@ -1019,42 +1089,42 @@ function TopNav({
           {/* Avatar dropdown */}
           <div className="relative" ref={avatarRef}>
             <button onClick={() => setAvatarOpen(v => !v)}
-              className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-xl hover:bg-gray-100 transition-all">
+              className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-xl hover:bg-[#f0ebe3] transition-all">
               {/* Avatar */}
-              <div className="w-8 h-8 rounded-full overflow-hidden bg-blue-600/10 flex items-center justify-center
-                              ring-2 ring-gray-200 flex-shrink-0">
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-[#f0ebe3] flex items-center justify-center
+                              ring-2 ring-[#ebe6dd] flex-shrink-0">
                 {user?.avatar_url
                   ? <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover"
                          onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }} />
                   : null}
-                <span className="text-xs font-bold text-blue-600"
+                <span className="text-xs font-bold text-[#161413]"
                       style={{ display: user?.avatar_url ? 'none' : 'flex' }}>
                   {(user?.name || 'U')[0].toUpperCase()}
                 </span>
               </div>
               {/* Name (hidden on small screens) */}
-              <span className="hidden sm:block text-sm font-medium text-gray-700 max-w-[100px] truncate">
+              <span className="hidden sm:block text-sm font-medium text-[#161413] max-w-[100px] truncate">
                 {user?.name?.split(' ')[0]}
               </span>
               {/* Chevron */}
-              <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${avatarOpen ? 'rotate-180' : ''}`}
+              <svg className={`w-3.5 h-3.5 text-[#8c7b6e] transition-transform duration-200 ${avatarOpen ? 'rotate-180' : ''}`}
                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
               </svg>
             </button>
 
             {avatarOpen && (
-              <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden py-1">
+              <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-[#ebe6dd] z-50 overflow-hidden py-1">
                 {/* User info header */}
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
-                  <p className="text-xs text-gray-400 truncate mt-0.5">{user?.email}</p>
+                <div className="px-4 py-3 border-b border-[#ebe6dd]">
+                  <p className="text-sm font-semibold text-[#161413] truncate">{user?.name}</p>
+                  <p className="text-xs text-[#8c7b6e] truncate mt-0.5">{user?.email}</p>
                 </div>
                 {/* View Profile */}
                 <button onClick={() => { setAvatarOpen(false); setView('profile') }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700
-                             hover:bg-gray-50 transition-colors text-left">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#161413]
+                             hover:bg-[#f7f5f1] transition-colors text-left">
+                  <svg className="w-4 h-4 text-[#8c7b6e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                       d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                   </svg>
@@ -1063,16 +1133,16 @@ function TopNav({
                 {/* Admin Panel — only for admins */}
                 {user?.is_admin && (
                   <button onClick={() => { setAvatarOpen(false); navigate('/admin') }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700
-                               hover:bg-gray-50 transition-colors text-left">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#161413]
+                               hover:bg-[#f7f5f1] transition-colors text-left">
+                    <svg className="w-4 h-4 text-[#8c7b6e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                         d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                     </svg>
                     Admin Panel
                   </button>
                 )}
-                <div className="border-t border-gray-100 my-1"/>
+                <div className="border-t border-[#ebe6dd] my-1"/>
                 {/* Sign out */}
                 <button onClick={() => { setAvatarOpen(false); handleLogout() }}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500
@@ -1090,7 +1160,7 @@ function TopNav({
           {/* Hamburger (mobile only) */}
           <button onClick={() => setMobileOpen(v => !v)}
             className="md:hidden w-9 h-9 flex items-center justify-center rounded-xl
-                       hover:bg-gray-100 text-gray-500 transition-all ml-1">
+                       hover:bg-[#f0ebe3] text-[#5a4a3f] transition-all ml-1">
             {mobileOpen
               ? <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
@@ -1105,17 +1175,17 @@ function TopNav({
 
       {/* ── Mobile slide-down menu ── */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
+        <div className="md:hidden border-t border-[#ebe6dd] bg-white px-4 py-3 space-y-1">
           {navLinks.map(link => (
             <button key={link.id} onClick={() => handleNavClick(link.id)}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all
                 ${view === link.id
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                  : 'text-gray-600 hover:bg-gray-100'}`}>
+                  ? 'bg-[#161413] text-white shadow-sm'
+                  : 'text-[#5a4a3f] hover:bg-[#f0ebe3]'}`}>
               {link.label}
               {link.badge != null && (
                 <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full
-                  ${view === link.id ? 'bg-white/25 text-white' : 'bg-red-500 text-white'}`}>
+                  ${view === link.id ? 'bg-white/20 text-white' : 'bg-red-500 text-white'}`}>
                   {link.badge > 9 ? '9+' : link.badge}
                 </span>
               )}
@@ -1124,7 +1194,7 @@ function TopNav({
           {user?.is_admin && (
             <button onClick={() => { navigate('/admin'); setMobileOpen(false) }}
               className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium
-                         text-gray-600 hover:bg-gray-100 transition-all">
+                         text-[#5a4a3f] hover:bg-[#f0ebe3] transition-all">
               Admin Panel
             </button>
           )}
@@ -1139,40 +1209,45 @@ function FriendCard({ user, actionLoading, onSend, onAccept, onDecline, onUnfrie
   const { friendship_status: status, friendship_id: fid } = user
   const loading = actionLoading === user.id
   const statusBadge = {
-    friends:          { label: 'Friends',          cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-    request_sent:     { label: 'Request sent',     cls: 'bg-amber-100 text-amber-700 border-amber-200' },
-    request_received: { label: 'Wants to connect', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+    friends:          { label: 'Friends',          cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    request_sent:     { label: 'Request sent',     cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+    request_received: { label: 'Wants to connect', cls: 'bg-[#f0ebe3] text-[#5a4a3f] border-[#ebe6dd]' },
   }[status]
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100
-                    hover:border-gray-200 hover:shadow-sm transition-all group">
-      <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center
+    <div className="flex items-center gap-3.5 p-3.5 bg-white rounded-2xl border border-[#ebe6dd]
+                    hover:border-[#d4c9b8] hover:shadow-sm transition-all group">
+      {/* Avatar */}
+      <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center
                        font-bold text-white text-sm overflow-hidden
-                       ${user.avatar_url ? '' : status === 'friends' ? 'bg-emerald-500' : 'bg-blue-500'}`}>
+                       ${user.avatar_url ? '' : 'bg-[#161413]'}`}>
         {user.avatar_url
-          ? <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover"/>
+          ? <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover rounded-xl"/>
           : (user.name || '?')[0].toUpperCase()}
       </div>
+
+      {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+          <p className="text-sm font-semibold text-[#161413] truncate">{user.name}</p>
           {statusBadge && (
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusBadge.cls}`}>
               {statusBadge.label}
             </span>
           )}
         </div>
-        <p className="text-xs text-gray-400 truncate">{user.email}</p>
-        {user.headline && <p className="text-xs text-gray-500 truncate mt-0.5">{user.headline}</p>}
+        <p className="text-xs text-[#8c7b6e] truncate">{user.email}</p>
+        {user.headline && <p className="text-xs text-[#5a4a3f] truncate mt-0.5">{user.headline}</p>}
       </div>
+
+      {/* Actions */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
         {loading ? (
-          <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"/>
+          <div className="w-5 h-5 border-2 border-[#161413] border-t-transparent rounded-full animate-spin"/>
         ) : status === 'none' ? (
           <button onClick={() => onSend(user)}
-            className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg
-                       bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm">
+            className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg
+                       bg-[#161413] hover:bg-[#3d3633] text-white transition-colors">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/>
             </svg>
@@ -1180,26 +1255,26 @@ function FriendCard({ user, actionLoading, onSend, onAccept, onDecline, onUnfrie
           </button>
         ) : status === 'request_sent' ? (
           <button onClick={() => onDecline(user, fid)}
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200
-                       text-gray-500 hover:border-red-200 hover:text-red-500 hover:bg-red-50 transition-colors">
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#ebe6dd]
+                       text-[#5a4a3f] hover:border-red-200 hover:text-red-500 hover:bg-red-50 transition-colors">
             Cancel
           </button>
         ) : status === 'request_received' ? (
           <>
             <button onClick={() => onAccept(user, fid)}
-              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm">
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#161413] hover:bg-[#3d3633] text-white transition-colors">
               Accept
             </button>
             <button onClick={() => onDecline(user, fid)}
-              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200
-                         text-gray-500 hover:border-red-200 hover:text-red-500 hover:bg-red-50 transition-colors">
+              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#ebe6dd]
+                         text-[#5a4a3f] hover:border-red-200 hover:text-red-500 hover:bg-red-50 transition-colors">
               Decline
             </button>
           </>
         ) : status === 'friends' ? (
           <button onClick={() => onUnfriend(user, fid)}
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200
-                       text-gray-400 hover:border-red-200 hover:text-red-500 hover:bg-red-50
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[#ebe6dd]
+                       text-[#8c7b6e] hover:border-red-200 hover:text-red-500 hover:bg-red-50
                        transition-colors opacity-0 group-hover:opacity-100">
             Unfriend
           </button>
